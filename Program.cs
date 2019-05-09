@@ -23,9 +23,6 @@ namespace QicStreamReader
                 }
                 */
 
-
-
-
                 stream.Read(bytes, 0, 0x3e);
 
                 string magic = Encoding.ASCII.GetString(bytes, 4, 4);
@@ -73,33 +70,33 @@ namespace QicStreamReader
 
                     stream.Seek(header.size, SeekOrigin.Current);
 
-
                 }
-
-
-
 
             }
         }
 
-
+        private static DateTime DateTimeFromTimeT(long timeT)
+        {
+            return new DateTime(1970, 1, 1).AddSeconds(timeT);
+        }
 
         class FileHeader
         {
+            public bool valid;
+
             public int size;
             public string name;
             public DateTime dateTime;
 
             public bool isDirectory;
 
-
             public FileHeader(Stream stream)
             {
                 byte[] bytes = new byte[1024];
 
-
                 while (bytes[0] != 5 && bytes[0] != 6)
                 {
+                    if (stream.Position >= stream.Length) { return; }
                     stream.Read(bytes, 0, 1);
                 }
 
@@ -107,37 +104,29 @@ namespace QicStreamReader
 
                 stream.Read(bytes, 0, 3);
 
-                
-
                 int structLength = bytes[1];
-                
                 stream.Read(bytes, 0, structLength);
 
-
-                long secondsSinceEpoch = BitConverter.ToUInt32(bytes, 4);
-                dateTime = new DateTime(1970, 1, 1).AddSeconds(secondsSinceEpoch);
+                dateTime = DateTimeFromTimeT(BitConverter.ToUInt32(bytes, 4));
 
                 if (!isDirectory)
                 {
                     size = BitConverter.ToInt32(bytes, 8);
                 }
 
-
                 int nameLength = structLength - 0x16;
-
                 name = Encoding.ASCII.GetString(bytes, structLength - nameLength, nameLength);
 
                 if (!isDirectory)
                 {
-                    stream.Read(bytes, 0, 1);
-                    if (bytes[0] != 9)
+                    do
                     {
+                        if (stream.Position >= stream.Length) { return; }
                         stream.Read(bytes, 0, 1);
                     }
+                    while (bytes[0] != 9);
 
                     stream.Read(bytes, 0, 3);
-                    // size = BitConverter.ToUInt16(bytes, 1);
-
 
                     if (size >= 0xFFFA)
                     {
@@ -174,16 +163,11 @@ namespace QicStreamReader
                         }
 
                         size += sizeExtra;
-
                         stream.Seek(prevPosition, SeekOrigin.Begin);
-
-                        //int sizeFix = BitConverter.ToInt16(bytes, 1);
-                        //size += 4;
-                        //size += ((size / 0x8000) * 1);
                     }
-
-
                 }
+
+                valid = true;
             }
         }
     }
