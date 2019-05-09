@@ -8,6 +8,24 @@ namespace QicStreamReader
     {
         static void Main(string[] args)
         {
+
+            /*
+            byte[] bytes2 = new byte[65536];
+            using (var stream = new FileStream("tape1.bin", FileMode.Open, FileAccess.Read))
+            {
+                using (var outStream = new FileStream("tape1a.bin", FileMode.Create, FileAccess.Write))
+                {
+                    while (stream.Position < stream.Length)
+                    {
+                        stream.Read(bytes2, 0, 0x8000);
+                        outStream.Write(bytes2, 0, 0x8000 - 0x400);
+                    }
+                }
+            }
+            return;
+            */
+
+
             string inFileName = "";
             string baseDirectory = "out";
 
@@ -25,19 +43,8 @@ namespace QicStreamReader
 
             byte[] bytes = new byte[65536];
 
-            using (var stream = new FileStream("tape2.bin", FileMode.Open, FileAccess.Read))
+            using (var stream = new FileStream(inFileName, FileMode.Open, FileAccess.Read))
             {
-                /*
-                using (var outStream = new FileStream("tape2.bin", FileMode.Create, FileAccess.Write))
-                {
-                    while (stream.Position < stream.Length)
-                    {
-                        stream.Read(bytes, 0, 0x8000);
-                        outStream.Write(bytes, 0, 0x8000 - 0x402);
-                    }
-                }
-                */
-
                 stream.Read(bytes, 0, 0x3e);
 
                 string magic = Encoding.ASCII.GetString(bytes, 4, 4);
@@ -86,27 +93,33 @@ namespace QicStreamReader
                     }
                     else
                     {
-                        Console.WriteLine("File: " + header.name + ", "  + header.size.ToString("X") + " - " + header.dateTime.ToLongDateString());
+                        Console.WriteLine("File: " + header.name + ", " + header.size.ToString("X") + " - " + header.dateTime.ToLongDateString());
 
                         string fileName = Path.Combine(currentDirectory, header.name);
-                        if (!File.Exists(fileName))
+                        using (var f = new FileStream(Path.Combine(currentDirectory, header.name), FileMode.Create, FileAccess.Write))
                         {
-                            using (var f = new FileStream(Path.Combine(currentDirectory, header.name), FileMode.Create, FileAccess.Write))
+                            int bytesLeft = header.size;
+
+                            while (bytesLeft > 0)
                             {
-                                if (header.size > bytes.Length)
+                                do
                                 {
-                                    bytes = new byte[header.size];
+                                    if (stream.Position >= stream.Length) { return; }
+                                    stream.Read(bytes, 0, 1);
                                 }
-                                stream.Read(bytes, 0, header.size);
-                                f.Write(bytes, 0, header.size);
+                                while (bytes[0] != 9);
+
+                                stream.Read(bytes, 0, 3);
+                                int chunkSize = BitConverter.ToUInt16(bytes, 1);
+
+                                stream.Read(bytes, 0, chunkSize);
+                                f.Write(bytes, 0, chunkSize);
+
+                                bytesLeft -= chunkSize;
                             }
-                            File.SetCreationTime(fileName, header.dateTime);
-                            File.SetLastWriteTime(fileName, header.dateTime);
                         }
-                        else
-                        {
-                            stream.Seek(header.size, SeekOrigin.Current);
-                        }
+                        File.SetCreationTime(fileName, header.dateTime);
+                        File.SetLastWriteTime(fileName, header.dateTime);
                     }
                 }
 
@@ -154,55 +167,6 @@ namespace QicStreamReader
 
                 int nameLength = structLength - 0x16;
                 name = Encoding.ASCII.GetString(bytes, structLength - nameLength, nameLength);
-
-                if (!isDirectory)
-                {
-                    do
-                    {
-                        if (stream.Position >= stream.Length) { return; }
-                        stream.Read(bytes, 0, 1);
-                    }
-                    while (bytes[0] != 9);
-
-                    stream.Read(bytes, 0, 3);
-
-                    if (size >= 0xFFFA)
-                    {
-                        long prevPosition = stream.Position;
-
-                        // Skip to the end of the file and detect the next file header
-                        stream.Seek(size, SeekOrigin.Current);
-
-                        int sizeExtra = 0;
-
-                        bool haveFirstByte = false;
-                        bool haveHeader = false;
-
-                        while (!haveHeader)
-                        {
-                            if (stream.Position >= stream.Length) { return; }
-                            stream.Read(bytes, 0, 1);
-                            if (!haveFirstByte)
-                            {
-                                if (bytes[0] == 0x5 || bytes[0] == 0x6)
-                                {
-                                    haveFirstByte = true;
-                                }
-                            }
-                            else
-                            {
-                                if (bytes[0] == 0x1)
-                                {
-                                    haveHeader = true;
-                                }
-                            }
-                            sizeExtra++;
-                        }
-
-                        size += sizeExtra - 2;
-                        stream.Seek(prevPosition, SeekOrigin.Begin);
-                    }
-                }
 
                 valid = true;
             }
