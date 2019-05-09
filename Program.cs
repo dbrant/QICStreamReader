@@ -52,24 +52,44 @@ namespace QicStreamReader
                 stream.Read(bytes, 0, 7);
 
 
+                string baseDirectory = "out";
+                string currentDirectory = baseDirectory;
+
+                Directory.CreateDirectory(currentDirectory);
+
                 while (true)
                 {
-
-
                     var header = new FileHeader(stream);
+                    if (!header.valid) { break; }
 
                     if (header.isDirectory)
                     {
-                        Console.WriteLine("Directory: " + header.name);
+                        Console.WriteLine("Directory: " + header.name + " - " + header.dateTime.ToLongDateString());
+                        currentDirectory = Path.Combine(baseDirectory, header.name);
+                        Directory.CreateDirectory(currentDirectory);
                     }
                     else
                     {
-                        Console.WriteLine("File: " + header.name + ", "  + header.size.ToString("X"));
+                        Console.WriteLine("File: " + header.name + ", "  + header.size.ToString("X") + " - " + header.dateTime.ToLongDateString());
+
+                        string fileName = Path.Combine(currentDirectory, header.name);
+                        if (!File.Exists(fileName))
+                        {
+                            using (var f = new FileStream(Path.Combine(currentDirectory, header.name), FileMode.Create, FileAccess.Write))
+                            {
+                                if (header.size > bytes.Length)
+                                {
+                                    bytes = new byte[header.size];
+                                }
+                                stream.Read(bytes, 0, header.size);
+                                f.Write(bytes, 0, header.size);
+                            }
+                        }
+                        else
+                        {
+                            stream.Seek(header.size, SeekOrigin.Current);
+                        }
                     }
-                    Console.WriteLine("Date: " + header.dateTime.ToLongDateString());
-
-                    stream.Seek(header.size, SeekOrigin.Current);
-
                 }
 
             }
@@ -142,13 +162,13 @@ namespace QicStreamReader
 
                         while (!haveHeader)
                         {
+                            if (stream.Position >= stream.Length) { return; }
                             stream.Read(bytes, 0, 1);
                             if (!haveFirstByte)
                             {
                                 if (bytes[0] == 0x5 || bytes[0] == 0x6)
                                 {
                                     haveFirstByte = true;
-                                    continue;
                                 }
                             }
                             else
@@ -156,13 +176,12 @@ namespace QicStreamReader
                                 if (bytes[0] == 0x1)
                                 {
                                     haveHeader = true;
-                                    continue;
                                 }
                             }
                             sizeExtra++;
                         }
 
-                        size += sizeExtra;
+                        size += sizeExtra - 2;
                         stream.Seek(prevPosition, SeekOrigin.Begin);
                     }
                 }
