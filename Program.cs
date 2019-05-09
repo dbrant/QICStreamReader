@@ -8,6 +8,21 @@ namespace QicStreamReader
     {
         static void Main(string[] args)
         {
+            string inFileName = "";
+            string baseDirectory = "out";
+
+            for (int i = 0; i < args.Length; i++)
+            {
+                if (args[i] == "-f") { inFileName = args[i + 1]; }
+                if (args[i] == "-d") { baseDirectory = args[i + 1]; }
+            }
+
+            if (inFileName.Length == 0 || !File.Exists(inFileName))
+            {
+                Console.WriteLine("Usage: qicstreamreader -f <file name> [-d <output directory>]");
+                return;
+            }
+
             byte[] bytes = new byte[65536];
 
             using (var stream = new FileStream("tape2.bin", FileMode.Open, FileAccess.Read))
@@ -52,7 +67,6 @@ namespace QicStreamReader
                 stream.Read(bytes, 0, 7);
 
 
-                string baseDirectory = "out";
                 string currentDirectory = baseDirectory;
 
                 Directory.CreateDirectory(currentDirectory);
