@@ -81,6 +81,8 @@ namespace QicStreamReader
                         Console.WriteLine("Directory: " + header.name + " - " + header.dateTime.ToLongDateString());
                         currentDirectory = Path.Combine(baseDirectory, header.name);
                         Directory.CreateDirectory(currentDirectory);
+                        Directory.SetCreationTime(currentDirectory, header.dateTime);
+                        Directory.SetLastWriteTime(currentDirectory, header.dateTime);
                     }
                     else
                     {
@@ -98,6 +100,8 @@ namespace QicStreamReader
                                 stream.Read(bytes, 0, header.size);
                                 f.Write(bytes, 0, header.size);
                             }
+                            File.SetCreationTime(fileName, header.dateTime);
+                            File.SetLastWriteTime(fileName, header.dateTime);
                         }
                         else
                         {
