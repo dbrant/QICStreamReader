@@ -141,13 +141,45 @@ namespace QicStreamReader
 
                     if (size >= 0xFFFA)
                     {
+                        long prevPosition = stream.Position;
 
-                        int sizeFix = BitConverter.ToInt16(bytes, 1);
-                        //Console.WriteLine(">>> fix size: " + sizeFix);
+                        // Skip to the end of the file and detect the next file header
+                        stream.Seek(size, SeekOrigin.Current);
 
+                        int sizeExtra = 0;
+
+                        bool haveFirstByte = false;
+                        bool haveHeader = false;
+
+                        while (!haveHeader)
+                        {
+                            stream.Read(bytes, 0, 1);
+                            if (!haveFirstByte)
+                            {
+                                if (bytes[0] == 0x5 || bytes[0] == 0x6)
+                                {
+                                    haveFirstByte = true;
+                                    continue;
+                                }
+                            }
+                            else
+                            {
+                                if (bytes[0] == 0x1)
+                                {
+                                    haveHeader = true;
+                                    continue;
+                                }
+                            }
+                            sizeExtra++;
+                        }
+
+                        size += sizeExtra;
+
+                        stream.Seek(prevPosition, SeekOrigin.Begin);
+
+                        //int sizeFix = BitConverter.ToInt16(bytes, 1);
                         //size += 4;
-
-                        size += ((size / 0x8000) * 1);
+                        //size += ((size / 0x8000) * 1);
                     }
 
 
