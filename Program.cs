@@ -85,7 +85,7 @@ namespace QicStreamReader
 
                     if (header.isDirectory)
                     {
-                        Console.WriteLine("Directory: " + header.name + " - " + header.dateTime.ToLongDateString());
+                        //Console.WriteLine("Directory: " + header.name + " - " + header.dateTime.ToLongDateString());
                         currentDirectory = Path.Combine(baseDirectory, header.name);
                         Directory.CreateDirectory(currentDirectory);
                         Directory.SetCreationTime(currentDirectory, header.dateTime);
@@ -93,7 +93,7 @@ namespace QicStreamReader
                     }
                     else
                     {
-                        Console.WriteLine("File: " + header.name + ", " + header.size.ToString("X") + " - " + header.dateTime.ToLongDateString());
+                        //Console.WriteLine("File: " + header.name + ", " + header.size.ToString("X") + " - " + header.dateTime.ToLongDateString());
 
                         string fileName = Path.Combine(currentDirectory, header.name);
                         using (var f = new FileStream(Path.Combine(currentDirectory, header.name), FileMode.Create, FileAccess.Write))
@@ -167,6 +167,26 @@ namespace QicStreamReader
 
                 int nameLength = structLength - 0x16;
                 name = Encoding.ASCII.GetString(bytes, structLength - nameLength, nameLength);
+
+
+
+
+
+                if (isDirectory)
+                {
+                    string str = "";
+                    for (int i = 0; i < structLength; i++)
+                    {
+                        str += " " + bytes[i].ToString("X2");
+                    }
+
+                    Console.WriteLine(stream.Position.ToString("X") + str + "   ---   " + name);
+                }
+
+
+
+
+
 
                 valid = true;
             }
