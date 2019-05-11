@@ -8,25 +8,8 @@ namespace QicStreamReader
     {
         static void Main(string[] args)
         {
-
-            /*
-            byte[] bytes2 = new byte[65536];
-            using (var stream = new FileStream("tape1.bin", FileMode.Open, FileAccess.Read))
-            {
-                using (var outStream = new FileStream("tape1a.bin", FileMode.Create, FileAccess.Write))
-                {
-                    while (stream.Position < stream.Length)
-                    {
-                        stream.Read(bytes2, 0, 0x8000);
-                        outStream.Write(bytes2, 0, 0x8000 - 0x400);
-                    }
-                }
-            }
-            return;
-            */
-
-
             string inFileName = "";
+            string tempFileName;
             string baseDirectory = "out";
 
             for (int i = 0; i < args.Length; i++)
@@ -42,8 +25,28 @@ namespace QicStreamReader
             }
 
             byte[] bytes = new byte[65536];
+            tempFileName = inFileName + ".tmp";
+
+            // Pass 1: remove unused bytes (parity?) from the original file, and write to temporary file
 
             using (var stream = new FileStream(inFileName, FileMode.Open, FileAccess.Read))
+            {
+                using (var outStream = new FileStream(tempFileName, FileMode.Create, FileAccess.Write))
+                {
+                    while (stream.Position < stream.Length)
+                    {
+                        stream.Read(bytes, 0, 0x8000);
+
+                        // Each block of 0x8000 bytes ends with 0x402 bytes of something (perhaps for parity checking)
+                        // We'll just remove it and write the good bytes to the temporary file.
+                        outStream.Write(bytes, 0, 0x8000 - 0x402);
+                    }
+                }
+            }
+
+            // Pass 2: extract files.
+
+            using (var stream = new FileStream(tempFileName, FileMode.Open, FileAccess.Read))
             {
                 stream.Read(bytes, 0, 0x3e);
 
@@ -122,8 +125,9 @@ namespace QicStreamReader
                         File.SetLastWriteTime(fileName, header.dateTime);
                     }
                 }
-
             }
+
+            File.Delete(tempFileName);
         }
 
         private static DateTime DateTimeFromTimeT(long timeT)
@@ -168,10 +172,6 @@ namespace QicStreamReader
                 int nameLength = structLength - 0x16;
                 name = Encoding.ASCII.GetString(bytes, structLength - nameLength, nameLength);
 
-
-
-
-
                 if (isDirectory)
                 {
                     string str = "";
@@ -182,11 +182,6 @@ namespace QicStreamReader
 
                     Console.WriteLine(stream.Position.ToString("X") + str + "   ---   " + name);
                 }
-
-
-
-
-
 
                 valid = true;
             }
