@@ -86,6 +86,11 @@ namespace QicStreamReader
                 {
                     var header = new FileHeader(stream);
                     if (!header.valid) { break; }
+                    if (header.isCatalogStart)
+                    {
+                        Console.WriteLine("Detected start of catalog, so we're done.");
+                        break;
+                    }
 
                     if (header.isDirectory)
                     {
@@ -158,6 +163,8 @@ namespace QicStreamReader
             public bool isDirectory;
             public int backPathCount;
 
+            public bool isCatalogStart;
+
             public FileHeader(Stream stream)
             {
                 byte[] bytes = new byte[1024];
@@ -170,6 +177,10 @@ namespace QicStreamReader
                     if (bytes[0] == 3)
                     {
                         backPathCount++;
+                    }
+                    else if (bytes[0] == 2)
+                    {
+                        isCatalogStart = true;
                     }
                 }
 
