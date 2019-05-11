@@ -3,6 +3,12 @@ using System.Collections.Generic;
 using System.IO;
 using System.Text;
 
+/// <summary>
+/// 
+/// Decoder for QICStream-formatted tape images.
+/// 
+/// Copyright Dmitry Brant, 2019
+/// </summary>
 namespace QicStreamReader
 {
     class Program
@@ -77,7 +83,7 @@ namespace QicStreamReader
 
                 stream.Read(bytes, 0, 7);
 
-
+                // Maintain a list of subdirectories into which we'll descend and un-descend.
                 List<string> currentDirList = new List<string>();
                 Directory.CreateDirectory(baseDirectory);
                 string currentDirectory = baseDirectory;
@@ -152,18 +158,18 @@ namespace QicStreamReader
             return new DateTime(1970, 1, 1).AddSeconds(timeT);
         }
 
-        class FileHeader
+        private class FileHeader
         {
-            public bool valid;
+            public bool valid { get; }
 
-            public int size;
-            public string name;
-            public DateTime dateTime;
+            public int size { get; }
+            public string name { get; }
+            public DateTime dateTime { get; }
 
-            public bool isDirectory;
-            public int backPathCount;
+            public bool isDirectory { get; }
+            public int backPathCount { get; }
 
-            public bool isCatalogStart;
+            public bool isCatalogStart { get; }
 
             public FileHeader(Stream stream)
             {
