@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Collections.Generic;
 using System.IO;
 using System.Text;
 
@@ -77,9 +78,9 @@ namespace QicStreamReader
                 stream.Read(bytes, 0, 7);
 
 
+                List<string> currentDirList = new List<string>();
+                Directory.CreateDirectory(baseDirectory);
                 string currentDirectory = baseDirectory;
-
-                Directory.CreateDirectory(currentDirectory);
 
                 while (true)
                 {
@@ -88,15 +89,26 @@ namespace QicStreamReader
 
                     if (header.isDirectory)
                     {
-                        //Console.WriteLine("Directory: " + header.name + " - " + header.dateTime.ToLongDateString());
-                        currentDirectory = Path.Combine(baseDirectory, header.name);
+                        for (int i = 0; i < header.backPathCount; i++)
+                        {
+                            if (currentDirList.Count > 0) { currentDirList.RemoveAt(currentDirList.Count - 1); }
+                        }
+                        currentDirList.Add(header.name);
+
+                        currentDirectory = baseDirectory;
+                        for (int i = 0; i < currentDirList.Count; i++)
+                        {
+                            currentDirectory = Path.Combine(currentDirectory, currentDirList[i]);
+                        }
+
+                        Console.WriteLine("Directory: " + currentDirectory + " - " + header.dateTime.ToLongDateString());
                         Directory.CreateDirectory(currentDirectory);
                         Directory.SetCreationTime(currentDirectory, header.dateTime);
                         Directory.SetLastWriteTime(currentDirectory, header.dateTime);
                     }
                     else
                     {
-                        //Console.WriteLine("File: " + header.name + ", " + header.size.ToString("X") + " - " + header.dateTime.ToLongDateString());
+                        Console.WriteLine("File: " + header.name + ", " + header.size.ToString("X") + " - " + header.dateTime.ToLongDateString());
 
                         string fileName = Path.Combine(currentDirectory, header.name);
                         using (var f = new FileStream(Path.Combine(currentDirectory, header.name), FileMode.Create, FileAccess.Write))
@@ -144,6 +156,7 @@ namespace QicStreamReader
             public DateTime dateTime;
 
             public bool isDirectory;
+            public int backPathCount;
 
             public FileHeader(Stream stream)
             {
@@ -153,6 +166,11 @@ namespace QicStreamReader
                 {
                     if (stream.Position >= stream.Length) { return; }
                     stream.Read(bytes, 0, 1);
+
+                    if (bytes[0] == 3)
+                    {
+                        backPathCount++;
+                    }
                 }
 
                 isDirectory = bytes[0] == 0x6;
@@ -171,17 +189,6 @@ namespace QicStreamReader
 
                 int nameLength = structLength - 0x16;
                 name = Encoding.ASCII.GetString(bytes, structLength - nameLength, nameLength);
-
-                if (isDirectory)
-                {
-                    string str = "";
-                    for (int i = 0; i < structLength; i++)
-                    {
-                        str += " " + bytes[i].ToString("X2");
-                    }
-
-                    Console.WriteLine(stream.Position.ToString("X") + str + "   ---   " + name);
-                }
 
                 valid = true;
             }
