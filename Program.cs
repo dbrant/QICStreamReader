@@ -151,6 +151,7 @@ namespace QicStreamReader
                         }
                         File.SetCreationTime(fileName, header.DateTime);
                         File.SetLastWriteTime(fileName, header.DateTime);
+                        File.SetAttributes(fileName, header.Attributes);
 
                         Console.WriteLine("File: " + header.Name + ", " + header.Size.ToString("X") + " - " + header.DateTime.ToLongDateString());
                     }
@@ -170,6 +171,7 @@ namespace QicStreamReader
             public int Size { get; }
             public string Name { get; }
             public DateTime DateTime { get; }
+            public FileAttributes Attributes { get; }
 
             public FileHeader(Stream stream)
             {
@@ -179,6 +181,7 @@ namespace QicStreamReader
                 int structLength = bytes[1];
                 stream.Read(bytes, 0, structLength);
 
+                Attributes = (FileAttributes)bytes[0];
                 DateTime = DateTimeFromTimeT(BitConverter.ToUInt32(bytes, 4));
                 Size = BitConverter.ToInt32(bytes, 8);
 
