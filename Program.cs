@@ -13,7 +13,7 @@ namespace QicStreamReader
 {
     class Program
     {
-        enum ControlCode
+        private enum ControlCode
         {
             None = 0,
             ContentsStart = 1,
@@ -76,24 +76,17 @@ namespace QicStreamReader
                 }
 
                 int volNameLen = bytes[0x3C];
-
-
                 stream.Read(bytes, 0, volNameLen);
 
                 string volName = Encoding.ASCII.GetString(bytes, 0, volNameLen);
-                Console.WriteLine("Volume name: " + volName);
-
+                Console.WriteLine("Backup label: " + volName);
 
                 stream.Read(bytes, 0, 3);
-
                 int driveNameLen = bytes[1];
-
                 stream.Read(bytes, 0, driveNameLen);
 
                 string driveName = Encoding.ASCII.GetString(bytes, 0, driveNameLen);
                 Console.WriteLine("Drive name: " + driveName);
-
-                stream.Read(bytes, 0, 7);
 
                 // Maintain a list of subdirectories into which we'll descend and un-descend.
                 List<string> currentDirList = new List<string>();
@@ -116,7 +109,7 @@ namespace QicStreamReader
                     else if (code == ControlCode.Directory)
                     {
                         var header = new DirectoryHeader(stream);
-                        currentDirList.Add(header.name);
+                        currentDirList.Add(header.Name);
 
                         currentDirectory = baseDirectory;
                         for (int i = 0; i < currentDirList.Count; i++)
@@ -125,18 +118,18 @@ namespace QicStreamReader
                         }
 
                         Directory.CreateDirectory(currentDirectory);
-                        Directory.SetCreationTime(currentDirectory, header.dateTime);
-                        Directory.SetLastWriteTime(currentDirectory, header.dateTime);
+                        Directory.SetCreationTime(currentDirectory, header.DateTime);
+                        Directory.SetLastWriteTime(currentDirectory, header.DateTime);
 
-                        Console.WriteLine("Directory: " + currentDirectory + " - " + header.dateTime.ToLongDateString());
+                        Console.WriteLine("Directory: " + currentDirectory + " - " + header.DateTime.ToLongDateString());
                     }
                     else if (code == ControlCode.File)
                     {
                         var header = new FileHeader(stream);
-                        string fileName = Path.Combine(currentDirectory, header.name);
-                        using (var f = new FileStream(Path.Combine(currentDirectory, header.name), FileMode.Create, FileAccess.Write))
+                        string fileName = Path.Combine(currentDirectory, header.Name);
+                        using (var f = new FileStream(Path.Combine(currentDirectory, header.Name), FileMode.Create, FileAccess.Write))
                         {
-                            int bytesLeft = header.size;
+                            int bytesLeft = header.Size;
 
                             while (bytesLeft > 0)
                             {
@@ -156,10 +149,10 @@ namespace QicStreamReader
                                 bytesLeft -= chunkSize;
                             }
                         }
-                        File.SetCreationTime(fileName, header.dateTime);
-                        File.SetLastWriteTime(fileName, header.dateTime);
+                        File.SetCreationTime(fileName, header.DateTime);
+                        File.SetLastWriteTime(fileName, header.DateTime);
 
-                        Console.WriteLine("File: " + header.name + ", " + header.size.ToString("X") + " - " + header.dateTime.ToLongDateString());
+                        Console.WriteLine("File: " + header.Name + ", " + header.Size.ToString("X") + " - " + header.DateTime.ToLongDateString());
                     }
                 }
             }
@@ -174,9 +167,9 @@ namespace QicStreamReader
 
         private class FileHeader
         {
-            public int size { get; }
-            public string name { get; }
-            public DateTime dateTime { get; }
+            public int Size { get; }
+            public string Name { get; }
+            public DateTime DateTime { get; }
 
             public FileHeader(Stream stream)
             {
@@ -186,11 +179,11 @@ namespace QicStreamReader
                 int structLength = bytes[1];
                 stream.Read(bytes, 0, structLength);
 
-                dateTime = DateTimeFromTimeT(BitConverter.ToUInt32(bytes, 4));
-                size = BitConverter.ToInt32(bytes, 8);
+                DateTime = DateTimeFromTimeT(BitConverter.ToUInt32(bytes, 4));
+                Size = BitConverter.ToInt32(bytes, 8);
 
                 int nameLength = structLength - 0x16;
-                name = Encoding.ASCII.GetString(bytes, structLength - nameLength, nameLength);
+                Name = Encoding.ASCII.GetString(bytes, structLength - nameLength, nameLength);
             }
         }
 
