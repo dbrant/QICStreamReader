@@ -13,6 +13,18 @@ namespace QicStreamReader
 {
     class Program
     {
+        enum ControlCode
+        {
+            None = 0,
+            ContentsStart = 1,
+            CatalogStart = 2,
+            ParentDirectory = 3,
+            File = 5,
+            Directory = 6,
+            DataChunk = 9
+        }
+
+
         static void Main(string[] args)
         {
             string inFileName = "";
@@ -88,22 +100,22 @@ namespace QicStreamReader
                 Directory.CreateDirectory(baseDirectory);
                 string currentDirectory = baseDirectory;
 
-                while (true)
+                while (stream.Position < stream.Length)
                 {
-                    var header = new FileHeader(stream);
-                    if (!header.valid) { break; }
-                    if (header.isCatalogStart)
+                    ControlCode code = (ControlCode)stream.ReadByte();
+
+                    if (code == ControlCode.CatalogStart)
                     {
-                        Console.WriteLine("Detected start of catalog, so we're done.");
+                        // we're done!
                         break;
                     }
-
-                    if (header.isDirectory)
+                    else if (code == ControlCode.ParentDirectory)
                     {
-                        for (int i = 0; i < header.backPathCount; i++)
-                        {
-                            if (currentDirList.Count > 0) { currentDirList.RemoveAt(currentDirList.Count - 1); }
-                        }
+                        if (currentDirList.Count > 0) { currentDirList.RemoveAt(currentDirList.Count - 1); }
+                    }
+                    else if (code == ControlCode.Directory)
+                    {
+                        var header = new DirectoryHeader(stream);
                         currentDirList.Add(header.name);
 
                         currentDirectory = baseDirectory;
@@ -112,15 +124,15 @@ namespace QicStreamReader
                             currentDirectory = Path.Combine(currentDirectory, currentDirList[i]);
                         }
 
-                        Console.WriteLine("Directory: " + currentDirectory + " - " + header.dateTime.ToLongDateString());
                         Directory.CreateDirectory(currentDirectory);
                         Directory.SetCreationTime(currentDirectory, header.dateTime);
                         Directory.SetLastWriteTime(currentDirectory, header.dateTime);
-                    }
-                    else
-                    {
-                        Console.WriteLine("File: " + header.name + ", " + header.size.ToString("X") + " - " + header.dateTime.ToLongDateString());
 
+                        Console.WriteLine("Directory: " + currentDirectory + " - " + header.dateTime.ToLongDateString());
+                    }
+                    else if (code == ControlCode.File)
+                    {
+                        var header = new FileHeader(stream);
                         string fileName = Path.Combine(currentDirectory, header.name);
                         using (var f = new FileStream(Path.Combine(currentDirectory, header.name), FileMode.Create, FileAccess.Write))
                         {
@@ -131,9 +143,9 @@ namespace QicStreamReader
                                 do
                                 {
                                     if (stream.Position >= stream.Length) { return; }
-                                    stream.Read(bytes, 0, 1);
+                                    code = (ControlCode)stream.ReadByte();
                                 }
-                                while (bytes[0] != 9);
+                                while (code != ControlCode.DataChunk);
 
                                 stream.Read(bytes, 0, 3);
                                 int chunkSize = BitConverter.ToUInt16(bytes, 1);
@@ -146,6 +158,8 @@ namespace QicStreamReader
                         }
                         File.SetCreationTime(fileName, header.dateTime);
                         File.SetLastWriteTime(fileName, header.dateTime);
+
+                        Console.WriteLine("File: " + header.name + ", " + header.size.ToString("X") + " - " + header.dateTime.ToLongDateString());
                     }
                 }
             }
@@ -160,54 +174,31 @@ namespace QicStreamReader
 
         private class FileHeader
         {
-            public bool valid { get; }
-
             public int size { get; }
             public string name { get; }
             public DateTime dateTime { get; }
 
-            public bool isDirectory { get; }
-            public int backPathCount { get; }
-
-            public bool isCatalogStart { get; }
-
             public FileHeader(Stream stream)
             {
                 byte[] bytes = new byte[1024];
-
-                while (bytes[0] != 5 && bytes[0] != 6)
-                {
-                    if (stream.Position >= stream.Length) { return; }
-                    stream.Read(bytes, 0, 1);
-
-                    if (bytes[0] == 3)
-                    {
-                        backPathCount++;
-                    }
-                    else if (bytes[0] == 2)
-                    {
-                        isCatalogStart = true;
-                    }
-                }
-
-                isDirectory = bytes[0] == 0x6;
-
                 stream.Read(bytes, 0, 3);
 
                 int structLength = bytes[1];
                 stream.Read(bytes, 0, structLength);
 
                 dateTime = DateTimeFromTimeT(BitConverter.ToUInt32(bytes, 4));
-
-                if (!isDirectory)
-                {
-                    size = BitConverter.ToInt32(bytes, 8);
-                }
+                size = BitConverter.ToInt32(bytes, 8);
 
                 int nameLength = structLength - 0x16;
                 name = Encoding.ASCII.GetString(bytes, structLength - nameLength, nameLength);
+            }
+        }
 
-                valid = true;
+        private class DirectoryHeader : FileHeader
+        {
+            public DirectoryHeader(Stream stream)
+                : base(stream)
+            {
             }
         }
     }
