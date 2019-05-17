@@ -67,6 +67,7 @@ namespace QicStreamReader
 
             using (var stream = new FileStream(tempFileName, FileMode.Open, FileAccess.Read))
             {
+                // Read the volume header, which doesn't really contain much vital information.
                 stream.Read(bytes, 0, 0x3e);
 
                 string magic = Encoding.ASCII.GetString(bytes, 4, 4);
@@ -75,12 +76,14 @@ namespace QicStreamReader
                     throw new ApplicationException("Incorrect magic value.");
                 }
 
+                // The volume header continues with a dynamically-sized volume label:
                 int volNameLen = BitConverter.ToUInt16(bytes, 0x3C);
                 stream.Read(bytes, 0, volNameLen);
 
                 string volName = Encoding.ASCII.GetString(bytes, 0, volNameLen);
                 Console.WriteLine("Backup label: " + volName);
 
+                // ...followed by a dynamically-sized drive name:
                 stream.Read(bytes, 0, 3);
                 int driveNameLen = BitConverter.ToUInt16(bytes, 1);
                 stream.Read(bytes, 0, driveNameLen);
@@ -93,21 +96,28 @@ namespace QicStreamReader
                 Directory.CreateDirectory(baseDirectory);
                 string currentDirectory = baseDirectory;
 
+                // And now begins the main sequence of the backup, which consists of a control code,
+                // followed by the data (if any) that the control code represents.
+
                 while (stream.Position < stream.Length)
                 {
                     ControlCode code = (ControlCode)stream.ReadByte();
 
                     if (code == ControlCode.CatalogStart)
                     {
-                        // we're done!
+                        // The catalog is at the end of the backup, so if we've reached it, it means
+                        // that we're done extracting all the files.
                         break;
                     }
                     else if (code == ControlCode.ParentDirectory)
                     {
+                        // Go "up" to the parent directory
                         if (currentDirList.Count > 0) { currentDirList.RemoveAt(currentDirList.Count - 1); }
                     }
                     else if (code == ControlCode.Directory)
                     {
+                        // This control code is followed by a directory header which tells us the name
+                        // of the directory that we're descending into.
                         var header = new DirectoryHeader(stream);
                         currentDirList.Add(header.Name);
 
@@ -125,6 +135,8 @@ namespace QicStreamReader
                     }
                     else if (code == ControlCode.File)
                     {
+                        // This control code is followed by a file header which tells us all the details
+                        // about the file, followed by the actual file contents.
                         var header = new FileHeader(stream);
                         string fileName = Path.Combine(currentDirectory, header.Name);
                         using (var f = new FileStream(Path.Combine(currentDirectory, header.Name), FileMode.Create, FileAccess.Write))
