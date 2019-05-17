@@ -75,14 +75,14 @@ namespace QicStreamReader
                     throw new ApplicationException("Incorrect magic value.");
                 }
 
-                int volNameLen = bytes[0x3C];
+                int volNameLen = BitConverter.ToUInt16(bytes, 0x3C);
                 stream.Read(bytes, 0, volNameLen);
 
                 string volName = Encoding.ASCII.GetString(bytes, 0, volNameLen);
                 Console.WriteLine("Backup label: " + volName);
 
                 stream.Read(bytes, 0, 3);
-                int driveNameLen = bytes[1];
+                int driveNameLen = BitConverter.ToUInt16(bytes, 1);
                 stream.Read(bytes, 0, driveNameLen);
 
                 string driveName = Encoding.ASCII.GetString(bytes, 0, driveNameLen);
@@ -178,7 +178,7 @@ namespace QicStreamReader
                 byte[] bytes = new byte[1024];
                 stream.Read(bytes, 0, 3);
 
-                int structLength = bytes[1];
+                int structLength = BitConverter.ToUInt16(bytes, 1);
                 stream.Read(bytes, 0, structLength);
 
                 Attributes = (FileAttributes)bytes[0];
