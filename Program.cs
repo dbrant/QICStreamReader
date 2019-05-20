@@ -84,8 +84,13 @@ namespace QicStreamReader
                 Console.WriteLine("Backup label: " + volName);
 
                 // ...followed by a dynamically-sized drive name:
-                stream.Read(bytes, 0, 3);
-                int driveNameLen = BitConverter.ToUInt16(bytes, 1);
+                // (which must be aligned on a 2-byte boundary)
+                if (stream.Position % 2 == 1)
+                {
+                    stream.ReadByte();
+                }
+                stream.Read(bytes, 0, 2);
+                int driveNameLen = BitConverter.ToUInt16(bytes, 0);
                 stream.Read(bytes, 0, driveNameLen);
 
                 string driveName = Encoding.ASCII.GetString(bytes, 0, driveNameLen);
