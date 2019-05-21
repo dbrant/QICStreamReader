@@ -30,16 +30,18 @@ namespace QicStreamReader
             string inFileName = "";
             string tempFileName;
             string baseDirectory = "out";
+            long customOffset = 0;
 
             for (int i = 0; i < args.Length; i++)
             {
                 if (args[i] == "-f") { inFileName = args[i + 1]; }
                 if (args[i] == "-d") { baseDirectory = args[i + 1]; }
+                if (args[i] == "--offset") { customOffset = Convert.ToInt64(args[i + 1]); }
             }
 
             if (inFileName.Length == 0 || !File.Exists(inFileName))
             {
-                Console.WriteLine("Usage: qicstreamreader -f <file name> [-d <output directory>]");
+                Console.WriteLine("Usage: qicstream -f <file name> [-d <output directory>]");
                 return;
             }
 
@@ -69,34 +71,41 @@ namespace QicStreamReader
             {
                 using (var stream = new FileStream(tempFileName, FileMode.Open, FileAccess.Read))
                 {
-                    // Read the volume header, which doesn't really contain much vital information.
-                    stream.Read(bytes, 0, 0x3e);
-
-                    string magic = Encoding.ASCII.GetString(bytes, 4, 4);
-                    if (magic != "FSET")
+                    if (customOffset == 0)
                     {
-                        throw new ApplicationException("Incorrect magic value.");
+                        // Read the volume header, which doesn't really contain much vital information.
+                        stream.Read(bytes, 0, 0x3e);
+
+                        string magic = Encoding.ASCII.GetString(bytes, 4, 4);
+                        if (magic != "FSET")
+                        {
+                            throw new ApplicationException("Incorrect magic value.");
+                        }
+
+                        // The volume header continues with a dynamically-sized volume label:
+                        int volNameLen = BitConverter.ToUInt16(bytes, 0x3C);
+                        stream.Read(bytes, 0, volNameLen);
+
+                        string volName = Encoding.ASCII.GetString(bytes, 0, volNameLen);
+                        Console.WriteLine("Backup label: " + volName);
+
+                        // ...followed by a dynamically-sized drive name:
+                        // (which must be aligned on a 2-byte boundary)
+                        if (stream.Position % 2 == 1)
+                        {
+                            stream.ReadByte();
+                        }
+                        stream.Read(bytes, 0, 2);
+                        int driveNameLen = BitConverter.ToUInt16(bytes, 0);
+                        stream.Read(bytes, 0, driveNameLen);
+
+                        string driveName = Encoding.ASCII.GetString(bytes, 0, driveNameLen);
+                        Console.WriteLine("Drive name: " + driveName);
                     }
-
-                    // The volume header continues with a dynamically-sized volume label:
-                    int volNameLen = BitConverter.ToUInt16(bytes, 0x3C);
-                    stream.Read(bytes, 0, volNameLen);
-
-                    string volName = Encoding.ASCII.GetString(bytes, 0, volNameLen);
-                    Console.WriteLine("Backup label: " + volName);
-
-                    // ...followed by a dynamically-sized drive name:
-                    // (which must be aligned on a 2-byte boundary)
-                    if (stream.Position % 2 == 1)
+                    else
                     {
-                        stream.ReadByte();
+                        stream.Seek(customOffset, SeekOrigin.Begin);
                     }
-                    stream.Read(bytes, 0, 2);
-                    int driveNameLen = BitConverter.ToUInt16(bytes, 0);
-                    stream.Read(bytes, 0, driveNameLen);
-
-                    string driveName = Encoding.ASCII.GetString(bytes, 0, driveNameLen);
-                    Console.WriteLine("Drive name: " + driveName);
 
                     // Maintain a list of subdirectories into which we'll descend and un-descend.
                     List<string> currentDirList = new List<string>();
