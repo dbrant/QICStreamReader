@@ -115,6 +115,8 @@ namespace QicStreamReader
                     Directory.CreateDirectory(baseDirectory);
                     string currentDirectory = baseDirectory;
 
+                    bool isCatalogRegion = false;
+
                     // And now begins the main sequence of the backup, which consists of a control code,
                     // followed by the data (if any) that the control code represents.
 
@@ -124,11 +126,13 @@ namespace QicStreamReader
 
                         if (code == ControlCode.CatalogStart)
                         {
-                            // The catalog is at the end of the backup, so if we've reached it, it means
-                            // that we're done extracting all the files.
-                            break;
+                            isCatalogRegion = true;
                         }
-                        else if (code == ControlCode.ParentDirectory)
+                        else if (code == ControlCode.ContentsStart)
+                        {
+                            isCatalogRegion = false;
+                        }
+                        else if (code == ControlCode.ParentDirectory && !isCatalogRegion)
                         {
                             // Go "up" to the parent directory
                             if (currentDirList.Count > 0) { currentDirList.RemoveAt(currentDirList.Count - 1); }
@@ -138,53 +142,61 @@ namespace QicStreamReader
                             // This control code is followed by a directory header which tells us the name
                             // of the directory that we're descending into.
                             var header = new DirectoryHeader(stream);
-                            currentDirList.Add(header.Name);
 
-                            currentDirectory = baseDirectory;
-                            for (int i = 0; i < currentDirList.Count; i++)
+                            if (!isCatalogRegion)
                             {
-                                currentDirectory = Path.Combine(currentDirectory, currentDirList[i]);
+                                currentDirList.Add(header.Name);
+
+                                currentDirectory = baseDirectory;
+                                for (int i = 0; i < currentDirList.Count; i++)
+                                {
+                                    currentDirectory = Path.Combine(currentDirectory, currentDirList[i]);
+                                }
+
+                                Directory.CreateDirectory(currentDirectory);
+                                Directory.SetCreationTime(currentDirectory, header.DateTime);
+                                Directory.SetLastWriteTime(currentDirectory, header.DateTime);
+
+                                Console.WriteLine("Directory: " + currentDirectory + " - " + header.DateTime.ToLongDateString());
                             }
-
-                            Directory.CreateDirectory(currentDirectory);
-                            Directory.SetCreationTime(currentDirectory, header.DateTime);
-                            Directory.SetLastWriteTime(currentDirectory, header.DateTime);
-
-                            Console.WriteLine("Directory: " + currentDirectory + " - " + header.DateTime.ToLongDateString());
                         }
                         else if (code == ControlCode.File)
                         {
                             // This control code is followed by a file header which tells us all the details
                             // about the file, followed by the actual file contents.
                             var header = new FileHeader(stream);
-                            string fileName = Path.Combine(currentDirectory, header.Name);
-                            using (var f = new FileStream(Path.Combine(currentDirectory, header.Name), FileMode.Create, FileAccess.Write))
+
+                            if (!isCatalogRegion)
                             {
-                                int bytesLeft = header.Size;
-
-                                while (bytesLeft > 0)
+                                string fileName = Path.Combine(currentDirectory, header.Name);
+                                using (var f = new FileStream(Path.Combine(currentDirectory, header.Name), FileMode.Create, FileAccess.Write))
                                 {
-                                    do
+                                    int bytesLeft = header.Size;
+
+                                    while (bytesLeft > 0)
                                     {
-                                        if (stream.Position >= stream.Length) { return; }
-                                        code = (ControlCode)stream.ReadByte();
+                                        do
+                                        {
+                                            if (stream.Position >= stream.Length) { return; }
+                                            code = (ControlCode)stream.ReadByte();
+                                        }
+                                        while (code != ControlCode.DataChunk);
+
+                                        stream.Read(bytes, 0, 3);
+                                        int chunkSize = BitConverter.ToUInt16(bytes, 1);
+
+                                        stream.Read(bytes, 0, chunkSize);
+                                        f.Write(bytes, 0, chunkSize);
+
+                                        bytesLeft -= chunkSize;
                                     }
-                                    while (code != ControlCode.DataChunk);
-
-                                    stream.Read(bytes, 0, 3);
-                                    int chunkSize = BitConverter.ToUInt16(bytes, 1);
-
-                                    stream.Read(bytes, 0, chunkSize);
-                                    f.Write(bytes, 0, chunkSize);
-
-                                    bytesLeft -= chunkSize;
                                 }
-                            }
-                            File.SetCreationTime(fileName, header.DateTime);
-                            File.SetLastWriteTime(fileName, header.DateTime);
-                            File.SetAttributes(fileName, header.Attributes);
+                                File.SetCreationTime(fileName, header.DateTime);
+                                File.SetLastWriteTime(fileName, header.DateTime);
+                                File.SetAttributes(fileName, header.Attributes);
 
-                            Console.WriteLine("File: " + header.Name + ", " + header.Size.ToString("X") + " - " + header.DateTime.ToLongDateString());
+                                Console.WriteLine("File: " + header.Name + ", " + header.Size.ToString("X") + " - " + header.DateTime.ToLongDateString());
+                            }
                         }
                     }
                 }
