@@ -104,6 +104,9 @@ namespace QicStreamReader
                     }
                     else
                     {
+                        // adjust offset to account for removed bytes
+                        customOffset -= ((customOffset / 0x8000) * 0x402);
+
                         stream.Seek(customOffset, SeekOrigin.Begin);
                     }
 
