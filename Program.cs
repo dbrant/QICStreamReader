@@ -166,6 +166,12 @@ namespace QicStreamReader
                             // about the file, followed by the actual file contents.
                             var header = new FileHeader(stream);
 
+                            if (!header.Valid)
+                            {
+                                Console.WriteLine("Invalid file header, probably end of archive.");
+                                break;
+                            }
+
                             if (!isCatalogRegion)
                             {
                                 string fileName = Path.Combine(currentDirectory, header.Name);
@@ -222,6 +228,7 @@ namespace QicStreamReader
             public string Name { get; }
             public DateTime DateTime { get; }
             public FileAttributes Attributes { get; }
+            public bool Valid { get; }
 
             public FileHeader(Stream stream)
             {
@@ -229,6 +236,8 @@ namespace QicStreamReader
                 stream.Read(bytes, 0, 3);
 
                 int structLength = BitConverter.ToUInt16(bytes, 1);
+                if (structLength == 0) { return; }
+
                 stream.Read(bytes, 0, structLength);
 
                 Attributes = (FileAttributes)bytes[0];
@@ -237,6 +246,8 @@ namespace QicStreamReader
 
                 int nameLength = structLength - 0x16;
                 Name = Encoding.ASCII.GetString(bytes, structLength - nameLength, nameLength);
+
+                Valid = true;
             }
         }
 
