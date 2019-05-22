@@ -249,7 +249,7 @@ namespace QicStreamV2
                                 Directory.SetCreationTime(currentDirectory, header.DateTime);
                                 Directory.SetLastWriteTime(currentDirectory, header.DateTime);
 
-                                Console.WriteLine("Directory: " + currentDirectory + " - " + header.DateTime.ToLongDateString());
+                                Console.WriteLine(stream.Position.ToString("X") + ": New directory - " + currentDirectory + " - " + header.DateTime.ToShortDateString());
                             }
                         }
                         else if (code == ControlCode.File)
@@ -293,7 +293,7 @@ namespace QicStreamV2
                                 File.SetLastWriteTime(fileName, header.DateTime);
                                 File.SetAttributes(fileName, header.Attributes);
 
-                                Console.WriteLine("File: " + header.Name + ", " + header.Size.ToString("X") + " - " + header.DateTime.ToLongDateString());
+                                Console.WriteLine(stream.Position.ToString("X") + ": " + fileName + " - " + header.Size.ToString() + " bytes - " + header.DateTime.ToShortDateString());
                             }
                         }
                     }
