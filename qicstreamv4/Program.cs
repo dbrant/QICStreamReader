@@ -157,8 +157,6 @@ namespace QicStreamV4
 
                         if (header.IsDirectory)
                         {
-                            Console.WriteLine(stream.Position.ToString("X") + ": Directory: " + header.Name + ", " + header.Size.ToString("X") + " - " + header.DateTime.ToLongDateString());
-
                             if (header.Name.Length > 0)
                             {
                                 string[] dirArray = header.Name.Split('\0');
@@ -170,12 +168,12 @@ namespace QicStreamV4
                                 Directory.CreateDirectory(currentDirectory);
                                 Directory.SetCreationTime(currentDirectory, header.DateTime);
                                 Directory.SetLastWriteTime(currentDirectory, header.DateTime);
+
+                                Console.WriteLine(stream.Position.ToString("X") + ": New directory - " + currentDirectory + ", " + header.DateTime.ToShortDateString());
                             }
                         }
                         else
                         {
-                            Console.WriteLine(stream.Position.ToString("X") + ": File: " + header.Name + ", " + header.Size.ToString("X") + " - " + header.DateTime.ToLongDateString());
-
                             string fileName = Path.Combine(currentDirectory, header.Name);
                             using (var f = new FileStream(fileName, FileMode.Create, FileAccess.Write))
                             {
@@ -202,12 +200,13 @@ namespace QicStreamV4
                             File.SetCreationTime(fileName, header.DateTime);
                             File.SetLastWriteTime(fileName, header.DateTime);
                             File.SetAttributes(fileName, header.Attributes);
+
+                            Console.WriteLine(stream.Position.ToString("X") + ": " + fileName + ", " + header.Size.ToString() + " bytes - " + header.DateTime.ToShortDateString());
                         }
 
                         // align position to the next 0x200 bytes
                         long align = stream.Position % 0x200;
                         if (align > 0) { stream.Seek(0x200 - align, SeekOrigin.Current); }
-
                     }
                 }
             }
