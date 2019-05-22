@@ -121,6 +121,11 @@ namespace QicStreamV1
                     while (stream.Position < stream.Length)
                     {
                         var header = new FileHeader(stream);
+                        if (!header.Valid)
+                        {
+                            Console.WriteLine("Invalid file header, probably end of archive.");
+                            break;
+                        }
 
                         string filePath = baseDirectory;
                         if (header.Subdirectory.Length > 0)
@@ -186,6 +191,7 @@ namespace QicStreamV1
             public DateTime DateTime { get; }
             public FileAttributes Attributes { get; }
             public string Subdirectory { get; }
+            public bool Valid { get; }
 
             public FileHeader(Stream stream)
             {
@@ -199,6 +205,11 @@ namespace QicStreamV1
 
                 DateTime = DateTimeFromTimeT(BitConverter.ToUInt32(bytes, 0x6));
                 Size = BitConverter.ToInt32(bytes, 0xA);
+
+                if (Size == 0)
+                {
+                    return;
+                }
 
                 int nameLength = bytes[0xE];
 
@@ -215,6 +226,7 @@ namespace QicStreamV1
 
                 // The Size field *includes* the size of the header, so adjust it.
                 Size -= (stream.Position - initialPos);
+                Valid = true;
             }
         }
 
