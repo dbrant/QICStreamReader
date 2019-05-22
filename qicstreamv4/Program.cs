@@ -189,7 +189,7 @@ namespace QicStreamV4
                                     {
                                         if (!VerifyFileFormat(header.Name, bytes))
                                         {
-                                            Console.WriteLine(stream.Position.ToString("X") + " -- Warning: file format doesn't match: " + header.Name);
+                                            Console.WriteLine(stream.Position.ToString("X") + " -- Warning: file format doesn't match: " + fileName);
                                             Console.ReadKey();
                                         }
                                     }
