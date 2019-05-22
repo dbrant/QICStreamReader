@@ -35,13 +35,19 @@ using System.Text;
 ///                       following this header. However, a value of 1 seems to mean that the header
 ///                       will be followed by 0x24 extra bytes of data, and then followed by the contents.
 /// 
-/// 4E-51                 32-bit size of the file.
+/// 4E-51                 32-bit total size of the file.
 /// 
-/// 52-55                 Another 32-bit size of the file. If this size is nonzero, then this is the size
-///                       that should be trusted, and not the other size fields. If this size is zero, then
-///                       the other size fields should be used.
+/// 52-55                 32-bit size of this fragment of the file. If this size is zero, then the previous
+///                       field should be used for the size. Otherwise, this size should be used to read the
+///                       data that follows the header.
+///                       This field becomes nonzero if a large file spans across two tape images, i.e. starts
+///                       at the end of one tape image, and continues in the next one. In the starting header in
+///                       the first tape image, this size will be zero, but in the next tape image this size
+///                       will be populated, signaling to the reader that this is a continuation of the previous file.
+///                       If this field is nonzero, then the contents will begin on the next block boundary, instead
+///                       of immediately following the header.
 /// 
-/// 56-5C                 64-bit size of the file.
+/// 56-5C                 64-bit total size of the file.
 /// 
 /// 5F                    File attributes (the usual DOS attribute bits).
 /// 
@@ -105,6 +111,8 @@ namespace QicStreamV4
 {
     class Program
     {
+        private const int BLOCK_SIZE = 0x200;
+
         static void Main(string[] args)
         {
             string inFileName = "";
@@ -129,7 +137,7 @@ namespace QicStreamV4
                 using (var stream = new FileStream(inFileName, FileMode.Open, FileAccess.Read))
                 {
                     // Read the volume header
-                    stream.Read(bytes, 0, 0x200);
+                    stream.Read(bytes, 0, BLOCK_SIZE);
 
                     string volName = Encoding.ASCII.GetString(bytes, 0xAC, 0x80);
                     int zeroPos = volName.IndexOf("\0");
@@ -175,17 +183,32 @@ namespace QicStreamV4
                         else
                         {
                             string fileName = Path.Combine(currentDirectory, header.Name);
-                            using (var f = new FileStream(fileName, FileMode.Create, FileAccess.Write))
+                            if (header.Continuation)
+                            {
+                                Console.WriteLine("Warning: continuing file " + header.Name + " (will append contents).");
+                            }
+                            using (var f = new FileStream(fileName, header.Continuation ? FileMode.Append : FileMode.Create, FileAccess.Write))
                             {
                                 long bytesLeft = header.Size;
                                 while (bytesLeft > 0)
                                 {
                                     int bytesToRead = bytes.Length;
                                     if (bytesToRead > bytesLeft) { bytesToRead = (int)bytesLeft; }
-                                    stream.Read(bytes, 0, bytesToRead);
+                                    if (bytesToRead > (stream.Length - stream.Position))
+                                    {
+                                        bytesToRead = (int)(stream.Length - stream.Position);
+                                        if (bytesToRead == 0)
+                                        {
+                                            // reached the end of the tape image, but still need data. This implies
+                                            // that the file continues on another tape.
+                                            Console.WriteLine("Warning: file contents truncated. Probably continues on another tape.");
+                                            break;
+                                        }
+                                    }
+                                    int bytesRead = stream.Read(bytes, 0, bytesToRead);
                                     f.Write(bytes, 0, bytesToRead);
 
-                                    if (bytesLeft == header.Size)
+                                    if (bytesLeft == header.Size && !header.Continuation)
                                     {
                                         if (!VerifyFileFormat(header.Name, bytes))
                                         {
@@ -204,9 +227,9 @@ namespace QicStreamV4
                             Console.WriteLine(stream.Position.ToString("X") + ": " + fileName + ", " + header.Size.ToString() + " bytes - " + header.DateTime.ToShortDateString());
                         }
 
-                        // align position to the next 0x200 bytes
-                        long align = stream.Position % 0x200;
-                        if (align > 0) { stream.Seek(0x200 - align, SeekOrigin.Current); }
+                        // align position to the next block
+                        long align = stream.Position % BLOCK_SIZE;
+                        if (align > 0) { stream.Seek(BLOCK_SIZE - align, SeekOrigin.Current); }
                     }
                 }
             }
@@ -227,6 +250,7 @@ namespace QicStreamV4
             public FileAttributes Attributes { get; }
             public bool IsDirectory { get; }
             public bool Valid { get; }
+            public bool Continuation { get; }
 
             public FileHeader(Stream stream)
             {
@@ -262,11 +286,7 @@ namespace QicStreamV4
                     }
                     else
                     {
-                        Console.WriteLine(stream.Position.ToString("X") + " -- Warning: using secondary size field.");
-                        Console.ReadKey();
-
-                        // hack?
-                        //Size += 0x200;
+                        Continuation = true;
                     }
                 }
 
@@ -300,7 +320,12 @@ namespace QicStreamV4
                 {
                     stream.Seek(0x24, SeekOrigin.Current);
                 }
-
+                if (Continuation)
+                {
+                    // the contents will be aligned to the next block boundary.
+                    long align = stream.Position % BLOCK_SIZE;
+                    if (align > 0) { stream.Seek(BLOCK_SIZE - align, SeekOrigin.Current); }
+                }
                 Valid = true;
             }
         }
