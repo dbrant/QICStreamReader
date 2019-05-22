@@ -5,7 +5,7 @@ using System.Text;
 
 /// <summary>
 /// 
-/// Decoder for QIC Unknown Format #2.
+/// Decoder for QICStream (V4?) format.
 /// 
 /// Copyright Dmitry Brant, 2019
 /// </summary>
@@ -26,7 +26,7 @@ namespace QicStreamV4
 
             if (inFileName.Length == 0 || !File.Exists(inFileName))
             {
-                Console.WriteLine("Usage: qicbackup -f <file name> [-d <output directory>]");
+                Console.WriteLine("Usage: qicstreamv4 -f <file name> [-d <output directory>]");
                 return;
             }
 

@@ -4,7 +4,7 @@ using System.Text;
 
 /// <summary>
 /// 
-/// Decoder for QICStream-formatted tape images.
+/// Decoder for QICStream (V1?) formatted tape images.
 /// 
 /// Copyright Dmitry Brant, 2019
 /// </summary>
@@ -28,7 +28,7 @@ namespace QicStreamV1
 
             if (inFileName.Length == 0 || !File.Exists(inFileName))
             {
-                Console.WriteLine("Usage: qicstream -f <file name> [-d <output directory>]");
+                Console.WriteLine("Usage: qicstreamv1 -f <file name> [-d <output directory>]");
                 return;
             }
 
