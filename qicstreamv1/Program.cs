@@ -7,6 +7,52 @@ using System.Text;
 /// Decoder for QICStream (V1?) formatted tape images.
 /// 
 /// Copyright Dmitry Brant, 2019
+/// 
+/// 
+/// Brief outline of the format, to the best of my reverse-engineering ability:
+/// 
+/// * Every block of 0x8000 bytes ends with 0x400 bytes of extra data (for parity checking or
+///   some other kind of error correction?). In other words, for every 0x8000 bytes, only the
+///   first 0x7C00 bytes are useful data.
+/// * Little-endian.
+/// * The archive begins with a catalog, which takes up the first 0x10000 bytes (or possibly
+///   aligned to a boundary of 0x8000 bytes).
+/// * For extracting the contents, we skip past the catalog and directly to the stream of files
+///   and directories.
+/// 
+/// The actual archive simply consists of a sequence of files, one after the other. Each file
+/// starts with a header, followed by its contents. (Directory information is part of the file
+/// header.)
+/// 
+/// Here is a breakdown of the file header:
+/// 
+/// Byte offset (hex)     Meaning
+/// ----------------------------------------
+/// 0-3                   Always seems to be 0x33CC33CC; possibly a magic identifier.
+/// 4                     Always seems to be 9.
+/// 
+/// 5                     Possibly file attributes, but doesn't seem to be encoded in the usual DOS way.
+/// 
+/// 6-9                   File date, encoded as time_t (seconds since 1970 epoch).
+/// 
+/// A-D                   File size INCLUDING this header. To calculate the actual file size, subtract the
+///                       length of this header including the variable-length names below.
+/// 
+/// E                     File name length (No null terminator).
+/// 
+/// [variable]            File name.
+/// 
+/// [variable+1]          Directory name length (i.e. the directory in which this file should be placed). This
+///                       may be 0, which would mean that this file is in the root directory.
+/// 
+/// [variable]            Directory name. This name may also contain one or more null characters in the middle, to
+///                       denote subdirectories. For example, the name "FOO\0BAR\0BAZ" would translate
+///                       into the directory structure of FOO\BAR\BAZ.
+/// -------------------------------------------------------------------------
+/// 
+/// The file contents follow immediately after the header.
+/// 
+/// 
 /// </summary>
 namespace QicStreamV1
 {
@@ -17,13 +63,13 @@ namespace QicStreamV1
             string inFileName = "";
             string tempFileName;
             string baseDirectory = "out";
-            long customOffset = 0;
+            long initialOffset = 0;
 
             for (int i = 0; i < args.Length; i++)
             {
                 if (args[i] == "-f") { inFileName = args[i + 1]; }
                 if (args[i] == "-d") { baseDirectory = args[i + 1]; }
-                if (args[i] == "--offset") { customOffset = Convert.ToInt64(args[i + 1]); }
+                if (args[i] == "--offset") { initialOffset = Convert.ToInt64(args[i + 1]); }
             }
 
             if (inFileName.Length == 0 || !File.Exists(inFileName))
@@ -58,22 +104,15 @@ namespace QicStreamV1
             {
                 using (var stream = new FileStream(tempFileName, FileMode.Open, FileAccess.Read))
                 {
-                    if (customOffset == 0)
+                    if (initialOffset == 0)
                     {
-
-                        // Skip straight to the contents.
-                        // The contents are supposed to begin at 0x10000, but let's adjust for the
-                        // blocks that we removed.
-                        int offset = 0xF800; // 0x10000 minus 2 * 0x400.
-                        stream.Seek(offset, SeekOrigin.Begin);
+                        // Skip past the catalog and straight to the contents.
+                        initialOffset = 0x10000;
                     }
-                    else
-                    {
-                        // adjust offset to account for removed bytes
-                        customOffset -= ((customOffset / 0x8000) * 0x400);
 
-                        stream.Seek(customOffset, SeekOrigin.Begin);
-                    }
+                    // adjust offset to account for removed bytes
+                    initialOffset -= ((initialOffset / 0x8000) * 0x400);
+                    stream.Seek(initialOffset, SeekOrigin.Begin);
 
                     Directory.CreateDirectory(baseDirectory);
                     string currentDirectory = baseDirectory;
@@ -93,8 +132,9 @@ namespace QicStreamV1
                             }
                         }
                         Directory.CreateDirectory(filePath);
-
                         filePath = Path.Combine(filePath, header.Name);
+
+                        Console.WriteLine(stream.Position.ToString("X") +  ": " + filePath + " - " + header.Size.ToString() + " bytes - " + header.DateTime.ToShortDateString());
 
                         using (var f = new FileStream(filePath, FileMode.Create, FileAccess.Write))
                         {
@@ -145,14 +185,6 @@ namespace QicStreamV1
 
                 stream.Read(bytes, 0, 0xF);
 
-
-
-
-                Console.Write(">>> " + bytes[0].ToString("X2") + " " + bytes[1].ToString("X2") + " " + bytes[2].ToString("X2") + " " + bytes[3].ToString("X2") + " " + bytes[4].ToString("X2") + " ");
-
-
-
-
                 //Attributes = (FileAttributes)bytes[0];
 
                 DateTime = DateTimeFromTimeT(BitConverter.ToUInt32(bytes, 0x6));
@@ -173,10 +205,6 @@ namespace QicStreamV1
 
                 // The Size field *includes* the size of the header, so adjust it.
                 Size -= (stream.Position - initialPos);
-
-
-                Console.Write(Subdirectory + "\\" + Name + "\n");
-
             }
         }
     }
