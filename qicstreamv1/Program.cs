@@ -165,7 +165,7 @@ namespace QicStreamV1
                         }
                         File.SetCreationTime(filePath, header.DateTime);
                         File.SetLastWriteTime(filePath, header.DateTime);
-                        File.SetAttributes(filePath, header.Attributes);
+                        //File.SetAttributes(filePath, header.Attributes);
                     }
                 }
             }
@@ -201,7 +201,8 @@ namespace QicStreamV1
 
                 stream.Read(bytes, 0, 0xF);
 
-                //Attributes = (FileAttributes)bytes[0];
+                // TODO: figure this out?
+                //Attributes = (FileAttributes)bytes[0x5];
 
                 DateTime = DateTimeFromTimeT(BitConverter.ToUInt32(bytes, 0x6));
                 Size = BitConverter.ToInt32(bytes, 0xA);
