@@ -6,8 +6,8 @@
     <Platform Condition=" '$(Platform)' == '' ">AnyCPU</Platform>
     <ProjectGuid>{B562C774-6604-4E5F-AD12-3E25DAA28B4C}</ProjectGuid>
     <OutputType>Exe</OutputType>
-    <RootNamespace>QicStream</RootNamespace>
-    <AssemblyName>QicStream</AssemblyName>
+    <RootNamespace>QicStreamV2</RootNamespace>
+    <AssemblyName>qicstreamv2</AssemblyName>
     <TargetFrameworkVersion>v4.6</TargetFrameworkVersion>
     <FileAlignment>512</FileAlignment>
     <AutoGenerateBindingRedirects>true</AutoGenerateBindingRedirects>

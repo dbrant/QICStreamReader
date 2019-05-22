@@ -5,12 +5,12 @@ using System.Runtime.InteropServices;
 // General Information about an assembly is controlled through the following
 // set of attributes. Change these attribute values to modify the information
 // associated with an assembly.
-[assembly: AssemblyTitle("QicStream")]
+[assembly: AssemblyTitle("QicStreamV2")]
 [assembly: AssemblyDescription("")]
 [assembly: AssemblyConfiguration("")]
 [assembly: AssemblyCompany("")]
-[assembly: AssemblyProduct("QicStream")]
-[assembly: AssemblyCopyright("Copyright ©  2019")]
+[assembly: AssemblyProduct("QicStreamV2")]
+[assembly: AssemblyCopyright("Copyright © Dmitry Brant")]
 [assembly: AssemblyTrademark("")]
 [assembly: AssemblyCulture("")]
 

@@ -9,7 +9,7 @@ using System.Text;
 /// 
 /// Copyright Dmitry Brant, 2019
 /// </summary>
-namespace QicStreamReader
+namespace QicStreamV1
 {
     class Program
     {
