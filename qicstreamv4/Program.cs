@@ -144,9 +144,6 @@ namespace QicStreamV4
                     if (zeroPos > 0) { volName = volName.Substring(0, zeroPos); }
                     Console.WriteLine("Backup label: " + volName);
 
-
-                    // Maintain a list of subdirectories into which we'll descend and un-descend.
-                    List<string> currentDirList = new List<string>();
                     Directory.CreateDirectory(baseDirectory);
                     string currentDirectory = baseDirectory;
 
@@ -236,9 +233,6 @@ namespace QicStreamV4
             catch (Exception e)
             {
                 Console.WriteLine("Error: " + e.Message);
-            }
-            finally
-            {
             }
         }
 
