@@ -224,9 +224,7 @@ namespace QicStreamV4
                             Console.WriteLine(stream.Position.ToString("X") + ": " + fileName + ", " + header.Size.ToString() + " bytes - " + header.DateTime.ToShortDateString());
                         }
 
-                        // align position to the next block
-                        long align = stream.Position % BLOCK_SIZE;
-                        if (align > 0) { stream.Seek(BLOCK_SIZE - align, SeekOrigin.Current); }
+                        AlignToNextBlock(stream);
                     }
                 }
             }
@@ -234,6 +232,12 @@ namespace QicStreamV4
             {
                 Console.WriteLine("Error: " + e.Message);
             }
+        }
+
+        static void AlignToNextBlock(Stream stream)
+        {
+            long align = stream.Position % BLOCK_SIZE;
+            if (align > 0) { stream.Seek(BLOCK_SIZE - align, SeekOrigin.Current); }
         }
 
         private class FileHeader
@@ -257,7 +261,7 @@ namespace QicStreamV4
                     Console.ReadKey();
 
                     // skip over this block
-                    stream.Seek(0x1fe, SeekOrigin.Current);
+                    AlignToNextBlock(stream);
                     return;
                 }
 
@@ -317,8 +321,7 @@ namespace QicStreamV4
                 if (Continuation)
                 {
                     // the contents will be aligned to the next block boundary.
-                    long align = stream.Position % BLOCK_SIZE;
-                    if (align > 0) { stream.Seek(BLOCK_SIZE - align, SeekOrigin.Current); }
+                    AlignToNextBlock(stream);
                 }
                 Valid = true;
             }
