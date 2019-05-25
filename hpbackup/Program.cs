@@ -51,7 +51,7 @@ namespace hpbackup
 
                         if (!header.Valid)
                         {
-                            AlignToBlock(stream);
+                            AlignToNextBlock(stream);
                             continue;
                         }
 
@@ -134,13 +134,10 @@ namespace hpbackup
             }
         }
 
-        private static void AlignToBlock(Stream stream)
+        private static void AlignToNextBlock(Stream stream)
         {
             long align = stream.Position % BLOCK_SIZE;
-            if (align > 0)
-            {
-                stream.Seek(BLOCK_SIZE - align, SeekOrigin.Current);
-            }
+            if (align > 0) { stream.Seek(BLOCK_SIZE - align, SeekOrigin.Current); }
         }
 
         private class FileHeader

@@ -9,6 +9,8 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "qicstreamv1", "qicstreamv1\
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "qicstreamv4", "qicstreamv4\qicstreamv4.csproj", "{253078F4-51E7-4DDB-904F-55E662BD1AEB}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "hpbackup", "hpbackup\hpbackup.csproj", "{80E32514-E2EC-41E4-9418-CD4EB8A73168}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -55,6 +57,18 @@ Global
 		{253078F4-51E7-4DDB-904F-55E662BD1AEB}.Release|x64.Build.0 = Release|Any CPU
 		{253078F4-51E7-4DDB-904F-55E662BD1AEB}.Release|x86.ActiveCfg = Release|Any CPU
 		{253078F4-51E7-4DDB-904F-55E662BD1AEB}.Release|x86.Build.0 = Release|Any CPU
+		{80E32514-E2EC-41E4-9418-CD4EB8A73168}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{80E32514-E2EC-41E4-9418-CD4EB8A73168}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{80E32514-E2EC-41E4-9418-CD4EB8A73168}.Debug|x64.ActiveCfg = Debug|Any CPU
+		{80E32514-E2EC-41E4-9418-CD4EB8A73168}.Debug|x64.Build.0 = Debug|Any CPU
+		{80E32514-E2EC-41E4-9418-CD4EB8A73168}.Debug|x86.ActiveCfg = Debug|Any CPU
+		{80E32514-E2EC-41E4-9418-CD4EB8A73168}.Debug|x86.Build.0 = Debug|Any CPU
+		{80E32514-E2EC-41E4-9418-CD4EB8A73168}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{80E32514-E2EC-41E4-9418-CD4EB8A73168}.Release|Any CPU.Build.0 = Release|Any CPU
+		{80E32514-E2EC-41E4-9418-CD4EB8A73168}.Release|x64.ActiveCfg = Release|Any CPU
+		{80E32514-E2EC-41E4-9418-CD4EB8A73168}.Release|x64.Build.0 = Release|Any CPU
+		{80E32514-E2EC-41E4-9418-CD4EB8A73168}.Release|x86.ActiveCfg = Release|Any CPU
+		{80E32514-E2EC-41E4-9418-CD4EB8A73168}.Release|x86.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
