@@ -4,6 +4,7 @@ using System.IO;
 using System.Text;
 
 /// <summary>
+/// 
 /// Decoder for Backup Exec formatted tape images.
 /// Backup Exec used to be branded (licensed?) under many names, including but not limited to:
 /// "Colorado Backup", "HP Backup", "Arcada Backup", etc.
@@ -131,7 +132,7 @@ namespace hpbackup
                         while (currentFile.Size == 0);
                         if (currentFile == null)
                         {
-                            Console.WriteLine("Reached end of catalog.");
+                            Console.WriteLine("Warning: Reached end of catalog with file data remaining.");
                             break;
                         }
 
@@ -176,6 +177,11 @@ namespace hpbackup
                         File.SetLastWriteTime(filePath, currentFile.DateTime);
                         //File.SetAttributes(filePath, header.Attributes);
                     }
+
+                    if (catalog.Count > 0)
+                    {
+                        Console.WriteLine("Warning: Reached end of file data with catalog items remaining.");
+                    }
                 }
             }
             catch (Exception e)
@@ -203,7 +209,6 @@ namespace hpbackup
             {
                 Subdirectory = "";
                 byte[] bytes = new byte[1024];
-                long initialPos = stream.Position;
 
                 stream.Read(bytes, 0, 2);
                 int headerLen = BitConverter.ToInt16(bytes, 0);
