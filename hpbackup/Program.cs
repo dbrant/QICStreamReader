@@ -74,12 +74,14 @@ namespace hpbackup
             string catFileName = "";
             string inFileName = "";
             string baseDirectory = "out";
+            bool dryRun = false;
 
             for (int i = 0; i < args.Length; i++)
             {
                 if (args[i] == "-c") { catFileName = args[i + 1]; }
                 if (args[i] == "-f") { inFileName = args[i + 1]; }
                 if (args[i] == "-d") { baseDirectory = args[i + 1]; }
+                if (args[i] == "--dry") { dryRun = true; }
             }
 
             if (inFileName.Length == 0 || !File.Exists(inFileName))
@@ -146,12 +148,15 @@ namespace hpbackup
                                 filePath = Path.Combine(filePath, dirArray[i]);
                             }
                         }
-                        Directory.CreateDirectory(filePath);
+                        if (!dryRun)
+                        {
+                            Directory.CreateDirectory(filePath);
+                        }
                         filePath = Path.Combine(filePath, currentFile.Name);
 
                         Console.WriteLine("Restoring: " + filePath);
 
-                        using (var f = new FileStream(filePath, FileMode.Create, FileAccess.Write))
+                        using (var f = dryRun ? (Stream)new MemoryStream() : (Stream)new FileStream(filePath, FileMode.Create, FileAccess.Write))
                         {
                             long bytesLeft = currentFile.Size;
                             while (bytesLeft > 0)
@@ -174,9 +179,12 @@ namespace hpbackup
                             }
                         }
 
-                        File.SetCreationTime(filePath, currentFile.DateTime);
-                        File.SetLastWriteTime(filePath, currentFile.DateTime);
-                        //File.SetAttributes(filePath, header.Attributes);
+                        if (!dryRun)
+                        {
+                            File.SetCreationTime(filePath, currentFile.DateTime);
+                            File.SetLastWriteTime(filePath, currentFile.DateTime);
+                            //File.SetAttributes(filePath, header.Attributes);
+                        }
                     }
 
                     if (catalog.Count > 0)
@@ -211,7 +219,7 @@ namespace hpbackup
                 Subdirectory = "";
                 byte[] bytes = new byte[1024];
 
-                stream.Read(bytes, 0, 2);
+                stream.Read(bytes, 0, 1);
                 int headerLen = bytes[0];
 
                 if (headerLen == 0)
@@ -219,7 +227,7 @@ namespace hpbackup
                     return;
                 }
 
-                stream.Read(bytes, 2, headerLen - 2);
+                stream.Read(bytes, 1, headerLen - 1);
 
                 // TODO: figure this out?
                 //Attributes = (FileAttributes)bytes[0x5];
