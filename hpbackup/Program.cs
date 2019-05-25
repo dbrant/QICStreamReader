@@ -11,6 +11,56 @@ using System.Text;
 /// Copyright Dmitry Brant, 2019
 /// 
 /// 
+/// The backup is organized using three separate files (records) on the tape. The first is a volume
+/// header, which is 512 bytes. Next is the catalog, which contains a full inventory of the files
+/// and directories in the backup. And lastly, the third record contains the actual contents of
+/// all the files, which are literally concatenated one after the other, with no other delimiting
+/// data.
+/// 
+/// NOTE: The block size for these backups seems to be set to 16KB (0x4000 bytes). To read these
+/// backups using the `dd` tool, you might need to manually set the block size, otherwise it will
+/// report a memory allocation error:
+/// 
+/// $ dd if=/dev/nst0 of=foo.bin bs=16k
+/// 
+/// 
+/// == Volume header ==
+/// 
+/// The volume header is 512 bytes, and does not seem to contain any particularly vital data for
+/// reconstructing the backup.
+/// 
+/// == Catalog ==
+/// 
+/// The catalog is made up of file and directory headers, one after the other.
+/// Here is a breakdown of the header structure:
+/// 
+/// Byte offset (hex)     Meaning
+/// ----------------------------------------
+/// 0-1                   16-bit size of this header, including these bytes.
+/// 
+/// 2-3                   Always seems to be 1.
+/// 
+/// 4-A                   File date and time, and possibly attributes. This seems to be encoded in a
+///                       non-standard way. See the implementation for the binary breakdown of the
+///                       date and time.
+/// 
+/// E-11                  File size.
+/// 
+/// 12-[variable]         File or directory name. The length is determined by the total size of this
+///                       header, which is given in the first field.
+/// -------------------------------------------------------------------------
+/// 
+/// NOTE: If a header is too close to a block boundary (0x4000 bytes), it will be aligned on the
+/// next block boundary, with the unused bytes being padded with 0s.
+/// 
+/// == File contents ==
+/// 
+/// The file contents are literally packed together, one after the other, in the same order as the
+/// files appear in the catalog, with no other delimiting information. Therefore, the file sizes
+/// that are provided in the catalog should precisely determine the boundaries of each file within
+/// the contents.
+/// 
+/// 
 /// </summary>
 namespace hpbackup
 {
