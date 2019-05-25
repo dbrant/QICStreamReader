@@ -3,6 +3,15 @@ using System.Collections.Generic;
 using System.IO;
 using System.Text;
 
+/// <summary>
+/// Decoder for Backup Exec formatted tape images.
+/// Backup Exec used to be branded (licensed?) under many names, including but not limited to:
+/// "Colorado Backup", "HP Backup", "Arcada Backup", etc.
+/// 
+/// Copyright Dmitry Brant, 2019
+/// 
+/// 
+/// </summary>
 namespace hpbackup
 {
     class Program
