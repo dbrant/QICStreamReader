@@ -37,7 +37,7 @@ using System.Text;
 /// 
 /// Byte offset (hex)     Meaning
 /// ----------------------------------------
-/// 0-1                   16-bit size of this header, including these bytes.
+/// 0                     8-bit size of this header, including these bytes.
 /// 
 /// 2-3                   Always seems to be 1.
 /// 
@@ -114,6 +114,7 @@ namespace hpbackup
             catch (Exception e)
             {
                 Console.WriteLine("Error: " + e.Message);
+                return;
             }
 
             // ...And read the contents, hoping that the data perfectly lines up with the contents.
@@ -211,7 +212,7 @@ namespace hpbackup
                 byte[] bytes = new byte[1024];
 
                 stream.Read(bytes, 0, 2);
-                int headerLen = BitConverter.ToInt16(bytes, 0);
+                int headerLen = bytes[0];
 
                 if (headerLen == 0)
                 {
