@@ -127,12 +127,13 @@ namespace hpbackup
                     while (stream.Position < stream.Length && catalog.Count > 0)
                     {
                         FileHeader currentFile = null;
-                        do
+                        while (catalog.Count > 0)
                         {
                             currentFile = catalog[0];
                             catalog.RemoveAt(0);
+                            if (currentFile.Size > 0) { break; }
+                            else { currentFile = null; }
                         }
-                        while (currentFile.Size == 0);
                         if (currentFile == null)
                         {
                             Console.WriteLine("Warning: Reached end of catalog with file data remaining.");
