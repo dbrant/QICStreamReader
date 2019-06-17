@@ -15,8 +15,10 @@ using System.Text;
 ///   some other kind of error correction?). In other words, for every 0x8000 bytes, only the
 ///   first 0x7C00 bytes are useful data.
 /// * Little-endian.
-/// * The archive begins with a catalog, which takes up the first 0x10000 bytes (or possibly
-///   aligned to a boundary of 0x8000 bytes).
+/// * The archive begins with a catalog, which is just a list of all the files and directories that
+///   will follow. The catalog is not actually necessary to read, since each actual file in the
+///   contents is prepended by a catalog entry. The contents will appear directly after the catalog,
+///   but will be aligned on a boundary of 0x8000 bytes.
 /// * For extracting the contents, we skip past the catalog and directly to the stream of files
 ///   and directories.
 /// 
@@ -104,15 +106,29 @@ namespace QicStreamV1
             {
                 using (var stream = new FileStream(tempFileName, FileMode.Open, FileAccess.Read))
                 {
-                    if (initialOffset == 0)
+                    if (initialOffset != 0)
                     {
-                        // Skip past the catalog and straight to the contents.
-                        initialOffset = 0x10000;
+                        // adjust offset to account for removed bytes
+                        initialOffset -= ((initialOffset / 0x8000) * 0x400);
+                        stream.Seek(initialOffset, SeekOrigin.Begin);
                     }
-
-                    // adjust offset to account for removed bytes
-                    initialOffset -= ((initialOffset / 0x8000) * 0x400);
-                    stream.Seek(initialOffset, SeekOrigin.Begin);
+                    else
+                    {
+                        // read the catalog and seek to contents.
+                        while (stream.Position < stream.Length)
+                        {
+                            var header = new FileHeader(stream);
+                            if (!header.Valid)
+                            {
+                                break;
+                            }
+                        }
+                        // align to boundary of 0x8000 (-0x400) bytes
+                        if (stream.Position % 0x7C00 > 0)
+                        {
+                            stream.Seek(0x7C00 - (stream.Position % 0x7C00), SeekOrigin.Current);
+                        }
+                    }
 
                     Directory.CreateDirectory(baseDirectory);
                     string currentDirectory = baseDirectory;
