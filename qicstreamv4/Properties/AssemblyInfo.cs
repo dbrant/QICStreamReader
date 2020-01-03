@@ -10,7 +10,7 @@ using System.Runtime.InteropServices;
 [assembly: AssemblyConfiguration("")]
 [assembly: AssemblyCompany("")]
 [assembly: AssemblyProduct("QicStreamV4")]
-[assembly: AssemblyCopyright("Copyright © Dmitry Brant")]
+[assembly: AssemblyCopyright("Copyright © 2019-2020 Dmitry Brant")]
 [assembly: AssemblyTrademark("")]
 [assembly: AssemblyCulture("")]
 
