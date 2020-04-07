@@ -11,6 +11,8 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "qicstreamv4", "qicstreamv4\
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "hpbackup", "hpbackup\hpbackup.csproj", "{80E32514-E2EC-41E4-9418-CD4EB8A73168}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "qic80reader", "qic80reader\qic80reader.csproj", "{A822CF82-228A-4F9C-A50B-184750182A3F}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -69,6 +71,18 @@ Global
 		{80E32514-E2EC-41E4-9418-CD4EB8A73168}.Release|x64.Build.0 = Release|Any CPU
 		{80E32514-E2EC-41E4-9418-CD4EB8A73168}.Release|x86.ActiveCfg = Release|Any CPU
 		{80E32514-E2EC-41E4-9418-CD4EB8A73168}.Release|x86.Build.0 = Release|Any CPU
+		{A822CF82-228A-4F9C-A50B-184750182A3F}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{A822CF82-228A-4F9C-A50B-184750182A3F}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{A822CF82-228A-4F9C-A50B-184750182A3F}.Debug|x64.ActiveCfg = Debug|Any CPU
+		{A822CF82-228A-4F9C-A50B-184750182A3F}.Debug|x64.Build.0 = Debug|Any CPU
+		{A822CF82-228A-4F9C-A50B-184750182A3F}.Debug|x86.ActiveCfg = Debug|Any CPU
+		{A822CF82-228A-4F9C-A50B-184750182A3F}.Debug|x86.Build.0 = Debug|Any CPU
+		{A822CF82-228A-4F9C-A50B-184750182A3F}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{A822CF82-228A-4F9C-A50B-184750182A3F}.Release|Any CPU.Build.0 = Release|Any CPU
+		{A822CF82-228A-4F9C-A50B-184750182A3F}.Release|x64.ActiveCfg = Release|Any CPU
+		{A822CF82-228A-4F9C-A50B-184750182A3F}.Release|x64.Build.0 = Release|Any CPU
+		{A822CF82-228A-4F9C-A50B-184750182A3F}.Release|x86.ActiveCfg = Release|Any CPU
+		{A822CF82-228A-4F9C-A50B-184750182A3F}.Release|x86.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
