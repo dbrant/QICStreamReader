@@ -34,9 +34,26 @@ namespace qic80reader
                 {
 
 
-                    var header = new FormatParamRecord(stream);
 
-                    Console.WriteLine(header);
+
+
+                    // NOTE: for every 0xE800 bytes, skip 6 bytes.
+                    // (create a stream reader adapter that does this transparently?)
+                    stream.Seek(6, SeekOrigin.Begin);
+
+
+
+                    while (stream.Position < stream.Length)
+                    {
+                        var rec = new CatalogRecord(stream);
+                        if (!rec.Valid) { break; }
+
+                        Console.WriteLine(Convert.ToString(rec.Attrs, 16) + "\t" + rec.Name + "\t" + rec.Size + "\t" + rec.Date);
+
+                    }
+
+                    //var header = new FormatParamRecord(stream);
+                    //Console.WriteLine(header);
 
 
                 }
@@ -46,6 +63,37 @@ namespace qic80reader
                 Console.WriteLine("Error: " + e.Message);
             }
         }
+
+
+
+        private class CatalogRecord
+        {
+            public bool Valid;
+
+            public string Name;
+            public long Size;
+            public int Attrs;
+            public DateTime Date;
+
+            public CatalogRecord(Stream stream)
+            {
+                byte[] bytes = new byte[0xFF];
+                int dataLen = stream.ReadByte();
+                if (dataLen == 0) { return; }
+
+                stream.Read(bytes, 0, dataLen);
+
+                Attrs = bytes[0];
+                Date = GetDateTime(BitConverter.ToUInt32(bytes, 1));
+                Size = BitConverter.ToUInt32(bytes, 5);
+
+                int nameLen = stream.ReadByte();
+                stream.Read(bytes, 0, nameLen);
+                Name = CleanString(Encoding.ASCII.GetString(bytes, 0, nameLen));
+                Valid = true;
+            }
+        }
+
 
         private class FormatParamRecord
         {
@@ -143,7 +191,7 @@ namespace qic80reader
             int month = s;
             try
             {
-                d = new DateTime(year, month, day, hour, minute, second);
+                d = new DateTime(year, month + 1, day + 1, hour, minute, second);
             }
             catch { }
             return d;
