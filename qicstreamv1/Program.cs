@@ -47,21 +47,30 @@ using System.Text;
 /// Byte count            Meaning
 /// ----------------------------------------
 /// 4 bytes               Magic value of 0x33CC33CC.
+/// 
 /// 1 byte                Length of the following metadata. (it can possibly contain vendor-specific
 ///                       metadata that can be safely ignored.)
+///                       
 /// --- start metadata
-/// 1 byte                File attributes, as specified in QIC-113
 /// 
-/// 4 bytes               File date, as specified in QIC-113
+/// 1 byte                File attributes, as specified in QIC-113.
+/// 
+/// 4 bytes               File date, as specified in QIC-113.
 /// 
 /// 4 bytes               File size INCLUDING this header. To calculate the actual file size, subtract the
 ///                       length of this header including the variable-length names below.
+/// 
+/// n bytes               Zero or more vendor-specific bytes.
+/// 
 /// --- end metadata (see length)
+/// 
 /// 1 byte                File name length (No null terminator).
 /// 
 /// [variable]            File name.
+/// 
 /// --- end filename (see length)
-/// a byte                Directory name length (i.e. the directory in which this file should be placed). This
+/// 
+/// 1 byte                Directory name length (i.e. the directory in which this file should be placed). This
 ///                       may be 0, which would mean that this file is in the root directory.
 /// 
 /// [variable]            Directory name. This name may also contain one or more null characters in the middle, to
