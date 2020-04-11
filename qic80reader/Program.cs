@@ -26,7 +26,9 @@ namespace qic80reader
 
             if (inFileName.Length == 0 || !File.Exists(inFileName))
             {
-                Console.WriteLine("Usage: qic80reader -f <file name> [-d <output directory>]");
+                Console.WriteLine("Usage:");
+                Console.WriteLine("Phase 1 (uncompress and unframe): qic80reader -x -f <file name> -o <out file name>");
+                Console.WriteLine("Phase 2 (extract file tree): qic80reader -f <phase 1 out file> [-d <output directory>]");
                 return;
             }
 
