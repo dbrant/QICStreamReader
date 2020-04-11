@@ -4,47 +4,64 @@ using System.Text;
 
 /// <summary>
 /// 
-/// Decoder for QICStream (V1?) formatted tape images.
+/// Decoder for QIC-113 (rev G) formatted tape images.
+/// https://www.qic.org/html/standards/11x.x/qic113g.pdf
 /// 
-/// Copyright Dmitry Brant, 2019
+/// Copyright Dmitry Brant, 2019, 2020
 /// 
+/// This does not implement the entire specification exactly, just enough to recover data from tapes
+/// I've seen in the wild so far.
 /// 
-/// Brief outline of the format, to the best of my reverse-engineering ability:
+/// This tool works in three possible phases, depending on the state of the raw tape image:
 /// 
-/// * Every block of 0x8000 bytes ends with 0x400 bytes of extra data (for parity checking or
-///   some other kind of error correction?). In other words, for every 0x8000 bytes, only the
-///   first 0x7C00 bytes are useful data.
-/// * Little-endian.
+/// * Phase 1: remove and/or process ECC data. In every block of 0x8000 bytes on the tape, the first
+/// 0x7C00 bytes are actual data, and the last 0x400 bytes are error-correction bytes. When obtaining
+/// a binary dump of a tape, sometimes the ECC bytes will be included (e.g. when using `dd` on QIC-150
+/// tapes), and sometimes they will be left out and applied automatically by the tape driver (e.g. when
+/// using `dd` to read QIC-80 tapes using the ftape driver). You should look at the raw data and see
+/// if ECC is included or not, and decide whether it needs to be removed.
+/// 
+/// * Phase 2: decompress the data. The data on the tape will sometimes be compressed. This tool
+/// supports only QIC-122 compression so far. You should look at the raw data and see if the data
+/// section (after the catalog) starts with something other than 0x33CC33CC. It will very likely have
+/// the bytes 0x660C... at offset 6 in the data section, which is the compressed version of 0x33CC...
+/// In a compressed volume the catalog will also start with 0x00000000FAF3.
+/// 
+/// * Phase 3: extract the files from the archive. Once the raw data is prepared by removing ECC and/or
+/// decompressing, the files are ready to be extracted from it. At this point, the format of the data
+/// is as follows:
+/// 
 /// * The archive begins with a catalog, which is just a list of all the files and directories that
-///   will follow. The catalog is not actually necessary to read, since each actual file in the
-///   contents is prepended by a catalog entry. The contents will appear directly after the catalog,
-///   but will be aligned on a boundary of 0x8000 bytes.
+/// will follow. The catalog is not actually necessary to read, since each actual file in the
+/// contents is prepended by a copy of the catalog entry. The contents will appear directly after the
+/// catalog, but will be aligned on a sector boundary (0x200 bytes).
+/// 
 /// * For extracting the contents, we skip past the catalog and directly to the stream of files
 ///   and directories.
 /// 
-/// The actual archive simply consists of a sequence of files, one after the other. Each file
-/// starts with a header, followed by its contents. (Directory information is part of the file
-/// header.)
+/// The archive then simply consists of a sequence of files, one after the other. Each file starts
+/// with a header, followed by its contents. (Directory information is part of the file header.)
 /// 
 /// Here is a breakdown of the file header:
 /// 
-/// Byte offset (hex)     Meaning
+/// Byte count            Meaning
 /// ----------------------------------------
-/// 0-3                   Always seems to be 0x33CC33CC; possibly a magic identifier.
-/// 4                     Always seems to be 9.
+/// 4 bytes               Magic value of 0x33CC33CC.
+/// 1 byte                Length of the following metadata. (it can possibly contain vendor-specific
+///                       metadata that can be safely ignored.)
+/// --- start metadata
+/// 1 byte                File attributes, as specified in QIC-113
 /// 
-/// 5                     Possibly file attributes, but doesn't seem to be encoded in the usual DOS way.
+/// 4 bytes               File date, as specified in QIC-113
 /// 
-/// 6-9                   File date, encoded as time_t (seconds since 1970 epoch).
-/// 
-/// A-D                   File size INCLUDING this header. To calculate the actual file size, subtract the
+/// 4 bytes               File size INCLUDING this header. To calculate the actual file size, subtract the
 ///                       length of this header including the variable-length names below.
-/// 
-/// E                     File name length (No null terminator).
+/// --- end metadata (see length)
+/// 1 byte                File name length (No null terminator).
 /// 
 /// [variable]            File name.
-/// 
-/// [variable+1]          Directory name length (i.e. the directory in which this file should be placed). This
+/// --- end filename (see length)
+/// a byte                Directory name length (i.e. the directory in which this file should be placed). This
 ///                       may be 0, which would mean that this file is in the root directory.
 /// 
 /// [variable]            Directory name. This name may also contain one or more null characters in the middle, to
