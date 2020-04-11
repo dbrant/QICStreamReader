@@ -3,6 +3,12 @@ using System.IO;
 
 namespace QicStreamV1
 {
+    /// <summary>
+    /// Decompression utility compatible with QIC-122 (rev B) compressed frames.
+    /// https://www.qic.org/html/standards/12x.x/qic122b.pdf
+    ///
+    /// Copyright Dmitry Brant, 2020.
+    /// </summary>
     public class Qic122Decompressor
     {
         private Stream stream;
@@ -13,6 +19,11 @@ namespace QicStreamV1
         private byte[] history;
         private int historyPtr;
 
+        /// <summary>
+        /// Decompress data from one stream to another.
+        /// </summary>
+        /// <param name="stream">Stream containing a single compression frame that's compressed using the QIC-122 algorithm.</param>
+        /// <param name="outStream">Stream to which uncompressed data will be written.</param>
         public Qic122Decompressor(Stream stream, Stream outStream)
         {
             this.stream = stream;
