@@ -141,6 +141,9 @@ namespace qic80reader
                             {
                                 f.Write(tempBytes, 0, tempBytes.Length);
                             }
+                            File.SetCreationTime(fileName, rec.Date);
+                            File.SetLastWriteTime(fileName, rec.Date);
+                            File.SetAttributes(fileName, rec.Attributes);
                         }
                         else if (rec.Size > 0)
                         {
@@ -300,7 +303,7 @@ namespace qic80reader
 
             public string Name;
             public long Size;
-            public FileAttributes Attrs;
+            public FileAttributes Attributes;
             public DateTime Date;
             public string Path = "";
 
@@ -318,9 +321,9 @@ namespace qic80reader
                 stream.Read(bytes, 0, dataLen);
 
                 int flags = bytes[0];
-                if ((flags & 0x2) == 0) { Attrs |= FileAttributes.ReadOnly; }
-                if ((flags & 0x8) != 0) { Attrs |= FileAttributes.Hidden; }
-                if ((flags & 0x10) != 0) { Attrs |= FileAttributes.System; }
+                if ((flags & 0x2) == 0) { Attributes |= FileAttributes.ReadOnly; }
+                if ((flags & 0x8) != 0) { Attributes |= FileAttributes.Hidden; }
+                if ((flags & 0x10) != 0) { Attributes |= FileAttributes.System; }
                 if ((flags & 0x20) != 0) { isDirectory = true; }
                 if ((flags & 0x40) != 0) { isLastEntry = true; }
                 if ((flags & 0x80) != 0) { isFinalEntry = true; }
