@@ -60,87 +60,169 @@ namespace QicStreamV1
 {
     class Program
     {
+        private const uint FileHeaderMagic = 0x33CC33CC;
+
         static void Main(string[] args)
         {
             string inFileName = "";
-            string tempFileName;
+            string outFileName = "out.bin";
             string baseDirectory = "out";
+
             long initialOffset = 0;
+            bool removeEcc = false;
+            bool decompress = false;
 
             for (int i = 0; i < args.Length; i++)
             {
                 if (args[i] == "-f") { inFileName = args[i + 1]; }
-                if (args[i] == "-d") { baseDirectory = args[i + 1]; }
-                if (args[i] == "--offset") { initialOffset = Convert.ToInt64(args[i + 1]); }
+                else if (args[i] == "-o") { outFileName = args[i + 1]; }
+                else if (args[i] == "-d") { baseDirectory = args[i + 1]; }
+                else if (args[i] == "-ecc") { removeEcc = true; }
+                else if (args[i] == "-x") { decompress = true; }
+                else if (args[i] == "--offset") { initialOffset = Convert.ToInt64(args[i + 1]); }
             }
 
             if (inFileName.Length == 0 || !File.Exists(inFileName))
             {
+                Console.WriteLine("Usage:");
+                Console.WriteLine("Phase 1 - remove/apply ECC data (if present):");
+                Console.WriteLine("Usage: qicstreamv1 -ecc -f <file name> -o <out file name>");
+                Console.WriteLine("Phase 2 - uncompress the archive (if compression is used):");
+                Console.WriteLine("Usage: qicstreamv1 -x -f <file name> -o <out file name>");
+                Console.WriteLine("Phase 3 - extract files/folders from archive:");
                 Console.WriteLine("Usage: qicstreamv1 -f <file name> [-d <output directory>]");
                 return;
             }
 
-            byte[] bytes = new byte[65536];
-            tempFileName = inFileName + ".tmp";
+            byte[] bytes = new byte[0x10000];
 
-            // Pass 1: remove unused bytes (parity?) from the original file, and write to temporary file
-
-            using (var stream = new FileStream(inFileName, FileMode.Open, FileAccess.Read))
+            if (removeEcc)
             {
-                using (var outStream = new FileStream(tempFileName, FileMode.Create, FileAccess.Write))
+                try
                 {
-                    while (stream.Position < stream.Length)
+                    using (var stream = new FileStream(inFileName, FileMode.Open, FileAccess.Read))
                     {
-                        stream.Read(bytes, 0, 0x8000);
+                        using (var outStream = new FileStream(outFileName, FileMode.Create, FileAccess.Write))
+                        {
+                            while (stream.Position < stream.Length)
+                            {
+                                stream.Read(bytes, 0, 0x8000);
 
-                        // Each block of 0x8000 bytes ends with 0x400 bytes of something (perhaps for parity checking)
-                        // We'll just remove it and write the good bytes to the temporary file.
-                        outStream.Write(bytes, 0, 0x8000 - 0x400);
+                                // Each block of 0x8000 bytes ends with 0x400 bytes of ECC and/or parity data.
+                                // TODO: actually use the ECC to verify and correct the data itself.
+                                outStream.Write(bytes, 0, 0x8000 - 0x400);
+                            }
+                        }
                     }
                 }
+                catch (Exception e)
+                {
+                    Console.WriteLine("Error: " + e.Message);
+                }
+                return;
             }
+            else if (decompress)
+            {
+                try
+                {
+                    using (var stream = new FileStream(inFileName, FileMode.Open, FileAccess.Read))
+                    {
+                        using (var outStream = new FileStream(outFileName, FileMode.Create, FileAccess.Write))
+                        {
+                            bool firstCompressedFrame = true;
 
-            // Pass 2: extract files.
+                            while (stream.Position < stream.Length)
+                            {
+                                stream.Read(bytes, 0, 6);
+                                uint absolutePos = BitConverter.ToUInt32(bytes, 0);
+                                int frameSize = BitConverter.ToUInt16(bytes, 4);
+
+                                bool compressed = (frameSize & 0x8000) == 0;
+                                frameSize &= 0x7FFF;
+
+                                if (compressed && firstCompressedFrame)
+                                {
+                                    firstCompressedFrame = false;
+                                    // pad to 0x200
+                                    if ((outStream.Position % 0x200) > 0)
+                                    {
+                                        Array.Clear(bytes, 0, bytes.Length);
+                                        outStream.Write(bytes, 0, 0x200 - (int)(outStream.Position % 0x200));
+                                    }
+                                }
+
+                                stream.Read(bytes, 0, frameSize);
+
+                                if (compressed)
+                                {
+                                    new Qic122Decompressor(new MemoryStream(bytes), outStream);
+                                }
+                                else
+                                {
+                                    outStream.Write(bytes, 0, frameSize);
+                                }
+                            }
+                        }
+                    }
+                }
+                catch (Exception e)
+                {
+                    Console.WriteLine("Error: " + e.Message);
+                }
+                return;
+            }
 
             try
             {
-                using (var stream = new FileStream(tempFileName, FileMode.Open, FileAccess.Read))
+                using (var stream = new FileStream(inFileName, FileMode.Open, FileAccess.Read))
                 {
                     if (initialOffset != 0)
                     {
-                        // adjust offset to account for removed bytes
-                        initialOffset -= ((initialOffset / 0x8000) * 0x400);
                         stream.Seek(initialOffset, SeekOrigin.Begin);
                     }
                     else
                     {
-                        // read the catalog and seek to contents.
+                        // read through the catalog (don't do anything with it).
                         while (stream.Position < stream.Length)
                         {
-                            var header = new FileHeader(stream);
+                            var header = new FileHeader(stream, true);
                             if (!header.Valid)
                             {
                                 break;
                             }
                         }
-                        // align to boundary of 0x8000 (-0x400) bytes
-                        if (stream.Position % 0x7C00 > 0)
+
+                        // jump to boundaries of 0x200 until we come upon the first file header
+                        while (stream.Position < stream.Length)
                         {
-                            stream.Seek(0x7C00 - (stream.Position % 0x7C00), SeekOrigin.Current);
+                            if (stream.Position % 0x200 > 0)
+                            {
+                                stream.Seek(0x200 - (stream.Position % 0x200), SeekOrigin.Current);
+                            }
+                            stream.Read(bytes, 0, 4);
+                            if (BitConverter.ToInt32(bytes, 0) == FileHeaderMagic)
+                            {
+                                stream.Seek(-4, SeekOrigin.Current);
+                                break;
+                            }
                         }
                     }
 
-                    Directory.CreateDirectory(baseDirectory);
-                    string currentDirectory = baseDirectory;
-
-
                     while (stream.Position < stream.Length)
                     {
-                        var header = new FileHeader(stream);
+                        var header = new FileHeader(stream, false);
                         if (!header.Valid)
                         {
                             Console.WriteLine("Invalid file header, probably end of archive.");
                             break;
+                        }
+                        else if (header.IsDirectory)
+                        {
+                            if (header.Size > 0)
+                            {
+                                stream.Seek(header.Size, SeekOrigin.Current);
+                            }
+                            continue;
                         }
 
                         string filePath = baseDirectory;
@@ -152,6 +234,7 @@ namespace QicStreamV1
                                 filePath = Path.Combine(filePath, dirArray[i]);
                             }
                         }
+
                         Directory.CreateDirectory(filePath);
                         filePath = Path.Combine(filePath, header.Name);
 
@@ -179,9 +262,10 @@ namespace QicStreamV1
                                 bytesLeft -= bytesToRead;
                             }
                         }
+
                         File.SetCreationTime(filePath, header.DateTime);
                         File.SetLastWriteTime(filePath, header.DateTime);
-                        //File.SetAttributes(filePath, header.Attributes);
+                        File.SetAttributes(filePath, header.Attributes);
                     }
                 }
             }
@@ -189,15 +273,6 @@ namespace QicStreamV1
             {
                 Console.WriteLine("Error: " + e.Message);
             }
-            finally
-            {
-                File.Delete(tempFileName);
-            }
-        }
-
-        private static DateTime DateTimeFromTimeT(long timeT)
-        {
-            return new DateTime(1970, 1, 1).AddSeconds(timeT);
         }
 
         private class FileHeader
@@ -208,43 +283,73 @@ namespace QicStreamV1
             public FileAttributes Attributes { get; }
             public string Subdirectory { get; }
             public bool Valid { get; }
+            public bool IsDirectory { get; }
+            public bool IsLastEntry { get; }
+            public bool IsFinalEntry { get; }
 
-            public FileHeader(Stream stream)
+            public FileHeader(Stream stream, bool isCatalog)
             {
                 Subdirectory = "";
                 byte[] bytes = new byte[1024];
                 long initialPos = stream.Position;
 
-                stream.Read(bytes, 0, 0xF);
-
-                // TODO: figure this out?
-                //Attributes = (FileAttributes)bytes[0x5];
-
-                DateTime = DateTimeFromTimeT(BitConverter.ToUInt32(bytes, 0x6));
-                Size = BitConverter.ToInt32(bytes, 0xA);
-
-                if (Size == 0)
+                if (!isCatalog)
                 {
-                    return;
+                    stream.Read(bytes, 0, 4);
+                    if (BitConverter.ToInt32(bytes, 0) != FileHeaderMagic) { return; }
                 }
 
-                int nameLength = bytes[0xE];
+                int dataLen = stream.ReadByte();
+                if (dataLen == 0) { return; }
+                stream.Read(bytes, 0, dataLen);
 
+                int flags = bytes[0];
+                if ((flags & 0x2) == 0) { Attributes |= FileAttributes.ReadOnly; }
+                if ((flags & 0x8) != 0) { Attributes |= FileAttributes.Hidden; }
+                if ((flags & 0x10) != 0) { Attributes |= FileAttributes.System; }
+                if ((flags & 0x20) != 0) { IsDirectory = true; }
+                if ((flags & 0x40) != 0) { IsLastEntry = true; }
+                if ((flags & 0x80) != 0) { IsFinalEntry = true; }
+
+                DateTime = GetShortDateTime(BitConverter.ToUInt32(bytes, 0x1));
+                Size = BitConverter.ToInt32(bytes, 0x5);
+                if (!isCatalog && Size == 0) { return; }
+
+                int nameLength = stream.ReadByte();
                 stream.Read(bytes, 0, nameLength);
                 Name = Encoding.ASCII.GetString(bytes, 0, nameLength);
 
-
-                int subDirLength = stream.ReadByte();
-
-                if (subDirLength > 0) {
-                    stream.Read(bytes, 0, subDirLength);
-                    Subdirectory = Encoding.ASCII.GetString(bytes, 0, subDirLength);
+                if (!isCatalog)
+                {
+                    int subDirLength = stream.ReadByte();
+                    if (subDirLength > 0)
+                    {
+                        stream.Read(bytes, 0, subDirLength);
+                        Subdirectory = Encoding.ASCII.GetString(bytes, 0, subDirLength);
+                    }
+                    // The Size field *includes* the size of the header, so adjust it.
+                    Size -= (stream.Position - initialPos);
                 }
-
-                // The Size field *includes* the size of the header, so adjust it.
-                Size -= (stream.Position - initialPos);
                 Valid = true;
             }
+        }
+
+        private static DateTime GetShortDateTime(uint date)
+        {
+            DateTime d = new DateTime();
+            int year = (int)((date & 0xFE000000) >> 25) + 1970;
+            int s = (int)(date & 0x1FFFFFF);
+            int second = s % 60; s /= 60;
+            int minute = s % 60; s /= 60;
+            int hour = s % 24; s /= 24;
+            int day = s % 31; s /= 31;
+            int month = s;
+            try
+            {
+                d = new DateTime(year, month + 1, day + 1, hour, minute, second);
+            }
+            catch { }
+            return d;
         }
 
         private static bool VerifyFileFormat(string fileName, byte[] bytes)
