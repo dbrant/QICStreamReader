@@ -32,6 +32,14 @@ namespace headerview
 						Console.Write(vtbl1.ToString());
 						return;
 					}
+
+					f.Seek(0, SeekOrigin.Begin);
+					Vtbl2Record vtbl2 = new Vtbl2Record(f);
+					if (vtbl2.Valid)
+					{
+						Console.Write(vtbl2.ToString());
+						return;
+					}
 				}
 			}
 			catch (Exception e)
@@ -138,11 +146,87 @@ namespace headerview
 	public class Vtbl1Record
 	{
 		public bool Valid;
+		public int StartSegNum;
+		public int EndSegNum;
+		public string VolumeDescription;
+		public DateTime Date;
+		public int VolumeFlags;
+		public int MultiCartSeq;
+		public string Password;
+		public int DirSectionSize;
+		public long DataSectionSize;
+		public int OsVersion;
+		public string SourceDrive;
+		public int LogicalFileSet;
+		public int CompressionMethod;
+		public int FormatOsType;
+
+		public Vtbl1Record(Stream stream)
+		{
+			byte[] bytes = new byte[255];
+			long initialPos = stream.Position;
+			int ptr = 0;
+			stream.Read(bytes, 0, 255);
+			if (Encoding.ASCII.GetString(bytes, ptr, 4) != "VTBL")
+			{
+				return;
+			}
+			ptr += 4;
+			StartSegNum = BitConverter.ToUInt16(bytes, ptr); ptr += 2;
+			EndSegNum = BitConverter.ToUInt16(bytes, ptr); ptr += 2;
+			VolumeDescription = Util.CleanString(Encoding.ASCII.GetString(bytes, ptr, 0x2C)); ptr += 0x2C;
+			Date = Util.GetShortDateTime(BitConverter.ToUInt32(bytes, ptr)); ptr += 4;
+
+			VolumeFlags = bytes[ptr++];
+			MultiCartSeq = bytes[ptr++];
+
+			// vendor-specific data
+			ptr = 84;
+			Password = Util.CleanString(Encoding.ASCII.GetString(bytes, ptr, 8)); ptr += 8;
+
+			DirSectionSize = BitConverter.ToInt32(bytes, ptr); ptr += 4;
+			DataSectionSize = BitConverter.ToInt64(bytes, ptr); ptr += 8;
+
+			OsVersion = BitConverter.ToUInt16(bytes, ptr); ptr += 2;
+			SourceDrive = Util.CleanString(Encoding.ASCII.GetString(bytes, ptr, 16)); ptr += 16;
+
+			LogicalFileSet = bytes[ptr++];
+			ptr++;
+			CompressionMethod = bytes[ptr++];
+			FormatOsType = bytes[ptr++];
+
+			Valid = true;
+		}
+
+		public override string ToString()
+		{
+			var sb = new StringBuilder();
+			sb.AppendLine("StartSegNum: " + StartSegNum);
+			sb.AppendLine("EndSegNum: " + EndSegNum);
+			sb.AppendLine("VolumeDescription: " + VolumeDescription);
+			sb.AppendLine("Date: " + Date);
+			sb.AppendLine("VolumeFlags: " + VolumeFlags);
+			sb.AppendLine("MultiCartSeq: " + MultiCartSeq);
+			sb.AppendLine("Password: " + Password);
+			sb.AppendLine("DirSectionSize: " + DirSectionSize);
+			sb.AppendLine("DataSectionSize: " + DataSectionSize);
+			sb.AppendLine("OsVersion: " + OsVersion);
+			sb.AppendLine("SourceDrive: " + SourceDrive);
+			sb.AppendLine("LogicalFileSet: " + LogicalFileSet);
+			sb.AppendLine("CompressionMethod: " + CompressionMethod);
+			sb.AppendLine("FormatOsType: " + FormatOsType);
+			return sb.ToString();
+		}
+	}
+
+	public class Vtbl2Record
+	{
+		public bool Valid;
 		public DateTime Date;
 		public string ArchiveName;
 		public string ArchiveDrive;
 
-		public Vtbl1Record(Stream stream)
+		public Vtbl2Record(Stream stream)
 		{
 			byte[] bytes = new byte[255];
 			long initialPos = stream.Position;
