@@ -4,10 +4,10 @@ using System.Text;
 
 namespace headerview
 {
-    class Program
-    {
-        static void Main(string[] args)
-        {
+	class Program
+	{
+		static void Main(string[] args)
+		{
 			if (args.Length < 1)
 			{
 				Console.WriteLine("Usage: headerview <tape_header.bin>");
@@ -25,14 +25,21 @@ namespace headerview
 						return;
 					}
 
+					f.Seek(0, SeekOrigin.Begin);
+					Vtbl1Record vtbl1 = new Vtbl1Record(f);
+					if (vtbl1.Valid)
+					{
+						Console.Write(vtbl1.ToString());
+						return;
+					}
 				}
 			}
 			catch (Exception e)
 			{
 				Console.WriteLine("Error: " + e.Message);
 			}
-        }
-    }
+		}
+	}
 
 	public class FormatParamRecord
 	{
@@ -77,8 +84,8 @@ namespace headerview
 			HeaderSegDupNum = BitConverter.ToUInt16(bytes, ptr); ptr += 2;
 			DataSegFirstLogicalArea = BitConverter.ToUInt16(bytes, ptr); ptr += 2;
 			DataSegLastLogicalArea = BitConverter.ToUInt16(bytes, ptr); ptr += 2;
-			MostRecentFormat = GetShortDateTime(BitConverter.ToUInt32(bytes, ptr)); ptr += 4;
-			MostRecentWriteOrFormat = GetShortDateTime(BitConverter.ToUInt32(bytes, ptr)); ptr += 4; ptr += 2;
+			MostRecentFormat = Util.GetShortDateTime(BitConverter.ToUInt32(bytes, ptr)); ptr += 4;
+			MostRecentWriteOrFormat = Util.GetShortDateTime(BitConverter.ToUInt32(bytes, ptr)); ptr += 4; ptr += 2;
 			SegmentsPerTrack = BitConverter.ToUInt16(bytes, ptr); ptr += 2;
 
 			TracksPerCartridge = bytes[ptr++];
@@ -86,17 +93,17 @@ namespace headerview
 			MaxFloppyTrack = bytes[ptr++];
 			MaxFloppySector = bytes[ptr++];
 
-			TapeName = CleanString(Encoding.ASCII.GetString(bytes, ptr, 44)); ptr += 44;
-			TapeNameTime = GetShortDateTime(BitConverter.ToUInt32(bytes, ptr)); ptr += 4;
+			TapeName = Util.CleanString(Encoding.ASCII.GetString(bytes, ptr, 44)); ptr += 44;
+			TapeNameTime = Util.GetShortDateTime(BitConverter.ToUInt32(bytes, ptr)); ptr += 4;
 			ptr = 128;
 			ReformatErrorFlag = bytes[ptr++]; ptr++;
 			NumSegmentsWritten = BitConverter.ToInt32(bytes, ptr); ptr += 4;
 			ptr += 4;
-			InitialFormatTime = GetShortDateTime(BitConverter.ToUInt32(bytes, ptr)); ptr += 4;
+			InitialFormatTime = Util.GetShortDateTime(BitConverter.ToUInt32(bytes, ptr)); ptr += 4;
 			FormatCount = BitConverter.ToUInt16(bytes, ptr); ptr += 2;
 			ptr += 2;
-			ManufacturerName = CleanString(Encoding.ASCII.GetString(bytes, ptr, 44)); ptr += 44;
-			ManufacturerLotCode = CleanString(Encoding.ASCII.GetString(bytes, ptr, 44)); ptr += 44;
+			ManufacturerName = Util.CleanString(Encoding.ASCII.GetString(bytes, ptr, 44)); ptr += 44;
+			ManufacturerLotCode = Util.CleanString(Encoding.ASCII.GetString(bytes, ptr, 44)); ptr += 44;
 			Valid = true;
 		}
 
@@ -126,28 +133,54 @@ namespace headerview
 			sb.AppendLine("ManufacturerLotCode: " + ManufacturerLotCode);
 			return sb.ToString();
 		}
+	}
 
-		private static DateTime GetShortDateTime(uint date)
+	public class Vtbl1Record
+	{
+		public bool Valid;
+		public DateTime Date;
+		public string ArchiveName;
+		public string ArchiveDrive;
+
+		public Vtbl1Record(Stream stream)
 		{
-			DateTime d = new DateTime();
-			int year = (int)((date & 0xFE000000) >> 25) + 1970;
-			int s = (int)(date & 0x1FFFFFF);
-			int second = s % 60; s /= 60;
-			int minute = s % 60; s /= 60;
-			int hour = s % 24; s /= 24;
-			int day = s % 31; s /= 31;
-			int month = s;
-			try
+			byte[] bytes = new byte[255];
+			long initialPos = stream.Position;
+			int ptr = 0;
+			stream.Read(bytes, 0, 255);
+
+			ptr += 4;
+			if (Encoding.ASCII.GetString(bytes, ptr, 4) != "VTBL")
 			{
-				d = new DateTime(year, month + 1, day + 1, hour, minute, second);
+				return;
 			}
-			catch { }
-			return d;
+
+			ptr = 0x1C;
+			Date = Util.DateTimeFromTimeT(BitConverter.ToUInt32(bytes, ptr)); ptr += 4;
+
+			ptr = 0x3C;
+			int nameLen = BitConverter.ToUInt16(bytes, ptr); ptr += 2;
+			ArchiveName = Util.CleanString(Encoding.ASCII.GetString(bytes, ptr, nameLen)); ptr += nameLen;
+
+			// align to even byte
+			if (ptr % 2 > 0)
+			{
+				ptr++;
+			}
+
+			nameLen = BitConverter.ToUInt16(bytes, ptr); ptr += 2;
+			ArchiveDrive = Util.CleanString(Encoding.ASCII.GetString(bytes, ptr, nameLen)); ptr += nameLen;
+			Valid = true;
 		}
 
-		private static string CleanString(string str)
+		public override string ToString()
 		{
-			return str.Replace("\0", "").Trim();
+			var sb = new StringBuilder();
+			sb.AppendLine("ArchiveName: " + ArchiveName);
+			sb.AppendLine("ArchiveDrive: " + ArchiveDrive);
+			sb.AppendLine("Date: " + Date);
+			return sb.ToString();
 		}
 	}
+
 }
