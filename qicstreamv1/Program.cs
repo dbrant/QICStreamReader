@@ -97,6 +97,7 @@ namespace QicStreamV1
             long initialOffset = 0;
             bool removeEcc = false;
             bool decompress = false;
+            bool absPos = false;
 
             for (int i = 0; i < args.Length; i++)
             {
@@ -106,6 +107,7 @@ namespace QicStreamV1
                 else if (args[i] == "-ecc") { removeEcc = true; }
                 else if (args[i] == "-x") { decompress = true; }
                 else if (args[i] == "--offset") { initialOffset = Convert.ToInt64(args[i + 1]); }
+                else if (args[i] == "--abspos") { absPos = true; }
             }
 
             if (inFileName.Length == 0 || !File.Exists(inFileName))
@@ -179,9 +181,21 @@ namespace QicStreamV1
 
                                 stream.Read(bytes, 0, frameSize);
 
+                                if (absPos && (absolutePos != outStream.Position))
+                                {
+                                    outStream.Position = absolutePos;
+                                }
+
                                 if (compressed)
                                 {
-                                    new Qic122Decompressor(new MemoryStream(bytes), outStream);
+                                    try
+                                    {
+                                        new Qic122Decompressor(new MemoryStream(bytes), outStream);
+                                    }
+                                    catch (Exception ex)
+                                    {
+                                        Console.WriteLine("Warning: " + ex.Message);
+                                    }
                                 }
                                 else
                                 {
@@ -234,15 +248,28 @@ namespace QicStreamV1
                         }
                     }
 
+                    bool printHeaderWarning = true;
+
                     while (stream.Position < stream.Length)
                     {
+                        long posBeforeHeader = stream.Position;
                         var header = new FileHeader(stream, false);
                         if (!header.Valid)
                         {
-                            Console.WriteLine("Invalid file header, probably end of archive.");
-                            break;
+                            if (printHeaderWarning)
+                            {
+                                printHeaderWarning = false;
+                                Console.WriteLine("Warning: Invalid file header. Searching for next header...");
+                            }
+                            stream.Position = posBeforeHeader + 1;
+                            continue;
                         }
-                        else if (header.IsDirectory)
+                        else
+                        {
+                            printHeaderWarning = true;
+                        }
+
+                        if (header.IsDirectory)
                         {
                             if (header.Size > 0)
                             {
@@ -263,6 +290,12 @@ namespace QicStreamV1
 
                         Directory.CreateDirectory(filePath);
                         filePath = Path.Combine(filePath, header.Name);
+
+                        while (File.Exists(filePath))
+                        {
+                            Console.WriteLine("Warning: file already exists (amending name): " + filePath);
+                            filePath += "_";
+                        }
 
                         Console.WriteLine(stream.Position.ToString("X") +  ": " + filePath + " - " + header.Size.ToString() + " bytes - " + header.DateTime.ToShortDateString());
 
@@ -343,7 +376,7 @@ namespace QicStreamV1
 
                 int nameLength = stream.ReadByte();
                 stream.Read(bytes, 0, nameLength);
-                Name = Encoding.ASCII.GetString(bytes, 0, nameLength);
+                Name = ReplaceInvalidChars(Encoding.ASCII.GetString(bytes, 0, nameLength));
 
                 if (!isCatalog)
                 {
@@ -358,6 +391,13 @@ namespace QicStreamV1
                 }
                 Valid = true;
             }
+        }
+
+        private static string ReplaceInvalidChars(string filename)
+        {
+            string str = string.Join("_", filename.Split(Path.GetInvalidFileNameChars()));
+            str = string.Join("_", str.Split(Path.GetInvalidPathChars()));
+            return str;
         }
 
         private static DateTime GetShortDateTime(uint date)
