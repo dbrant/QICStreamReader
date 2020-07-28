@@ -98,6 +98,7 @@ namespace QicStreamV1
             bool removeEcc = false;
             bool decompress = false;
             bool absPos = false;
+            bool catDump = false;
 
             for (int i = 0; i < args.Length; i++)
             {
@@ -108,6 +109,7 @@ namespace QicStreamV1
                 else if (args[i] == "-x") { decompress = true; }
                 else if (args[i] == "--offset") { initialOffset = Convert.ToInt64(args[i + 1]); }
                 else if (args[i] == "--abspos") { absPos = true; }
+                else if (args[i] == "--catdump") { catDump = true; }
             }
 
             if (inFileName.Length == 0 || !File.Exists(inFileName))
@@ -194,7 +196,7 @@ namespace QicStreamV1
                                     }
                                     catch (Exception ex)
                                     {
-                                        Console.WriteLine("Warning: " + ex.Message);
+                                        Console.WriteLine("Warning: failed to decompress frame: " + ex.Message);
                                     }
                                 }
                                 else
@@ -228,27 +230,21 @@ namespace QicStreamV1
                             var header = new FileHeader(stream, true);
                             if (!header.Valid)
                             {
+                                // The first "invalid" header very likely represents the end of the catalog.
                                 break;
+                            }
+                            if (catDump)
+                            {
+                                Console.WriteLine(header.Name + "\t" + (header.IsDirectory ? "<dir>" : header.Size.ToString()) + "\t" + header.DateTime);
                             }
                         }
-
-                        // jump to boundaries of 0x200 until we come upon the first file header
-                        while (stream.Position < stream.Length)
+                        if (catDump)
                         {
-                            if (stream.Position % 0x200 > 0)
-                            {
-                                stream.Seek(0x200 - (stream.Position % 0x200), SeekOrigin.Current);
-                            }
-                            stream.Read(bytes, 0, 4);
-                            if (BitConverter.ToInt32(bytes, 0) == FileHeaderMagic)
-                            {
-                                stream.Seek(-4, SeekOrigin.Current);
-                                break;
-                            }
+                            return;
                         }
                     }
 
-                    bool printHeaderWarning = true;
+                    bool printHeaderWarning = false;
 
                     while (stream.Position < stream.Length)
                     {
