@@ -29,7 +29,12 @@ namespace headerview
 					Vtbl1Record vtbl1 = new Vtbl1Record(f);
 					if (vtbl1.Valid)
 					{
-						Console.Write(vtbl1.ToString());
+						while (vtbl1.Valid)
+						{
+							Console.Write(vtbl1.ToString());
+							Console.WriteLine("----------------");
+							vtbl1 = new Vtbl1Record(f);
+						}
 						return;
 					}
 
@@ -163,10 +168,10 @@ namespace headerview
 
 		public Vtbl1Record(Stream stream)
 		{
-			byte[] bytes = new byte[255];
+			byte[] bytes = new byte[0x80];
 			long initialPos = stream.Position;
 			int ptr = 0;
-			stream.Read(bytes, 0, 255);
+			stream.Read(bytes, 0, bytes.Length);
 			if (Encoding.ASCII.GetString(bytes, ptr, 4) != "VTBL")
 			{
 				return;
