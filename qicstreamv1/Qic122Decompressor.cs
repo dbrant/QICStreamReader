@@ -27,7 +27,7 @@ namespace QicStreamV1
         public Qic122Decompressor(Stream stream, Stream outStream)
         {
             this.stream = stream;
-            history = new byte[0x10000];
+            history = new byte[0x100000];
 
             int type, offset, length;
             byte b;
