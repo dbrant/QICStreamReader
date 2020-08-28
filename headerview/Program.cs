@@ -210,7 +210,7 @@ namespace headerview
 			sb.AppendLine("EndSegNum: " + EndSegNum);
 			sb.AppendLine("VolumeDescription: " + VolumeDescription);
 			sb.AppendLine("Date: " + Date);
-			sb.AppendLine("VolumeFlags: " + VolumeFlags);
+			sb.AppendLine(string.Format("VolumeFlags: 0x{0:X2}", VolumeFlags));
 			sb.AppendLine("MultiCartSeq: " + MultiCartSeq);
 			sb.AppendLine("Password: " + Password);
 			sb.AppendLine("DirSectionSize: " + DirSectionSize);
@@ -218,7 +218,7 @@ namespace headerview
 			sb.AppendLine("OsVersion: " + OsVersion);
 			sb.AppendLine("SourceDrive: " + SourceDrive);
 			sb.AppendLine("LogicalFileSet: " + LogicalFileSet);
-			sb.AppendLine("CompressionMethod: " + CompressionMethod);
+			sb.AppendLine(string.Format("CompressionMethod: 0x{0:X2}", CompressionMethod));
 			sb.AppendLine("FormatOsType: " + FormatOsType);
 			return sb.ToString();
 		}
