@@ -10,7 +10,7 @@ using System.Runtime.InteropServices;
 [assembly: AssemblyConfiguration("")]
 [assembly: AssemblyCompany("")]
 [assembly: AssemblyProduct("hpbackup")]
-[assembly: AssemblyCopyright("Copyright © 2019-2020 Dmitry Brant")]
+[assembly: AssemblyCopyright("Copyright © Dmitry Brant")]
 [assembly: AssemblyTrademark("")]
 [assembly: AssemblyCulture("")]
 
