@@ -12,6 +12,9 @@ using System.Text;
 /// This does not implement the entire specification exactly, just enough to recover data from tapes
 /// I've seen in the wild so far.
 /// 
+/// NOTE: this supports only the DOS-style formatting of the tape. For Windows 95 formatting, see
+/// the `qicstream95` code. (TODO: combine these into one tool.)
+/// 
 /// This tool works in three possible phases, depending on the state of the raw tape image:
 /// 
 /// * Phase 1: remove and/or process ECC data. In every block of 0x8000 bytes on the tape, the first
