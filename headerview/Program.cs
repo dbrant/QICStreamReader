@@ -157,6 +157,8 @@ namespace headerview
 		public DateTime Date;
 		public int VolumeFlags;
 		public int MultiCartSeq;
+		public int MajorSpecVer;
+		public int MinorSpecVer;
 		public string Password;
 		public int DirSectionSize;
 		public long DataSectionSize;
@@ -185,8 +187,12 @@ namespace headerview
 			VolumeFlags = bytes[ptr++];
 			MultiCartSeq = bytes[ptr++];
 
+			MajorSpecVer = BitConverter.ToUInt16(bytes, ptr); ptr += 2;
+			MinorSpecVer = BitConverter.ToUInt16(bytes, ptr); ptr += 2;
+
 			// vendor-specific data
-			ptr = 84;
+			ptr += 22;
+
 			Password = Util.CleanString(Encoding.ASCII.GetString(bytes, ptr, 8)); ptr += 8;
 
 			DirSectionSize = BitConverter.ToInt32(bytes, ptr); ptr += 4;
@@ -212,6 +218,8 @@ namespace headerview
 			sb.AppendLine("Date: " + Date);
 			sb.AppendLine(string.Format("VolumeFlags: 0x{0:X2}", VolumeFlags));
 			sb.AppendLine("MultiCartSeq: " + MultiCartSeq);
+			sb.AppendLine("MajorSpecVer: " + MajorSpecVer);
+			sb.AppendLine("MinorSpecVer: " + MinorSpecVer);
 			sb.AppendLine("Password: " + Password);
 			sb.AppendLine("DirSectionSize: " + DirSectionSize);
 			sb.AppendLine("DataSectionSize: " + DataSectionSize);
