@@ -13,6 +13,8 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "hpbackup", "hpbackup\hpback
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "headerview", "headerview\headerview.csproj", "{144841C0-4F93-4145-9530-D8E2A866FF38}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "qicstream95", "qicstream95\qicstream95.csproj", "{EF3D9D1F-C8CD-416C-8DE4-A9F0DE94297B}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -83,6 +85,18 @@ Global
 		{144841C0-4F93-4145-9530-D8E2A866FF38}.Release|x64.Build.0 = Release|Any CPU
 		{144841C0-4F93-4145-9530-D8E2A866FF38}.Release|x86.ActiveCfg = Release|Any CPU
 		{144841C0-4F93-4145-9530-D8E2A866FF38}.Release|x86.Build.0 = Release|Any CPU
+		{EF3D9D1F-C8CD-416C-8DE4-A9F0DE94297B}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{EF3D9D1F-C8CD-416C-8DE4-A9F0DE94297B}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{EF3D9D1F-C8CD-416C-8DE4-A9F0DE94297B}.Debug|x64.ActiveCfg = Debug|Any CPU
+		{EF3D9D1F-C8CD-416C-8DE4-A9F0DE94297B}.Debug|x64.Build.0 = Debug|Any CPU
+		{EF3D9D1F-C8CD-416C-8DE4-A9F0DE94297B}.Debug|x86.ActiveCfg = Debug|Any CPU
+		{EF3D9D1F-C8CD-416C-8DE4-A9F0DE94297B}.Debug|x86.Build.0 = Debug|Any CPU
+		{EF3D9D1F-C8CD-416C-8DE4-A9F0DE94297B}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{EF3D9D1F-C8CD-416C-8DE4-A9F0DE94297B}.Release|Any CPU.Build.0 = Release|Any CPU
+		{EF3D9D1F-C8CD-416C-8DE4-A9F0DE94297B}.Release|x64.ActiveCfg = Release|Any CPU
+		{EF3D9D1F-C8CD-416C-8DE4-A9F0DE94297B}.Release|x64.Build.0 = Release|Any CPU
+		{EF3D9D1F-C8CD-416C-8DE4-A9F0DE94297B}.Release|x86.ActiveCfg = Release|Any CPU
+		{EF3D9D1F-C8CD-416C-8DE4-A9F0DE94297B}.Release|x86.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
