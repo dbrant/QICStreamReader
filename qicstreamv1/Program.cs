@@ -169,6 +169,16 @@ namespace QicStreamV1
                                 stream.Read(bytes, 0, 6);
                                 uint absolutePos = BitConverter.ToUInt32(bytes, 0);
                                 int frameSize = BitConverter.ToUInt16(bytes, 4);
+                                // I've seen tapes that have an 8-byte chunk header, instead of a 6-byte header:
+                                // stream.Read(bytes, 0, 8);
+                                // uint absolutePos = BitConverter.ToUInt32(bytes, 2);
+                                // int frameSize = BitConverter.ToUInt16(bytes, 6);
+
+                                if (frameSize == 0)
+                                {
+                                    Console.WriteLine("Warning: empty frame size; bailing.");
+                                    break;
+                                }
 
                                 bool compressed = (frameSize & 0x8000) == 0;
                                 frameSize &= 0x7FFF;
