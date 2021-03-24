@@ -197,6 +197,14 @@ namespace qicstream1a
                                 nextHeaderPos = stream.Position - 4;
                                 break;
                             }
+
+                            if (stream.Position >= stream.Length)
+                            {
+                                Console.WriteLine("Warning: reached end of file.");
+                                nextHeaderPos = stream.Position;
+                                break;
+                            }
+
                             stream.Seek(-3, SeekOrigin.Current);
                         }
 
@@ -222,7 +230,7 @@ namespace qicstream1a
 
 
 
-                        if (header.IsDirectory)
+                        if (header.IsDirectory || header.Name.Trim() == "")
                         {
                             if (header.Size > 0)
                             {
