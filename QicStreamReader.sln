@@ -15,6 +15,8 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "headerview", "headerview\he
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "qicstream95", "qicstream95\qicstream95.csproj", "{EF3D9D1F-C8CD-416C-8DE4-A9F0DE94297B}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "connerbackup", "connerbackup\connerbackup.csproj", "{89DD4A55-4506-498D-8619-A52BEB06BF47}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -97,6 +99,18 @@ Global
 		{EF3D9D1F-C8CD-416C-8DE4-A9F0DE94297B}.Release|x64.Build.0 = Release|Any CPU
 		{EF3D9D1F-C8CD-416C-8DE4-A9F0DE94297B}.Release|x86.ActiveCfg = Release|Any CPU
 		{EF3D9D1F-C8CD-416C-8DE4-A9F0DE94297B}.Release|x86.Build.0 = Release|Any CPU
+		{89DD4A55-4506-498D-8619-A52BEB06BF47}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{89DD4A55-4506-498D-8619-A52BEB06BF47}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{89DD4A55-4506-498D-8619-A52BEB06BF47}.Debug|x64.ActiveCfg = Debug|Any CPU
+		{89DD4A55-4506-498D-8619-A52BEB06BF47}.Debug|x64.Build.0 = Debug|Any CPU
+		{89DD4A55-4506-498D-8619-A52BEB06BF47}.Debug|x86.ActiveCfg = Debug|Any CPU
+		{89DD4A55-4506-498D-8619-A52BEB06BF47}.Debug|x86.Build.0 = Debug|Any CPU
+		{89DD4A55-4506-498D-8619-A52BEB06BF47}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{89DD4A55-4506-498D-8619-A52BEB06BF47}.Release|Any CPU.Build.0 = Release|Any CPU
+		{89DD4A55-4506-498D-8619-A52BEB06BF47}.Release|x64.ActiveCfg = Release|Any CPU
+		{89DD4A55-4506-498D-8619-A52BEB06BF47}.Release|x64.Build.0 = Release|Any CPU
+		{89DD4A55-4506-498D-8619-A52BEB06BF47}.Release|x86.ActiveCfg = Release|Any CPU
+		{89DD4A55-4506-498D-8619-A52BEB06BF47}.Release|x86.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
