@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Collections.Generic;
 using System.IO;
 using System.Text;
 
@@ -6,6 +7,9 @@ namespace ntbackup
 {
     class Program
     {
+        static List<string> blockNames = new List<string> { "TAPE", "SSET", "VOLB", "DIRB", "FILE", "CFIL", "ESPB", "ESET", "EOTM", "SFMB" };
+        static List<string> catalogStreamNames = new List<string> { "TSMP", "TFDD", "MAP2", "FDD2" };
+
         static void Main(string[] args)
         {
             string inFileName = "";
@@ -38,7 +42,7 @@ namespace ntbackup
 
                     DescriptorBlock.DefaultBlockSize = tapeHeaderBlock.formatLogicalBlockSize;
 
-                    stream.Seek(DescriptorBlock.DefaultBlockSize, SeekOrigin.Current);
+                    stream.Seek(2 * DescriptorBlock.DefaultBlockSize, SeekOrigin.Current);
 
                     DirectoryDescriptorBlock currentDirectory = null;
                     FileDescriptorBlock currentFile = null;
@@ -50,131 +54,142 @@ namespace ntbackup
                         stream.Seek(-4, SeekOrigin.Current);
                         string blockType = Encoding.ASCII.GetString(bytes, 0, 4);
 
-                        if (blockType == "\0\0\0\0")
+                        if (!IsValidBlockName(blockType))
                         {
-                            // forgive instances of null blocks
+                            Console.WriteLine(stream.Position.ToString("X") + ": Warning: skipping invalid block.");
                             stream.Seek(DescriptorBlock.DefaultBlockSize, SeekOrigin.Current);
                             continue;
                         }
 
-                        int nextStreamOffset = 0;
+                        if (IsValidBlockName(blockType))
+                        {
 
-                        if (blockType == "SSET")
-                        {
-                            var block = new StartOfDataSetBlock(stream);
-                            stream.Seek(DescriptorBlock.DefaultBlockSize, SeekOrigin.Current);
-                            continue;
-                        }
-                        else if (blockType == "VOLB")
-                        {
-                            var block = new VolumeDescriptorBlock(stream);
-                            stream.Seek(DescriptorBlock.DefaultBlockSize, SeekOrigin.Current);
-                            continue;
-                        }
-                        else if (blockType == "DIRB")
-                        {
-                            currentDirectory = new DirectoryDescriptorBlock(stream);
-                            nextStreamOffset = currentDirectory.firstEventOffset;
-                        }
-                        else if (blockType == "FILE")
-                        {
-                            currentFile = new FileDescriptorBlock(stream);
-                            nextStreamOffset = currentFile.firstEventOffset;
+                            DescriptorBlock block;
+
+                            if (blockType == "SSET")
+                            {
+                                block = new StartOfDataSetBlock(stream);
+                            }
+                            else if (blockType == "VOLB")
+                            {
+                                block = new VolumeDescriptorBlock(stream);
+                            }
+                            else if (blockType == "DIRB")
+                            {
+                                currentDirectory = new DirectoryDescriptorBlock(stream);
+                                block = currentDirectory;
+                                currentFile = null;
+                            }
+                            else if (blockType == "FILE")
+                            {
+                                currentFile = new FileDescriptorBlock(stream);
+                                block = currentFile;
+                            }
+                            else
+                            {
+                                block = new DescriptorBlock(stream);
+                            }
+
+                            Console.WriteLine(stream.Position.ToString("X") + ": " + block.ToString());
+
+                            stream.Seek(block.firstEventOffset, SeekOrigin.Current);
                         }
 
                         //  traverse streams...
 
-                        stream.Seek(nextStreamOffset, SeekOrigin.Current);
-
                         while (true)
                         {
+                            if (stream.Position >= stream.Length)
+                            {
+                                Console.WriteLine(stream.Position.ToString("X") + ": Warning: unexpected end of file.");
+                                break;
+                            }
+
+                            stream.Read(bytes, 0, 4);
+                            stream.Seek(-4, SeekOrigin.Current);
+                            string streamType = Encoding.ASCII.GetString(bytes, 0, 4);
+
+                            if (blockNames.Contains(streamType) || !IsValidBlockName(streamType))
+                            {
+                                // there's actually no further stream, but rather a new block.
+                                Console.Write("\n");
+                                break;
+                            }
 
                             var header = new StreamHeader(stream);
+                            bool seekPastStream = true;
+
+                            Console.Write(" -> " + header.id);
 
                             if (header.id == "STAN")
                             {
+                                if (currentDirectory == null || currentFile == null)
+                                {
+                                    Console.WriteLine(stream.Position.ToString("X") + ": Warning: got STAN stream without valid file and directory.");
+                                }
+                                else
+                                {
+                                    //string filePath = Path.Combine(baseDirectory, currentDirectory.Name);
+                                    string filePath = currentDirectory.Name != "\\"
+                                        ? Path.Combine(baseDirectory, currentDirectory.Name)
+                                        : baseDirectory;
 
-                                Console.WriteLine("Got data for " + currentDirectory.Name + "\\" + currentFile.Name);
+                                    Directory.CreateDirectory(filePath);
+                                    filePath = Path.Combine(filePath, currentFile.Name);
 
+                                    while (File.Exists(filePath))
+                                    {
+                                        Console.WriteLine("Warning: file already exists (amending name): " + filePath);
+                                        filePath += "_";
+                                    }
+
+                                    using (var f = new FileStream(filePath, FileMode.Create, FileAccess.Write))
+                                    {
+                                        long bytesLeft = header.length;
+                                        while (bytesLeft > 0)
+                                        {
+                                            int bytesToRead = bytes.Length;
+                                            if (bytesToRead > bytesLeft) { bytesToRead = (int)bytesLeft; }
+                                            stream.Read(bytes, 0, bytesToRead);
+                                            f.Write(bytes, 0, bytesToRead);
+
+                                            if (bytesLeft == header.length)
+                                            {
+                                                if (!VerifyFileFormat(currentFile.Name, bytes))
+                                                {
+                                                    Console.WriteLine(stream.Position.ToString("X") + ": Warning: file format doesn't match: " + filePath);
+                                                    Console.ReadKey();
+                                                }
+                                            }
+
+                                            bytesLeft -= bytesToRead;
+                                        }
+                                    }
+
+                                    seekPastStream = false;
+
+                                    try
+                                    {
+                                        File.SetCreationTime(filePath, currentFile.createDate);
+                                        File.SetLastWriteTime(filePath, currentFile.modifyDate);
+                                        File.SetLastAccessTime(filePath, currentFile.accessDate);
+                                        File.SetAttributes(filePath, currentFile.attributes);
+                                    }
+                                    catch { }
+                                }
                             }
 
-
-                            stream.Seek(header.length, SeekOrigin.Current);
+                            if (seekPastStream)
+                            {
+                                stream.Seek(header.length, SeekOrigin.Current);
+                            }
 
                             // align to 4 bytes
                             if (stream.Position % 4 != 0)
                             {
                                 stream.Seek(4 - (stream.Position % 4), SeekOrigin.Current);
                             }
-
-                            if (header.id == "SPAD")
-                            {
-                                break;
-                            }
                         }
-
-                        /*
-                        if (header.IsDirectory || header.Name.Trim() == "")
-                        {
-                            if (header.Size > 0)
-                            {
-                                stream.Seek(header.Size, SeekOrigin.Current);
-                            }
-                            continue;
-                        }
-
-                        string filePath = baseDirectory;
-                        if (header.Subdirectory.Length > 0)
-                        {
-                            string[] dirArray = header.Subdirectory.Split('\0');
-                            for (int i = 0; i < dirArray.Length; i++)
-                            {
-                                filePath = Path.Combine(filePath, dirArray[i]);
-                            }
-                        }
-
-                        Directory.CreateDirectory(filePath);
-                        filePath = Path.Combine(filePath, header.Name);
-
-                        while (File.Exists(filePath))
-                        {
-                            Console.WriteLine("Warning: file already exists (amending name): " + filePath);
-                            filePath += "_";
-                        }
-
-                        Console.WriteLine(stream.Position.ToString("X") + ": " + filePath + " - " + header.Size.ToString() + " bytes - " + header.DateTime.ToShortDateString());
-
-                        using (var f = new FileStream(filePath, FileMode.Create, FileAccess.Write))
-                        {
-                            long bytesLeft = header.Size;
-                            while (bytesLeft > 0)
-                            {
-                                int bytesToRead = bytes.Length;
-                                if (bytesToRead > bytesLeft) { bytesToRead = (int)bytesLeft; }
-                                stream.Read(bytes, 0, bytesToRead);
-                                f.Write(bytes, 0, bytesToRead);
-
-                                if (bytesLeft == header.Size)
-                                {
-                                    if (!VerifyFileFormat(header.Name, bytes))
-                                    {
-                                        Console.WriteLine(stream.Position.ToString("X") + " -- Warning: file format doesn't match: " + filePath);
-                                        Console.ReadKey();
-                                    }
-                                }
-
-                                bytesLeft -= bytesToRead;
-                            }
-                        }
-
-                        try
-                        {
-                            File.SetCreationTime(filePath, header.DateTime);
-                            File.SetLastWriteTime(filePath, header.DateTime);
-                            File.SetAttributes(filePath, header.Attributes);
-                        }
-                        catch { }
-                        */
                     }
                 }
             }
@@ -188,7 +203,7 @@ namespace ntbackup
 
         private class FileDescriptorBlock : DescriptorBlock
         {
-            public uint fileAttributes;
+            public FileAttributes attributes;
             public DateTime modifyDate;
             public DateTime createDate;
             public DateTime backupDate;
@@ -200,7 +215,8 @@ namespace ntbackup
             public FileDescriptorBlock(Stream stream) : base(stream)
             {
                 int bytePtr = DescriptorHeaderSize;
-                fileAttributes = BitConverter.ToUInt32(bytes, bytePtr); bytePtr += 4;
+                uint fileAttributes = BitConverter.ToUInt32(bytes, bytePtr); bytePtr += 4;
+                attributes = (FileAttributes)((fileAttributes >> 8) & 0x7);
                 modifyDate = GetDateTime(bytes, bytePtr); bytePtr += 5;
                 createDate = GetDateTime(bytes, bytePtr); bytePtr += 5;
                 backupDate = GetDateTime(bytes, bytePtr); bytePtr += 5;
@@ -208,6 +224,11 @@ namespace ntbackup
                 dirId = BitConverter.ToUInt32(bytes, bytePtr); bytePtr += 4;
                 fileId = BitConverter.ToUInt32(bytes, bytePtr); bytePtr += 4;
                 Name = GetString(new TapeAddress(bytes, bytePtr)); bytePtr += 4;
+            }
+
+            public override string ToString()
+            {
+                return base.ToString() + ": \"" + Name + "\", " + createDate;
             }
         }
 
@@ -232,6 +253,11 @@ namespace ntbackup
                 dirId = BitConverter.ToUInt32(bytes, bytePtr); bytePtr += 4;
                 Name = GetString(new TapeAddress(bytes, bytePtr)).Replace("\0", "\\"); bytePtr += 4;
             }
+
+            public override string ToString()
+            {
+                return base.ToString() + ": \"" + Name + "\", " + createDate;
+            }
         }
 
         private class VolumeDescriptorBlock : DescriptorBlock
@@ -250,6 +276,11 @@ namespace ntbackup
                 volumeName = GetString(new TapeAddress(bytes, bytePtr)); bytePtr += 4;
                 machineName = GetString(new TapeAddress(bytes, bytePtr)); bytePtr += 4;
                 writeDate = GetDateTime(bytes, bytePtr); bytePtr += 5;
+            }
+
+            public override string ToString()
+            {
+                return base.ToString() + ": \"" + deviceName + "\", \"" + volumeName + "\", \"" + machineName + "\", " + writeDate;
             }
         }
 
@@ -292,6 +323,11 @@ namespace ntbackup
                 mftMinorVersion = bytes[bytePtr++];
                 mediaCatalogVersion = bytes[bytePtr++];
             }
+
+            public override string ToString()
+            {
+                return base.ToString() + ": \"" + dataSetName + "\", \"" + dataSetDescription + "\", \"" + dataSetPassword + "\", \"" + userName + "\"";
+            }
         }
 
         private class TapeHeaderBlock : DescriptorBlock
@@ -328,6 +364,11 @@ namespace ntbackup
                 softwareVendorId = BitConverter.ToUInt16(bytes, bytePtr); bytePtr += 2;
                 date = GetDateTime(bytes, bytePtr); bytePtr += 5;
                 mtfMajorVersion = bytes[bytePtr++];
+            }
+
+            public override string ToString()
+            {
+                return base.ToString() + ": \"" + mediaName + "\", \"" + mediaDescription + "\", \"" + mediaPassword + "\", \"" + softwareName + "\"";
             }
         }
 
@@ -370,18 +411,7 @@ namespace ntbackup
                 stringType = bytes[bytePtr++];
                 bytePtr++; // reserved
                 int checksum = BitConverter.ToUInt16(bytes, bytePtr); bytePtr += 2;
-
-                /*
-                ushort testSum = 0;
-                for (int i = 0; i < 32; i += 2)
-                {
-                    testSum ^= BitConverter.ToUInt16(bytes, i);
-                }
-                if (testSum != checksum)
-                {
-                    Console.WriteLine("Warning: header checksum mismatch.");
-                }
-                */
+                // TODO: verify checksum?
             }
 
             protected string GetString(TapeAddress addr)
@@ -399,11 +429,16 @@ namespace ntbackup
                     return Encoding.ASCII.GetString(bytes, addr.offset, addr.size);
                 }
             }
+
+            public override string ToString()
+            {
+                return type;
+            }
         }
 
         private class StreamHeader
         {
-            public const int DescriptorHeaderSize = 0x16;
+            public const int StreamHeaderSize = 0x16;
 
             public string id;
             public int fileAttributes;
@@ -414,7 +449,7 @@ namespace ntbackup
 
             public StreamHeader(Stream stream)
             {
-                byte[] bytes = new byte[DescriptorHeaderSize];
+                byte[] bytes = new byte[StreamHeaderSize];
                 stream.Read(bytes, 0, bytes.Length);
 
                 int bytePtr = 0;
@@ -440,71 +475,6 @@ namespace ntbackup
             }
         }
 
-
-
-        private class FileHeader
-        {
-            public long Size { get; }
-            public string Name { get; }
-            public string DosName { get; }
-            public DateTime DateTime { get; }
-            public FileAttributes Attributes { get; }
-            public string Subdirectory { get; }
-            public bool Valid { get; }
-            public bool IsDirectory { get; }
-            public bool IsLastEntry { get; }
-            public bool IsFinalEntry { get; }
-
-            public FileHeader(Stream stream, bool isCatalog, long dataPos, long nextHeaderPos)
-            {
-                Subdirectory = "";
-                byte[] bytes = new byte[1024];
-                long initialPos = stream.Position;
-
-                stream.Read(bytes, 0, 0x45);
-
-                DateTime = new DateTime(1970, 1, 1).AddSeconds(BitConverter.ToUInt32(bytes, 0x2D));
-
-                stream.Read(bytes, 0, 2);
-                int nameLength = BitConverter.ToUInt16(bytes, 0);
-                if (nameLength > 0)
-                {
-                    stream.Read(bytes, 0, nameLength);
-                    Name = Encoding.Unicode.GetString(bytes, 0, nameLength);
-                }
-                else
-                {
-                    Name = "";
-                }
-
-                stream.Read(bytes, 0, 0x15);
-
-                stream.Read(bytes, 0, 2);
-                nameLength = BitConverter.ToUInt16(bytes, 0);
-                if (nameLength > 0)
-                {
-                    stream.Read(bytes, 0, nameLength);
-                    DosName = Encoding.Unicode.GetString(bytes, 0, nameLength);
-                }
-                else
-                {
-                    DosName = "";
-                }
-
-
-                int dirLen = (int)(dataPos - stream.Position);
-
-                stream.Read(bytes, 0, dirLen);
-
-                Subdirectory = Encoding.Unicode.GetString(bytes, 2, dirLen - 2);
-
-                Size = nextHeaderPos - dataPos - 6;
-
-
-                Valid = true;
-            }
-        }
-
         private static DateTime GetDateTime(byte[] bytes, int offset)
         {
             int year = (bytes[offset] << 6) | (bytes[offset + 1] >> 2);
@@ -514,10 +484,7 @@ namespace ntbackup
             int minute = ((bytes[offset + 3] & 0xF) << 2) | (bytes[offset + 4] >> 6);
             int second = bytes[offset + 4] & 0x3F;
             DateTime date;
-            try
-            {
-                date = new DateTime(year, month, day, hour, minute, second);
-            }
+            try { date = new DateTime(year, month, day, hour, minute, second); }
             catch { date = DateTime.Now; }
             return date;
         }
@@ -527,6 +494,15 @@ namespace ntbackup
             string str = string.Join("_", filename.Split(Path.GetInvalidFileNameChars()));
             str = string.Join("_", str.Split(Path.GetInvalidPathChars()));
             return str;
+        }
+
+        private static bool IsValidBlockName(string name)
+        {
+            for (int i = 0; i < name.Length; i++)
+            {
+                if (!((name[i] >= 'A' && name[i] <= 'Z') || (name[i] >= '0' && name[i] <= '9'))) { return false; }
+            }
+            return true;
         }
 
         private static bool VerifyFileFormat(string fileName, byte[] bytes)
