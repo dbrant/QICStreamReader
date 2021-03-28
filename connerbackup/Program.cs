@@ -257,7 +257,7 @@ namespace ConnerBackup
 
                                 if (bytesLeft == header.Size)
                                 {
-                                    if (!VerifyFileFormat(header.Name, bytes))
+                                    if (!QicUtils.Utils.VerifyFileFormat(header.Name, bytes))
                                     {
                                         Console.WriteLine(stream.Position.ToString("X") + " -- Warning: file format doesn't match: " + filePath);
                                         Console.ReadKey();
@@ -371,15 +371,5 @@ namespace ConnerBackup
             return d;
         }
 
-        private static bool VerifyFileFormat(string fileName, byte[] bytes)
-        {
-            string nameLower = fileName.ToLower();
-
-            if (nameLower.EndsWith(".exe") && (bytes[0] != 'M' || bytes[1] != 'Z')) { return false; }
-            if (nameLower.EndsWith(".zip") && (bytes[0] != 'P' || bytes[1] != 'K')) { return false; }
-            if (nameLower.EndsWith(".dwg") && (bytes[0] != 'A' || bytes[1] != 'C')) { return false; }
-
-            return true;
-        }
     }
 }

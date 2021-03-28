@@ -24,8 +24,12 @@ EndProject
 Global
 	GlobalSection(SharedMSBuildProjectFiles) = preSolution
 		QicUtils\QicUtils.projitems*{07ea6af2-80ba-4de7-9e48-9470d21a909b}*SharedItemsImports = 13
+		QicUtils\QicUtils.projitems*{253078f4-51e7-4ddb-904f-55e662bd1aeb}*SharedItemsImports = 4
 		QicUtils\QicUtils.projitems*{7c68adf6-cae4-454f-b4d7-02d5f3c9475c}*SharedItemsImports = 4
+		QicUtils\QicUtils.projitems*{80e32514-e2ec-41e4-9418-cd4eb8a73168}*SharedItemsImports = 4
 		QicUtils\QicUtils.projitems*{89dd4a55-4506-498d-8619-a52beb06bf47}*SharedItemsImports = 4
+		QicUtils\QicUtils.projitems*{b562c774-6604-4e5f-ad12-3e25daa28b4c}*SharedItemsImports = 4
+		QicUtils\QicUtils.projitems*{cf664fcf-fd1d-4a7d-8454-5671a575ed40}*SharedItemsImports = 4
 		QicUtils\QicUtils.projitems*{ef3d9d1f-c8cd-416c-8de4-a9f0de94297b}*SharedItemsImports = 4
 	EndGlobalSection
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution

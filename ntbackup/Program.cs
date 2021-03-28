@@ -155,7 +155,7 @@ namespace ntbackup
 
                                             if (bytesLeft == header.length)
                                             {
-                                                if (!VerifyFileFormat(currentFile.Name, bytes))
+                                                if (!QicUtils.Utils.VerifyFileFormat(currentFile.Name, bytes))
                                                 {
                                                     Console.WriteLine(stream.Position.ToString("X") + ": Warning: file format doesn't match: " + filePath);
                                                     Console.ReadKey();
@@ -489,13 +489,6 @@ namespace ntbackup
             return date;
         }
 
-        private static string ReplaceInvalidChars(string filename)
-        {
-            string str = string.Join("_", filename.Split(Path.GetInvalidFileNameChars()));
-            str = string.Join("_", str.Split(Path.GetInvalidPathChars()));
-            return str;
-        }
-
         private static bool IsValidBlockName(string name)
         {
             for (int i = 0; i < name.Length; i++)
@@ -505,15 +498,5 @@ namespace ntbackup
             return true;
         }
 
-        private static bool VerifyFileFormat(string fileName, byte[] bytes)
-        {
-            string nameLower = fileName.ToLower();
-
-            if (nameLower.EndsWith(".exe") && (bytes[0] != 'M' || bytes[1] != 'Z')) { return false; }
-            if (nameLower.EndsWith(".zip") && (bytes[0] != 'P' || bytes[1] != 'K')) { return false; }
-            if (nameLower.EndsWith(".dwg") && (bytes[0] != 'A' || bytes[1] != 'C')) { return false; }
-
-            return true;
-        }
     }
 }
