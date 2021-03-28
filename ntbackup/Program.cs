@@ -173,7 +173,7 @@ namespace ntbackup
                                         File.SetCreationTime(filePath, currentFile.createDate);
                                         File.SetLastWriteTime(filePath, currentFile.modifyDate);
                                         File.SetLastAccessTime(filePath, currentFile.accessDate);
-                                        File.SetAttributes(filePath, currentFile.attributes);
+                                        File.SetAttributes(filePath, currentFile.fileAttributes);
                                     }
                                     catch { }
                                 }
@@ -203,7 +203,7 @@ namespace ntbackup
 
         private class FileDescriptorBlock : DescriptorBlock
         {
-            public FileAttributes attributes;
+            public FileAttributes fileAttributes;
             public DateTime modifyDate;
             public DateTime createDate;
             public DateTime backupDate;
@@ -215,8 +215,8 @@ namespace ntbackup
             public FileDescriptorBlock(Stream stream) : base(stream)
             {
                 int bytePtr = DescriptorHeaderSize;
-                uint fileAttributes = BitConverter.ToUInt32(bytes, bytePtr); bytePtr += 4;
-                attributes = (FileAttributes)((fileAttributes >> 8) & 0x7);
+                uint attr = BitConverter.ToUInt32(bytes, bytePtr); bytePtr += 4;
+                fileAttributes = (FileAttributes)((attr >> 8) & 0x7);
                 modifyDate = GetDateTime(bytes, bytePtr); bytePtr += 5;
                 createDate = GetDateTime(bytes, bytePtr); bytePtr += 5;
                 backupDate = GetDateTime(bytes, bytePtr); bytePtr += 5;
