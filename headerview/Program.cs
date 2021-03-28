@@ -97,8 +97,8 @@ namespace headerview
 			HeaderSegDupNum = BitConverter.ToUInt16(bytes, ptr); ptr += 2;
 			DataSegFirstLogicalArea = BitConverter.ToUInt16(bytes, ptr); ptr += 2;
 			DataSegLastLogicalArea = BitConverter.ToUInt16(bytes, ptr); ptr += 2;
-			MostRecentFormat = Util.GetShortDateTime(BitConverter.ToUInt32(bytes, ptr)); ptr += 4;
-			MostRecentWriteOrFormat = Util.GetShortDateTime(BitConverter.ToUInt32(bytes, ptr)); ptr += 4; ptr += 2;
+			MostRecentFormat = QicUtils.Utils.GetQicDateTime(BitConverter.ToUInt32(bytes, ptr)); ptr += 4;
+			MostRecentWriteOrFormat = QicUtils.Utils.GetQicDateTime(BitConverter.ToUInt32(bytes, ptr)); ptr += 4; ptr += 2;
 			SegmentsPerTrack = BitConverter.ToUInt16(bytes, ptr); ptr += 2;
 
 			TracksPerCartridge = bytes[ptr++];
@@ -106,17 +106,17 @@ namespace headerview
 			MaxFloppyTrack = bytes[ptr++];
 			MaxFloppySector = bytes[ptr++];
 
-			TapeName = Util.CleanString(Encoding.ASCII.GetString(bytes, ptr, 44)); ptr += 44;
-			TapeNameTime = Util.GetShortDateTime(BitConverter.ToUInt32(bytes, ptr)); ptr += 4;
+			TapeName = QicUtils.Utils.CleanString(Encoding.ASCII.GetString(bytes, ptr, 44)); ptr += 44;
+			TapeNameTime = QicUtils.Utils.GetQicDateTime(BitConverter.ToUInt32(bytes, ptr)); ptr += 4;
 			ptr = 128;
 			ReformatErrorFlag = bytes[ptr++]; ptr++;
 			NumSegmentsWritten = BitConverter.ToInt32(bytes, ptr); ptr += 4;
 			ptr += 4;
-			InitialFormatTime = Util.GetShortDateTime(BitConverter.ToUInt32(bytes, ptr)); ptr += 4;
+			InitialFormatTime = QicUtils.Utils.GetQicDateTime(BitConverter.ToUInt32(bytes, ptr)); ptr += 4;
 			FormatCount = BitConverter.ToUInt16(bytes, ptr); ptr += 2;
 			ptr += 2;
-			ManufacturerName = Util.CleanString(Encoding.ASCII.GetString(bytes, ptr, 44)); ptr += 44;
-			ManufacturerLotCode = Util.CleanString(Encoding.ASCII.GetString(bytes, ptr, 44)); ptr += 44;
+			ManufacturerName = QicUtils.Utils.CleanString(Encoding.ASCII.GetString(bytes, ptr, 44)); ptr += 44;
+			ManufacturerLotCode = QicUtils.Utils.CleanString(Encoding.ASCII.GetString(bytes, ptr, 44)); ptr += 44;
 			Valid = true;
 		}
 
@@ -181,8 +181,8 @@ namespace headerview
 			ptr += 4;
 			StartSegNum = BitConverter.ToUInt16(bytes, ptr); ptr += 2;
 			EndSegNum = BitConverter.ToUInt16(bytes, ptr); ptr += 2;
-			VolumeDescription = Util.CleanString(Encoding.ASCII.GetString(bytes, ptr, 0x2C)); ptr += 0x2C;
-			Date = Util.GetShortDateTime(BitConverter.ToUInt32(bytes, ptr)); ptr += 4;
+			VolumeDescription = QicUtils.Utils.CleanString(Encoding.ASCII.GetString(bytes, ptr, 0x2C)); ptr += 0x2C;
+			Date = QicUtils.Utils.GetQicDateTime(BitConverter.ToUInt32(bytes, ptr)); ptr += 4;
 
 			VolumeFlags = bytes[ptr++];
 			MultiCartSeq = bytes[ptr++];
@@ -193,13 +193,13 @@ namespace headerview
 			// vendor-specific data
 			ptr += 22;
 
-			Password = Util.CleanString(Encoding.ASCII.GetString(bytes, ptr, 8)); ptr += 8;
+			Password = QicUtils.Utils.CleanString(Encoding.ASCII.GetString(bytes, ptr, 8)); ptr += 8;
 
 			DirSectionSize = BitConverter.ToInt32(bytes, ptr); ptr += 4;
 			DataSectionSize = BitConverter.ToInt64(bytes, ptr); ptr += 8;
 
 			OsVersion = BitConverter.ToUInt16(bytes, ptr); ptr += 2;
-			SourceDrive = Util.CleanString(Encoding.ASCII.GetString(bytes, ptr, 16)); ptr += 16;
+			SourceDrive = QicUtils.Utils.CleanString(Encoding.ASCII.GetString(bytes, ptr, 16)); ptr += 16;
 
 			LogicalFileSet = bytes[ptr++];
 			ptr++;
@@ -253,11 +253,11 @@ namespace headerview
 			}
 
 			ptr = 0x1C;
-			Date = Util.DateTimeFromTimeT(BitConverter.ToUInt32(bytes, ptr)); ptr += 4;
+			Date = QicUtils.Utils.DateTimeFromTimeT(BitConverter.ToUInt32(bytes, ptr)); ptr += 4;
 
 			ptr = 0x3C;
 			int nameLen = BitConverter.ToUInt16(bytes, ptr); ptr += 2;
-			ArchiveName = Util.CleanString(Encoding.ASCII.GetString(bytes, ptr, nameLen)); ptr += nameLen;
+			ArchiveName = QicUtils.Utils.CleanString(Encoding.ASCII.GetString(bytes, ptr, nameLen)); ptr += nameLen;
 
 			// align to even byte
 			if (ptr % 2 > 0)
@@ -266,7 +266,7 @@ namespace headerview
 			}
 
 			nameLen = BitConverter.ToUInt16(bytes, ptr); ptr += 2;
-			ArchiveDrive = Util.CleanString(Encoding.ASCII.GetString(bytes, ptr, nameLen)); ptr += nameLen;
+			ArchiveDrive = QicUtils.Utils.CleanString(Encoding.ASCII.GetString(bytes, ptr, nameLen)); ptr += nameLen;
 			Valid = true;
 		}
 

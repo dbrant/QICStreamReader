@@ -323,13 +323,13 @@ namespace ConnerBackup
                 if ((flags & 0x40) != 0) { IsLastEntry = true; }
                 if ((flags & 0x80) != 0) { IsFinalEntry = true; }
 
-                DateTime = GetShortDateTime(BitConverter.ToUInt32(bytes, 0x1));
+                DateTime = QicUtils.Utils.GetQicDateTime(BitConverter.ToUInt32(bytes, 0x1));
                 Size = BitConverter.ToInt32(bytes, 0x5);
                 if (!isCatalog && Size == 0) { return; }
 
                 int nameLength = stream.ReadByte();
                 stream.Read(bytes, 0, nameLength);
-                Name = ReplaceInvalidChars(Encoding.ASCII.GetString(bytes, 0, nameLength));
+                Name = QicUtils.Utils.ReplaceInvalidChars(Encoding.ASCII.GetString(bytes, 0, nameLength));
 
                 if (!isCatalog)
                 {
@@ -344,31 +344,6 @@ namespace ConnerBackup
                 }
                 Valid = true;
             }
-        }
-
-        private static string ReplaceInvalidChars(string filename)
-        {
-            string str = string.Join("_", filename.Split(Path.GetInvalidFileNameChars()));
-            str = string.Join("_", str.Split(Path.GetInvalidPathChars()));
-            return str;
-        }
-
-        private static DateTime GetShortDateTime(uint date)
-        {
-            DateTime d = new DateTime();
-            int year = (int)((date & 0xFE000000) >> 25) + 1970;
-            int s = (int)(date & 0x1FFFFFF);
-            int second = s % 60; s /= 60;
-            int minute = s % 60; s /= 60;
-            int hour = s % 24; s /= 24;
-            int day = s % 31; s /= 31;
-            int month = s;
-            try
-            {
-                d = new DateTime(year, month + 1, day + 1, hour, minute, second);
-            }
-            catch { }
-            return d;
         }
 
     }

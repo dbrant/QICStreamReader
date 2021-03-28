@@ -318,11 +318,6 @@ namespace QicStreamV2
             }
         }
 
-        private static DateTime DateTimeFromTimeT(long timeT)
-        {
-            return new DateTime(1970, 1, 1).AddSeconds(timeT);
-        }
-
         private class FileHeader
         {
             public int Size { get; }
@@ -342,7 +337,7 @@ namespace QicStreamV2
                 stream.Read(bytes, 0, structLength);
 
                 Attributes = (FileAttributes)bytes[0];
-                DateTime = DateTimeFromTimeT(BitConverter.ToUInt32(bytes, 4));
+                DateTime = QicUtils.Utils.DateTimeFromTimeT(BitConverter.ToUInt32(bytes, 4));
                 Size = BitConverter.ToInt32(bytes, 8);
 
                 int nameLength = structLength - 0x16;
