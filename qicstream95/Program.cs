@@ -1,5 +1,4 @@
-﻿using QicStreamV1;
-using System;
+﻿using System;
 using System.IO;
 using System.Text;
 
@@ -131,7 +130,7 @@ namespace qicstream1a
                                 {
                                     try
                                     {
-                                        new Qic122Decompressor(new MemoryStream(bytes), outStream);
+                                        new QicUtils.Qic122Decompressor(new MemoryStream(bytes), outStream);
                                     }
                                     catch (Exception ex)
                                     {

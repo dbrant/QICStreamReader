@@ -49,11 +49,6 @@
   <ItemGroup>
     <None Include="App.config" />
   </ItemGroup>
-  <ItemGroup>
-    <ProjectReference Include="..\qicstreamv1\qicstreamv1.csproj">
-      <Project>{7C68ADF6-CAE4-454F-B4D7-02D5F3C9475C}</Project>
-      <Name>qicstreamv1</Name>
-    </ProjectReference>
-  </ItemGroup>
+  <Import Project="..\QicUtils\QicUtils.projitems" Label="Shared" />
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
 </Project>

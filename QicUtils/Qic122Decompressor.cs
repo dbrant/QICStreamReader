@@ -1,7 +1,7 @@
 ﻿using System;
 using System.IO;
 
-namespace QicStreamV1
+namespace QicUtils
 {
     /// <summary>
     /// Decompression utility compatible with QIC-122 (rev B) compressed frames.

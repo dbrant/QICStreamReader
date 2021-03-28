@@ -142,7 +142,7 @@ namespace ConnerBackup
                                 {
                                     try
                                     {
-                                        new QicStreamV1.Qic122Decompressor(new MemoryStream(bytes), outStream);
+                                        new QicUtils.Qic122Decompressor(new MemoryStream(bytes), outStream);
                                     }
                                     catch (Exception ex)
                                     {
