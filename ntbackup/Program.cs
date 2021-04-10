@@ -7,7 +7,7 @@ namespace ntbackup
 {
     class Program
     {
-        static List<string> blockNames = new List<string> { "TAPE", "SSET", "VOLB", "DIRB", "FILE", "CFIL", "ESPB", "ESET", "EOTM", "SFMB" };
+        static List<string> blockNames = new List<string> { "TAPE", "SSET", "SSES", "VOLB", "DIRB", "FILE", "CFIL", "ESPB", "ESET", "ESES", "EOTM", "SFMB", "CITN" };
         static List<string> catalogStreamNames = new List<string> { "TSMP", "TFDD", "MAP2", "FDD2" };
 
         static void Main(string[] args)
@@ -135,7 +135,7 @@ namespace ntbackup
                                         : baseDirectory;
 
                                     Directory.CreateDirectory(filePath);
-                                    filePath = Path.Combine(filePath, currentFile.Name);
+                                    filePath = Path.Combine(filePath, QicUtils.Utils.ReplaceInvalidChars(currentFile.Name));
 
                                     while (File.Exists(filePath))
                                     {
