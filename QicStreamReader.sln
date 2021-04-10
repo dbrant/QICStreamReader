@@ -21,11 +21,17 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "ntbackup", "ntbackup\ntback
 EndProject
 Project("{D954291E-2A0B-460D-934E-DC6B0785DB48}") = "QicUtils", "QicUtils\QicUtils.shproj", "{07EA6AF2-80BA-4DE7-9E48-9470D21A909B}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "arcadabackup1", "arcadabackup1\arcadabackup1.csproj", "{6FF3423B-BF04-4CC9-9AEB-0B62B0C76FC1}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "arcadabackup2", "arcadabackup2\arcadabackup2.csproj", "{08F1EC26-07B7-4554-94B1-92A230D3F0ED}"
+EndProject
 Global
 	GlobalSection(SharedMSBuildProjectFiles) = preSolution
 		QicUtils\QicUtils.projitems*{07ea6af2-80ba-4de7-9e48-9470d21a909b}*SharedItemsImports = 13
+		QicUtils\QicUtils.projitems*{08f1ec26-07b7-4554-94b1-92a230d3f0ed}*SharedItemsImports = 4
 		QicUtils\QicUtils.projitems*{144841c0-4f93-4145-9530-d8e2a866ff38}*SharedItemsImports = 4
 		QicUtils\QicUtils.projitems*{253078f4-51e7-4ddb-904f-55e662bd1aeb}*SharedItemsImports = 4
+		QicUtils\QicUtils.projitems*{6ff3423b-bf04-4cc9-9aeb-0b62b0c76fc1}*SharedItemsImports = 4
 		QicUtils\QicUtils.projitems*{7c68adf6-cae4-454f-b4d7-02d5f3c9475c}*SharedItemsImports = 4
 		QicUtils\QicUtils.projitems*{80e32514-e2ec-41e4-9418-cd4eb8a73168}*SharedItemsImports = 4
 		QicUtils\QicUtils.projitems*{89dd4a55-4506-498d-8619-a52beb06bf47}*SharedItemsImports = 4
@@ -138,6 +144,30 @@ Global
 		{CF664FCF-FD1D-4A7D-8454-5671A575ED40}.Release|x64.Build.0 = Release|Any CPU
 		{CF664FCF-FD1D-4A7D-8454-5671A575ED40}.Release|x86.ActiveCfg = Release|Any CPU
 		{CF664FCF-FD1D-4A7D-8454-5671A575ED40}.Release|x86.Build.0 = Release|Any CPU
+		{6FF3423B-BF04-4CC9-9AEB-0B62B0C76FC1}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{6FF3423B-BF04-4CC9-9AEB-0B62B0C76FC1}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{6FF3423B-BF04-4CC9-9AEB-0B62B0C76FC1}.Debug|x64.ActiveCfg = Debug|Any CPU
+		{6FF3423B-BF04-4CC9-9AEB-0B62B0C76FC1}.Debug|x64.Build.0 = Debug|Any CPU
+		{6FF3423B-BF04-4CC9-9AEB-0B62B0C76FC1}.Debug|x86.ActiveCfg = Debug|Any CPU
+		{6FF3423B-BF04-4CC9-9AEB-0B62B0C76FC1}.Debug|x86.Build.0 = Debug|Any CPU
+		{6FF3423B-BF04-4CC9-9AEB-0B62B0C76FC1}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{6FF3423B-BF04-4CC9-9AEB-0B62B0C76FC1}.Release|Any CPU.Build.0 = Release|Any CPU
+		{6FF3423B-BF04-4CC9-9AEB-0B62B0C76FC1}.Release|x64.ActiveCfg = Release|Any CPU
+		{6FF3423B-BF04-4CC9-9AEB-0B62B0C76FC1}.Release|x64.Build.0 = Release|Any CPU
+		{6FF3423B-BF04-4CC9-9AEB-0B62B0C76FC1}.Release|x86.ActiveCfg = Release|Any CPU
+		{6FF3423B-BF04-4CC9-9AEB-0B62B0C76FC1}.Release|x86.Build.0 = Release|Any CPU
+		{08F1EC26-07B7-4554-94B1-92A230D3F0ED}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{08F1EC26-07B7-4554-94B1-92A230D3F0ED}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{08F1EC26-07B7-4554-94B1-92A230D3F0ED}.Debug|x64.ActiveCfg = Debug|Any CPU
+		{08F1EC26-07B7-4554-94B1-92A230D3F0ED}.Debug|x64.Build.0 = Debug|Any CPU
+		{08F1EC26-07B7-4554-94B1-92A230D3F0ED}.Debug|x86.ActiveCfg = Debug|Any CPU
+		{08F1EC26-07B7-4554-94B1-92A230D3F0ED}.Debug|x86.Build.0 = Debug|Any CPU
+		{08F1EC26-07B7-4554-94B1-92A230D3F0ED}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{08F1EC26-07B7-4554-94B1-92A230D3F0ED}.Release|Any CPU.Build.0 = Release|Any CPU
+		{08F1EC26-07B7-4554-94B1-92A230D3F0ED}.Release|x64.ActiveCfg = Release|Any CPU
+		{08F1EC26-07B7-4554-94B1-92A230D3F0ED}.Release|x64.Build.0 = Release|Any CPU
+		{08F1EC26-07B7-4554-94B1-92A230D3F0ED}.Release|x86.ActiveCfg = Release|Any CPU
+		{08F1EC26-07B7-4554-94B1-92A230D3F0ED}.Release|x86.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
