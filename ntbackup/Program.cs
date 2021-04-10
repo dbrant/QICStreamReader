@@ -36,13 +36,16 @@ namespace ntbackup
                     var tapeHeaderBlock = new TapeHeaderBlock(stream);
                     if (tapeHeaderBlock.type != "TAPE")
                     {
-                        Console.WriteLine("Error: TAPE block not found at start of stream.");
-                        return;
+                        Console.WriteLine("Warning: TAPE block not found at start of stream.");
+                        Console.WriteLine("Assuming default parameters...");
+                    }
+                    else
+                    {
+                        DescriptorBlock.DefaultBlockSize = tapeHeaderBlock.formatLogicalBlockSize;
+                        stream.Seek(2 * DescriptorBlock.DefaultBlockSize, SeekOrigin.Current);
                     }
 
-                    DescriptorBlock.DefaultBlockSize = tapeHeaderBlock.formatLogicalBlockSize;
-
-                    stream.Seek(2 * DescriptorBlock.DefaultBlockSize, SeekOrigin.Current);
+                    Console.WriteLine("Info: Block size = " + DescriptorBlock.DefaultBlockSize);
 
                     DirectoryDescriptorBlock currentDirectory = null;
                     FileDescriptorBlock currentFile = null;
