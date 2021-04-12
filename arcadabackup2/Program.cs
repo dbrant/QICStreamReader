@@ -243,7 +243,7 @@ namespace arcadabackup2
                                 filePath += "_";
                             }
 
-                            Console.WriteLine(stream.Position.ToString("X") + ": " + filePath + " - " + header.Size.ToString() + " bytes - " + header.DateTime.ToShortDateString());
+                            Console.WriteLine(stream.Position.ToString("X") + ": " + filePath + " - " + header.Size.ToString() + " bytes - " + header.CreateDate.ToShortDateString());
 
                             using (var f = new FileStream(filePath, FileMode.Create, FileAccess.Write))
                             {
@@ -270,8 +270,8 @@ namespace arcadabackup2
 
                             try
                             {
-                                File.SetCreationTime(filePath, header.DateTime);
-                                File.SetLastWriteTime(filePath, header.DateTime);
+                                File.SetCreationTime(filePath, header.CreateDate);
+                                File.SetLastWriteTime(filePath, header.ModifyDate);
                                 File.SetAttributes(filePath, header.Attributes);
                             }
                             catch { }
@@ -279,7 +279,7 @@ namespace arcadabackup2
                         else
                         {
                             filePath = Path.Combine(filePath, header.Name);
-                            Console.WriteLine(stream.Position.ToString("X") + ": " + filePath + " - " + header.Size.ToString() + " bytes - " + header.DateTime.ToShortDateString());
+                            Console.WriteLine(stream.Position.ToString("X") + ": " + filePath + " - " + header.Size.ToString() + " bytes - " + header.CreateDate.ToShortDateString());
                             stream.Seek(header.Size, SeekOrigin.Current);
                         }
                     }
@@ -297,7 +297,8 @@ namespace arcadabackup2
             public long Size { get; }
             public string Name { get; }
             public string DosName { get; }
-            public DateTime DateTime { get; }
+            public DateTime CreateDate { get; }
+            public DateTime ModifyDate { get; }
             public FileAttributes Attributes { get; }
             public string Subdirectory { get; }
             public bool Valid { get; }
@@ -323,7 +324,8 @@ namespace arcadabackup2
                 Size = BitConverter.ToUInt32(bytes, 0x11);
 
                 //DateTime = new DateTime(1970, 1, 1).AddSeconds(BitConverter.ToUInt32(bytes, 0x2E));
-                DateTime = QicUtils.Utils.DateTimeFromTimeT(BitConverter.ToUInt32(bytes, 0x3E));
+                CreateDate = QicUtils.Utils.DateTimeFromTimeT(BitConverter.ToUInt32(bytes, 0x2E));
+                ModifyDate = QicUtils.Utils.DateTimeFromTimeT(BitConverter.ToUInt32(bytes, 0x3E));
                 //DateTime = QicUtils.Utils.GetQicDateTime(BitConverter.ToUInt32(bytes, 0x2E));
 
                 stream.Read(bytes, 0, 2);
