@@ -32,6 +32,7 @@ namespace arcadabackup2
             bool decompress = false;
             bool absPos = false;
             bool catDump = false;
+            bool dryRun = false;
 
             for (int i = 0; i < args.Length; i++)
             {
@@ -43,6 +44,7 @@ namespace arcadabackup2
                 else if (args[i] == "--offset") { initialOffset = Convert.ToInt64(args[i + 1]); }
                 else if (args[i] == "--abspos") { absPos = true; }
                 else if (args[i] == "--catdump") { catDump = true; }
+                else if (args[i] == "--dry") { dryRun = true; }
             }
 
             if (inFileName.Length == 0 || !File.Exists(inFileName))
@@ -223,53 +225,63 @@ namespace arcadabackup2
                             }
                         }
 
-                        Directory.CreateDirectory(filePath);
-                        filePath = Path.Combine(filePath, header.Name);
-
-                        // Make sure the fully qualified name does not exceed 260 chars
-                        if (filePath.Length >= 260)
+                        if (!dryRun)
                         {
-                            filePath = filePath.Substring(0, 259);
-                        }
+                            Directory.CreateDirectory(filePath);
 
-                        while (File.Exists(filePath))
-                        {
-                            Console.WriteLine("Warning: file already exists (amending name): " + filePath);
-                            filePath += "_";
-                        }
+                            filePath = Path.Combine(filePath, header.Name);
 
-                        Console.WriteLine(stream.Position.ToString("X") + ": " + filePath + " - " + header.Size.ToString() + " bytes - " + header.DateTime.ToShortDateString());
-
-                        using (var f = new FileStream(filePath, FileMode.Create, FileAccess.Write))
-                        {
-                            long bytesLeft = header.Size;
-                            while (bytesLeft > 0)
+                            // Make sure the fully qualified name does not exceed 260 chars
+                            if (filePath.Length >= 260)
                             {
-                                int bytesToRead = bytes.Length;
-                                if (bytesToRead > bytesLeft) { bytesToRead = (int)bytesLeft; }
-                                stream.Read(bytes, 0, bytesToRead);
-                                f.Write(bytes, 0, bytesToRead);
-
-                                if (bytesLeft == header.Size)
-                                {
-                                    if (!QicUtils.Utils.VerifyFileFormat(header.Name, bytes))
-                                    {
-                                        Console.WriteLine(stream.Position.ToString("X") + " -- Warning: file format doesn't match: " + filePath);
-                                        //Console.ReadKey();
-                                    }
-                                }
-
-                                bytesLeft -= bytesToRead;
+                                filePath = filePath.Substring(0, 259);
                             }
-                        }
 
-                        try
-                        {
-                            File.SetCreationTime(filePath, header.DateTime);
-                            File.SetLastWriteTime(filePath, header.DateTime);
-                            File.SetAttributes(filePath, header.Attributes);
+                            while (File.Exists(filePath))
+                            {
+                                Console.WriteLine("Warning: file already exists (amending name): " + filePath);
+                                filePath += "_";
+                            }
+
+                            Console.WriteLine(stream.Position.ToString("X") + ": " + filePath + " - " + header.Size.ToString() + " bytes - " + header.DateTime.ToShortDateString());
+
+                            using (var f = new FileStream(filePath, FileMode.Create, FileAccess.Write))
+                            {
+                                long bytesLeft = header.Size;
+                                while (bytesLeft > 0)
+                                {
+                                    int bytesToRead = bytes.Length;
+                                    if (bytesToRead > bytesLeft) { bytesToRead = (int)bytesLeft; }
+                                    stream.Read(bytes, 0, bytesToRead);
+                                    f.Write(bytes, 0, bytesToRead);
+
+                                    if (bytesLeft == header.Size)
+                                    {
+                                        if (!QicUtils.Utils.VerifyFileFormat(header.Name, bytes))
+                                        {
+                                            Console.WriteLine(stream.Position.ToString("X") + " -- Warning: file format doesn't match: " + filePath);
+                                            //Console.ReadKey();
+                                        }
+                                    }
+
+                                    bytesLeft -= bytesToRead;
+                                }
+                            }
+
+                            try
+                            {
+                                File.SetCreationTime(filePath, header.DateTime);
+                                File.SetLastWriteTime(filePath, header.DateTime);
+                                File.SetAttributes(filePath, header.Attributes);
+                            }
+                            catch { }
                         }
-                        catch { }
+                        else
+                        {
+                            filePath = Path.Combine(filePath, header.Name);
+                            Console.WriteLine(stream.Position.ToString("X") + ": " + filePath + " - " + header.Size.ToString() + " bytes - " + header.DateTime.ToShortDateString());
+                            stream.Seek(header.Size, SeekOrigin.Current);
+                        }
                     }
                 }
             }
@@ -310,9 +322,9 @@ namespace arcadabackup2
 
                 Size = BitConverter.ToUInt32(bytes, 0x11);
 
-                //DateTime = new DateTime(1970, 1, 1).AddSeconds(BitConverter.ToUInt32(bytes, 0x2D));
-                //DateTime = QicUtils.Utils.DateTimeFromTimeT(BitConverter.ToUInt32(bytes, 0x3E));
-                DateTime = QicUtils.Utils.GetQicDateTime(BitConverter.ToUInt32(bytes, 0x3E));
+                //DateTime = new DateTime(1970, 1, 1).AddSeconds(BitConverter.ToUInt32(bytes, 0x2E));
+                DateTime = QicUtils.Utils.DateTimeFromTimeT(BitConverter.ToUInt32(bytes, 0x3E));
+                //DateTime = QicUtils.Utils.GetQicDateTime(BitConverter.ToUInt32(bytes, 0x2E));
 
                 stream.Read(bytes, 0, 2);
                 int nameLength = BitConverter.ToUInt16(bytes, 0);

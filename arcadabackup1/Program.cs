@@ -311,7 +311,7 @@ namespace arcadabackup1
 
                 //DateTime = new DateTime(1970, 1, 1).AddSeconds(BitConverter.ToUInt32(bytes, 0x2D));
                 //DateTime = QicUtils.Utils.DateTimeFromTimeT(BitConverter.ToUInt32(bytes, 0x3D));
-                DateTime = QicUtils.Utils.GetQicDateTime(BitConverter.ToUInt32(bytes, 0x3D));
+                DateTime = QicUtils.Utils.GetQicDateTime(BitConverter.ToUInt32(bytes, 0x2D));
 
                 stream.Read(bytes, 0, 2);
                 int nameLength = BitConverter.ToUInt16(bytes, 0);
