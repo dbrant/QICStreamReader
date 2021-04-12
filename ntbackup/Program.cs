@@ -419,6 +419,11 @@ namespace ntbackup
 
             protected string GetString(TapeAddress addr)
             {
+                if (addr.offset + addr.size >= bytes.Length)
+                {
+                    Console.WriteLine("Warning: bad TapeAddress offset/size.");
+                    return "";
+                }
                 if (addr.size == 0)
                 {
                     return "";
