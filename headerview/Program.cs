@@ -45,6 +45,14 @@ namespace headerview
 						Console.Write(vtbl2.ToString());
 						return;
 					}
+
+					f.Seek(0, SeekOrigin.Begin);
+					Qic113Record qicRec = new Qic113Record(f);
+					if (qicRec.Valid)
+					{
+						Console.Write(qicRec.ToString());
+						return;
+					}
 				}
 			}
 			catch (Exception e)
@@ -276,6 +284,57 @@ namespace headerview
 			sb.AppendLine("ArchiveName: " + ArchiveName);
 			sb.AppendLine("ArchiveDrive: " + ArchiveDrive);
 			sb.AppendLine("Date: " + Date);
+			return sb.ToString();
+		}
+	}
+
+	public class Qic113Record
+	{
+		public bool Valid;
+		public DateTime Date;
+		public int RevisionLevel;
+		public int InterchangeFormat;
+		public int QuickFileAccess;
+		public string ArchiveName;
+		public string VendorText;
+
+		public Qic113Record(Stream stream)
+		{
+			byte[] bytes = new byte[512];
+			long initialPos = stream.Position;
+			int ptr = 0;
+			stream.Read(bytes, 0, 255);
+
+			if (Encoding.ASCII.GetString(bytes, ptr, 12) != "HEADERQIC113")
+			{
+				return;
+			}
+			ptr = 12;
+
+			RevisionLevel = bytes[ptr++];
+			InterchangeFormat = bytes[ptr++];
+			QuickFileAccess = bytes[ptr++];
+
+			ptr = 23;
+			ArchiveName = QicUtils.Utils.CleanString(Encoding.ASCII.GetString(bytes, ptr, 44));
+
+			ptr = 67;
+			Date = QicUtils.Utils.GetQicDateTime(BitConverter.ToUInt32(bytes, ptr)); ptr += 4;
+
+			ptr = 71;
+			VendorText = QicUtils.Utils.CleanString(Encoding.ASCII.GetString(bytes, ptr, 49));
+			Valid = true;
+		}
+
+		public override string ToString()
+		{
+			var sb = new StringBuilder();
+			sb.AppendLine("ArchiveName: " + ArchiveName);
+			sb.AppendLine("VendorText: " + VendorText);
+			sb.AppendLine("Date: " + Date);
+			sb.AppendLine("RevisionLevel: " + RevisionLevel);
+			sb.AppendLine("InterchangeFormat: " + InterchangeFormat);
+			sb.AppendLine("QuickFileAccess: " + QuickFileAccess);
 			return sb.ToString();
 		}
 	}
