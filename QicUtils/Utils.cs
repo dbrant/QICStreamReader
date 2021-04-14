@@ -51,5 +51,18 @@ namespace QicUtils
 			return new DateTime(1970, 1, 1).AddSeconds(timeT);
 		}
 
+		public static DateTime GetMtfDateTime(byte[] bytes, int offset)
+		{
+			int year = (bytes[offset] << 6) | (bytes[offset + 1] >> 2);
+			int month = ((bytes[offset + 1] & 0x3) << 2) | (bytes[offset + 2] >> 6);
+			int day = (bytes[offset + 2] >> 1) & 0x1F;
+			int hour = ((bytes[offset + 2] & 0x1) << 4) | (bytes[offset + 3] >> 4);
+			int minute = ((bytes[offset + 3] & 0xF) << 2) | (bytes[offset + 4] >> 6);
+			int second = bytes[offset + 4] & 0x3F;
+			DateTime date;
+			try { date = new DateTime(year, month, day, hour, minute, second); }
+			catch { date = DateTime.Now; }
+			return date;
+		}
 	}
 }
