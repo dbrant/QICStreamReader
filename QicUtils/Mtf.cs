@@ -2,7 +2,7 @@
 using System.IO;
 using System.Text;
 
-namespace QicUtils
+namespace QicUtils.Mtf
 {
     public class FileDescriptorBlock : DescriptorBlock
     {
@@ -135,6 +135,7 @@ namespace QicUtils
 
     public class TapeHeaderBlock : DescriptorBlock
     {
+        public bool Valid = false;
         public uint mediaFamilyId;
         public uint tapeAttributes;
         public int mediaSequenceNum;
@@ -152,6 +153,10 @@ namespace QicUtils
 
         public TapeHeaderBlock(Stream stream) : base(stream)
         {
+            if (type == "TAPE")
+            {
+                Valid = true;
+            }
             int bytePtr = DescriptorHeaderSize;
             mediaFamilyId = BitConverter.ToUInt32(bytes, bytePtr); bytePtr += 4;
             tapeAttributes = BitConverter.ToUInt32(bytes, bytePtr); bytePtr += 4;
@@ -171,7 +176,7 @@ namespace QicUtils
 
         public override string ToString()
         {
-            return base.ToString() + ": \"" + mediaName + "\", \"" + mediaDescription + "\", \"" + mediaPassword + "\", \"" + softwareName + "\"";
+            return base.ToString() + ": \"" + mediaName + "\", \"" + mediaDescription + "\", " + date + ", \"" + mediaPassword + "\", \"" + softwareName + "\"";
         }
     }
 
@@ -196,8 +201,8 @@ namespace QicUtils
         public DescriptorBlock(Stream stream)
         {
             bytes = new byte[DefaultBlockSize];
-            stream.Read(bytes, 0, bytes.Length);
-            stream.Seek(-DefaultBlockSize, SeekOrigin.Current);
+            int bytesRead = stream.Read(bytes, 0, bytes.Length);
+            stream.Seek(-bytesRead, SeekOrigin.Current);
 
             int bytePtr = 0;
             type = Encoding.ASCII.GetString(bytes, bytePtr, 4); bytePtr += 4;

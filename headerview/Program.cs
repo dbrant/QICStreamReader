@@ -53,6 +53,14 @@ namespace headerview
 						Console.Write(qicRec.ToString());
 						return;
 					}
+
+					f.Seek(0, SeekOrigin.Begin);
+					QicUtils.Mtf.TapeHeaderBlock mtfRec = new QicUtils.Mtf.TapeHeaderBlock(f);
+					if (mtfRec.Valid)
+					{
+						Console.Write(mtfRec.ToString());
+						return;
+					}
 				}
 			}
 			catch (Exception e)
