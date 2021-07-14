@@ -12,9 +12,10 @@ using System.Text;
 /// 
 /// Brief outline of the format, to the best of my reverse-engineering ability:
 /// 
-/// * Every block of 0x8000 bytes ends with 0x402 bytes of extra data (for parity checking or
-///   some other kind of error correction?). In other words, for every 0x8000 bytes, only the
-///   first 0x7BFE bytes are useful data.
+/// * Every block of 0x8000 bytes ends with 0x402 bytes of ECC data. In other words, for every
+///   0x8000 bytes, only the first 0x7BFE bytes are actual data.  Actually applying the ECC
+///   correction is unfortunately left for a future task. This code simply ignores ECC for now.
+///   (TODO: apply ECC data.)
 /// * Little-endian.
 /// * At a high level, the archive basically consists of file and directory records in succession.
 ///   Catalog information usually appears at the end of the archive, although catalog data may also
