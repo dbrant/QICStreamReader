@@ -132,6 +132,7 @@ namespace sgibackup
                 {
                     int RemainingSize = 0;
                     FileHeader currentHeader = null;
+                    int currentSequence = -1;
 
                     while (true)
                     {
@@ -142,6 +143,13 @@ namespace sgibackup
                             Console.WriteLine("Invalid file header, probably end of archive.");
                             break;
                         }
+
+                        if (header.Sequence - currentSequence != 1)
+                        {
+                            Console.WriteLine("Warning: sequence number inconsistent, ignoring block.");
+                            continue;
+                        }
+                        currentSequence = header.Sequence;
 
                         if (header.HeaderType == HeaderType.Volume || header.HeaderType == HeaderType.Unknown)
                         {
@@ -216,6 +224,7 @@ namespace sgibackup
         {
             public bool IsDirectory { get; }
             public HeaderType HeaderType { get; }
+            public int Sequence { get; }
             public int Size { get; }
             public string Name { get; }
             public DateTime CreateDate { get; }
@@ -236,6 +245,8 @@ namespace sgibackup
                     Valid = false;
                     return;
                 }
+
+                Sequence = Convert.ToInt32(Encoding.ASCII.GetString(bytes, 0x88, 8).Trim(), 16);
 
                 var type = Encoding.ASCII.GetString(bytes, 0xb0, 4);
 
