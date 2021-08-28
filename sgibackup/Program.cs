@@ -10,7 +10,8 @@ using System.Text;
 /// 
 /// * Firstly, if a tape was written on an SGI workstation (which is MIPS), and then you read
 /// it using a x86 or x64 machine, you'll likely need to convert the endianness of the whole image,
-/// i.e. reverse the byte order of every two bytes.
+/// i.e. reverse the byte order of every two bytes.  To perform the conversion, run this tool
+/// with the "-c" option.
 /// 
 /// Once the endianness is properly converted, the format of the data is roughly as follows:
 /// 
@@ -113,16 +114,41 @@ namespace sgibackup
         {
             string inFileName = "";
             string baseDirectory = "out";
+            bool doConvertEndian = false;
 
             for (int i = 0; i < args.Length; i++)
             {
                 if (args[i] == "-f") { inFileName = args[i + 1]; }
                 if (args[i] == "-d") { baseDirectory = args[i + 1]; }
+                if (args[i] == "-c") { doConvertEndian = true; }
             }
 
             if (inFileName.Length == 0 || !File.Exists(inFileName))
             {
-                Console.WriteLine("Usage: sgibackup -f <file name> [-d <output directory>]");
+                Console.WriteLine("Usage: sgibackup -f <file name> [-c]|[-d <output directory>]");
+                return;
+            }
+
+            if (doConvertEndian)
+            {
+                using (var fIn = new FileStream(inFileName, FileMode.Open, FileAccess.Read))
+                {
+                    var bytes = new byte[fIn.Length];
+                    fIn.Read(bytes, 0, bytes.Length);
+
+                    byte temp;
+                    for (int i = 0; i < bytes.Length; i += 2)
+                    {
+                        temp = bytes[i];
+                        bytes[i] = bytes[i + 1];
+                        bytes[i + 1] = temp;
+                    }
+
+                    using (var fOut = new FileStream(inFileName + ".conv", FileMode.Create, FileAccess.Write))
+                    {
+                        fOut.Write(bytes, 0, bytes.Length);
+                    }
+                }
                 return;
             }
 
