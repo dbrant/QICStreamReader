@@ -104,7 +104,6 @@ using System.Text;
 /// 0x1e0        0x8               unknown
 /// 
 /// 
-/// 
 /// </summary>
 namespace sgibackup
 {
@@ -127,13 +126,12 @@ namespace sgibackup
                 return;
             }
 
-            byte[] bytes = new byte[65536];
-
             try
             {
                 using (var stream = new FileStream(inFileName, FileMode.Open, FileAccess.Read))
                 {
                     int RemainingSize = 0;
+                    FileHeader currentHeader = null;
 
                     while (true)
                     {
@@ -145,31 +143,39 @@ namespace sgibackup
                             break;
                         }
 
-                        Console.WriteLine(">>> " + header.Name + new String(' ', 64 - header.Name.Length) + header.stats + "    " + header.stats2);
-
-                        if (header.IsVolume || header.IsDirectory)
+                        if (header.HeaderType == HeaderType.Volume || header.HeaderType == HeaderType.Unknown)
                         {
                             continue;
                         }
 
-                        if (!header.HasData && header.Size > 0)
+                        if (header.HeaderType == HeaderType.Metadata)
                         {
+                            currentHeader = header;
                             RemainingSize = header.Size;
-                            continue;
-                        }
 
+                            Console.WriteLine(stream.Position.ToString("X") + ": " + header.Name + " - "
+                                + header.Size.ToString() + " bytes - " + header.CreateDate.ToShortDateString());
+                        }
 
                         var pathArr = header.Name.Split(new char[] { '/' });
                         string path = "";
-                        for (int i = 0; i < pathArr.Length - 1; i++)
+
+                        for (int i = 0; i < (header.IsDirectory ? pathArr.Length : pathArr.Length - 1); i++)
                         {
                             if (i > 0) path += Path.DirectorySeparatorChar;
                             path += pathArr[i];
                         }
 
                         path = Path.Combine(baseDirectory, path);
+                        if (header.HeaderType == HeaderType.Metadata)
+                        {
+                            Directory.CreateDirectory(path);
+                        }
 
-                        Directory.CreateDirectory(path);
+                        if (header.IsDirectory || header.HeaderType != HeaderType.Data)
+                        {
+                            continue;
+                        }
 
                         string fileName = Path.Combine(path, pathArr[pathArr.Length - 1]);
 
@@ -186,53 +192,13 @@ namespace sgibackup
                             RemainingSize -= bytesToWrite;
                         }
 
-                    }
-
-
-
-                    /*
-
-
-                        string fileName = Path.Combine(currentDirectory, header.Name);
-                        using (var f = new FileStream(Path.Combine(currentDirectory, header.Name), FileMode.Create, FileAccess.Write))
+                        if (RemainingSize == 0)
                         {
-                            int bytesLeft = header.Size;
-
-                            while (bytesLeft > 0)
-                            {
-                                do
-                                {
-                                    if (stream.Position >= stream.Length) { return; }
-                                    code = (ControlCode)stream.ReadByte();
-                                }
-                                while (code != ControlCode.DataChunk);
-
-                                stream.Read(bytes, 0, 3);
-                                int chunkSize = BitConverter.ToUInt16(bytes, 1);
-
-                                stream.Read(bytes, 0, chunkSize);
-                                f.Write(bytes, 0, chunkSize);
-
-                                if (bytesLeft == header.Size)
-                                {
-                                    if (!QicUtils.Utils.VerifyFileFormat(header.Name, bytes))
-                                    {
-                                        Console.WriteLine(stream.Position.ToString("X") + " -- Warning: file format doesn't match: " + fileName);
-                                        Console.ReadKey();
-                                    }
-                                }
-
-                                bytesLeft -= chunkSize;
-                            }
+                            File.SetCreationTime(fileName, currentHeader.CreateDate);
+                            File.SetLastWriteTime(fileName, currentHeader.ModifyDate);
+                            //File.SetAttributes(fileName, header.Attributes);
                         }
-                        File.SetCreationTime(fileName, header.DateTime);
-                        File.SetLastWriteTime(fileName, header.DateTime);
-                        File.SetAttributes(fileName, header.Attributes);
-
-                        Console.WriteLine(stream.Position.ToString("X") + ": " + fileName + " - " + header.Size.ToString() + " bytes - " + header.DateTime.ToShortDateString());
-
-                    */
-
+                    }
                 }
             }
             catch (Exception e)
@@ -241,21 +207,23 @@ namespace sgibackup
             }
         }
 
+        private enum HeaderType
+        {
+            Volume, Metadata, Data, Unknown
+        }
 
         private class FileHeader
         {
-            public bool IsVolume { get; }
             public bool IsDirectory { get; }
-            public bool HasData { get; }
+            public HeaderType HeaderType { get; }
             public int Size { get; }
             public string Name { get; }
-            public DateTime DateTime { get; }
+            public DateTime CreateDate { get; }
+            public DateTime ModifyDate { get; }
             public FileAttributes Attributes { get; }
             public bool Valid { get; }
 
             public byte[] bytes;
-            public string stats;
-            public string stats2 = "";
 
             public FileHeader(Stream stream)
             {
@@ -269,23 +237,34 @@ namespace sgibackup
                     return;
                 }
 
-                stats = Encoding.ASCII.GetString(bytes, 0x80, 0x80).Replace("\0", "");
+                var type = Encoding.ASCII.GetString(bytes, 0xb0, 4);
 
-                var statsArr = stats.Split(new char[] { ' ' }, StringSplitOptions.RemoveEmptyEntries);
-
-                var type = statsArr[4].Substring(7);
-
-                IsVolume = type == "1234" || type == "7890";
-                HasData = type == "3456";
-
-                if (type == "2345")
+                if (type == "1234" || type == "7890")
                 {
-                    stats2 = Encoding.ASCII.GetString(bytes, 0x180, 0x80).Replace("\0", "");
+                    HeaderType = HeaderType.Volume;
+                }
+                else if (type == "2345")
+                {
+                    HeaderType = HeaderType.Metadata;
+                }
+                else if (type == "3456")
+                {
+                    HeaderType = HeaderType.Data;
+                }
+                else
+                {
+                    HeaderType = HeaderType.Unknown;
+                }
 
-                    var stats2Arr = stats2.Split(new char[] { ' ' }, StringSplitOptions.RemoveEmptyEntries);
-                    IsDirectory = stats2Arr[0][0] == '4';
+                if (HeaderType == HeaderType.Metadata)
+                {
 
-                    Size = Convert.ToInt32(stats2.Substring(0x38, 8).Trim(), 16);
+                    var attrs = Encoding.ASCII.GetString(bytes, 0x180, 8).Trim();
+                    IsDirectory = attrs[0] == '4';
+
+                    Size = Convert.ToInt32(Encoding.ASCII.GetString(bytes, 0x1b8, 8).Trim(), 16);
+                    ModifyDate = QicUtils.Utils.DateTimeFromTimeT(Convert.ToInt64(Encoding.ASCII.GetString(bytes, 0x1c0, 8).Trim(), 16));
+                    CreateDate = QicUtils.Utils.DateTimeFromTimeT(Convert.ToInt64(Encoding.ASCII.GetString(bytes, 0x1c8, 8).Trim(), 16));
                 }
 
                 Valid = true;
