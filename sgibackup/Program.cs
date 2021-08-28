@@ -1,10 +1,111 @@
 ﻿using System;
-using System.Collections.Generic;
 using System.IO;
-using System.Linq;
 using System.Text;
-using System.Threading.Tasks;
 
+/// <summary>
+/// 
+/// Decoder for tape backups written by an SGI workstation.
+/// Not sure which actual program was used for writing these backups, but it was easy enough
+/// to reverse-engineer.
+/// 
+/// * Firstly, if a tape was written on an SGI workstation (which is MIPS), and then you read
+/// it using a x86 or x64 machine, you'll likely need to convert the endianness of the whole image,
+/// i.e. reverse the byte order of every two bytes.
+/// 
+/// Once the endianness is properly converted, the format of the data is roughly as follows:
+/// 
+/// The data is organized in blocks of 0x800 bytes. Every block begins with a 0x100 byte header,
+/// which has this structure:
+/// 
+/// NOTE about number representations in the header:
+/// The number fields in the header are actually ASCII strings that contain the hex value of the
+/// number, padded with spaces to the left.
+/// 
+/// NOTE about dates in the header:
+/// Dates are stored as ASCII strings that contain the hex value which in turn is a big-endian
+/// time_t value.
+/// 
+/// Offset       Length            Data
+/// -----------------------------------------------------------------------------------
+/// 0            0x80              Name of the current file, including path, padded with nulls
+///                                at the end.
+/// 
+/// 0x80         0x8               unknown
+/// 
+/// 0x88         0x8               Sequence number of this block within the backup. Starts with
+///                                "0", "1", "2", etc.
+/// 
+/// 0x90         0x8               Sequence number of this block within the current file. Starts
+///                                with "0", "1", "2", etc.
+/// 
+/// 0x98         0x8               Modification date of the file.
+/// 
+/// 0xa0         0x8               unknown
+/// 
+/// 0xa8         0x8               unknown
+/// 
+/// 0xb0         0x4               Header type (see below). Can be one of "1234", "2345", "3456",
+///                                or "7890".
+/// 
+/// 0xb4         0x4               unknown
+/// 
+/// 0xb8         0x4               unknown
+/// 
+/// 0xbc         0x4               unknown
+/// 
+/// 0xc0         0x4               unknown
+/// ------------------------------------------------------------------------------------
+/// 
+/// Header types:
+/// 
+/// "1234": Volume name. Indicates that this block is actually the name of the backup volume, and
+///         not associated with any specific file.
+/// 
+/// "2345": Beginning of new file. Indicates that this block contains metadata about the file, which
+///         could be a file or a directory. (See below for beakdown of metadata structure)
+/// 
+/// "3456": File data. Indicates that this block contains data belonging to the current file. Since
+///         the header takes up 0x100 bytes, the remaining 0x700 bytes are actual data, or rather
+///         up to 0x700 bytes, depending on how many expected bytes are remaining.
+/// 
+/// "7890": Volume name (?)
+/// 
+/// 
+/// File metadata structure (for "2345" blocks):
+/// 
+/// Offset       Length            Data
+/// -----------------------------------------------------------------------------------
+/// 0x180        0x8               File attributes. Importantly, if the first digit is "4", then this
+///                                is a directory, and if the first digit is "8", then this is a
+///                                regular file.
+/// 
+/// 0x188        0x8               unknown
+/// 
+/// 0x190        0x8               unknown
+/// 
+/// 0x198        0x8               unknown
+/// 
+/// 0x1a0        0x8               unknown
+/// 
+/// 0x1a8        0x8               unknown
+/// 
+/// 0x1b0        0x8               unknown
+/// 
+/// 0x1b8        0x8               File size
+/// 
+/// 0x1c0        0x8               Last access date
+/// 
+/// 0x1c8        0x8               Modification date
+/// 
+/// 0x1d0        0x8               Creation date
+/// 
+/// 0x1d8        0x8               unknown
+/// 
+/// 0x1e0        0x8               unknown
+/// 
+/// 
+/// 
+/// </summary>
 namespace sgibackup
 {
     class Program
@@ -12,15 +113,12 @@ namespace sgibackup
         static void Main(string[] args)
         {
             string inFileName = "";
-            string tempFileName;
             string baseDirectory = "out";
-            long customOffset = 0;
 
             for (int i = 0; i < args.Length; i++)
             {
                 if (args[i] == "-f") { inFileName = args[i + 1]; }
                 if (args[i] == "-d") { baseDirectory = args[i + 1]; }
-                if (args[i] == "--offset") { customOffset = Convert.ToInt64(args[i + 1]); }
             }
 
             if (inFileName.Length == 0 || !File.Exists(inFileName))

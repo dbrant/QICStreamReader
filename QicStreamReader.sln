@@ -29,6 +29,7 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "sgibackup", "sgibackup\sgib
 EndProject
 Global
 	GlobalSection(SharedMSBuildProjectFiles) = preSolution
+		QicUtils\QicUtils.projitems*{03eb1edf-4158-4ca3-85c8-499a8996c36d}*SharedItemsImports = 4
 		QicUtils\QicUtils.projitems*{07ea6af2-80ba-4de7-9e48-9470d21a909b}*SharedItemsImports = 13
 		QicUtils\QicUtils.projitems*{08f1ec26-07b7-4554-94b1-92a230d3f0ed}*SharedItemsImports = 4
 		QicUtils\QicUtils.projitems*{144841c0-4f93-4145-9530-d8e2a866ff38}*SharedItemsImports = 4
