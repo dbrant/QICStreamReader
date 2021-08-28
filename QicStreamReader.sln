@@ -25,6 +25,8 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "arcadabackup1", "arcadaback
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "arcadabackup2", "arcadabackup2\arcadabackup2.csproj", "{08F1EC26-07B7-4554-94B1-92A230D3F0ED}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "sgibackup", "sgibackup\sgibackup.csproj", "{03EB1EDF-4158-4CA3-85C8-499A8996C36D}"
+EndProject
 Global
 	GlobalSection(SharedMSBuildProjectFiles) = preSolution
 		QicUtils\QicUtils.projitems*{07ea6af2-80ba-4de7-9e48-9470d21a909b}*SharedItemsImports = 13
@@ -168,6 +170,18 @@ Global
 		{08F1EC26-07B7-4554-94B1-92A230D3F0ED}.Release|x64.Build.0 = Release|Any CPU
 		{08F1EC26-07B7-4554-94B1-92A230D3F0ED}.Release|x86.ActiveCfg = Release|Any CPU
 		{08F1EC26-07B7-4554-94B1-92A230D3F0ED}.Release|x86.Build.0 = Release|Any CPU
+		{03EB1EDF-4158-4CA3-85C8-499A8996C36D}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{03EB1EDF-4158-4CA3-85C8-499A8996C36D}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{03EB1EDF-4158-4CA3-85C8-499A8996C36D}.Debug|x64.ActiveCfg = Debug|Any CPU
+		{03EB1EDF-4158-4CA3-85C8-499A8996C36D}.Debug|x64.Build.0 = Debug|Any CPU
+		{03EB1EDF-4158-4CA3-85C8-499A8996C36D}.Debug|x86.ActiveCfg = Debug|Any CPU
+		{03EB1EDF-4158-4CA3-85C8-499A8996C36D}.Debug|x86.Build.0 = Debug|Any CPU
+		{03EB1EDF-4158-4CA3-85C8-499A8996C36D}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{03EB1EDF-4158-4CA3-85C8-499A8996C36D}.Release|Any CPU.Build.0 = Release|Any CPU
+		{03EB1EDF-4158-4CA3-85C8-499A8996C36D}.Release|x64.ActiveCfg = Release|Any CPU
+		{03EB1EDF-4158-4CA3-85C8-499A8996C36D}.Release|x64.Build.0 = Release|Any CPU
+		{03EB1EDF-4158-4CA3-85C8-499A8996C36D}.Release|x86.ActiveCfg = Release|Any CPU
+		{03EB1EDF-4158-4CA3-85C8-499A8996C36D}.Release|x86.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
