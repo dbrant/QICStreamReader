@@ -76,9 +76,9 @@ using System.Text;
 /// 
 /// Offset       Length            Data
 /// -----------------------------------------------------------------------------------
-/// 0x180        0x8               File attributes. Importantly, if the first digit is "4", then this
-///                                is a directory, and if the first digit is "8", then this is a
-///                                regular file.
+/// 0x180        0x8               File attributes. The lower 9 bits are the Mode bits (i.e. rwxrwxrwx),
+///                                and very importantly if bit 14 is set (0x4000) then this is a directory,
+///                                otherwise it's a regular file.
 /// 
 /// 0x188        0x8               unknown
 /// 
@@ -296,8 +296,8 @@ namespace sgibackup
                 if (HeaderType == HeaderType.Metadata)
                 {
 
-                    var attrs = Encoding.ASCII.GetString(bytes, 0x180, 8).Trim();
-                    IsDirectory = attrs[0] == '4';
+                    uint attrs = Convert.ToUInt32(Encoding.ASCII.GetString(bytes, 0x180, 8).Trim(), 16);
+                    IsDirectory = (attrs & 0x4000) != 0;
 
                     Size = Convert.ToInt32(Encoding.ASCII.GetString(bytes, 0x1b8, 8).Trim(), 16);
                     ModifyDate = QicUtils.Utils.DateTimeFromTimeT(Convert.ToInt64(Encoding.ASCII.GetString(bytes, 0x1c0, 8).Trim(), 16));
