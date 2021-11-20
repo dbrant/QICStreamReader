@@ -230,6 +230,7 @@ namespace headerview
 			var sb = new StringBuilder();
 			sb.AppendLine("StartSegNum: " + StartSegNum);
 			sb.AppendLine("EndSegNum: " + EndSegNum);
+			sb.AppendLine("Size in bytes: " + (EndSegNum - StartSegNum) * 0x8000);
 			sb.AppendLine("VolumeDescription: " + VolumeDescription);
 			sb.AppendLine("Date: " + Date);
 			sb.AppendLine(string.Format("VolumeFlags: 0x{0:X2}", VolumeFlags));
