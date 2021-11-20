@@ -172,8 +172,8 @@ namespace sgibackup
 
                         if (header.Sequence - currentSequence != 1)
                         {
-                            Console.WriteLine("Warning: sequence number inconsistent, ignoring block.");
-                            continue;
+                            Console.WriteLine("Warning: sequence number inconsistent.");
+                            //continue;
                         }
                         currentSequence = header.Sequence;
 
@@ -206,7 +206,7 @@ namespace sgibackup
                             Directory.CreateDirectory(path);
                         }
 
-                        if (header.IsDirectory || header.HeaderType != HeaderType.Data)
+                        if (header.IsDirectory)
                         {
                             continue;
                         }
@@ -215,15 +215,30 @@ namespace sgibackup
 
                         using (var f = new FileStream(fileName, FileMode.Append, FileAccess.Write))
                         {
-                            int bytesToWrite = 0x700;
-                            if (bytesToWrite > RemainingSize)
+                            if (header.HeaderType == HeaderType.Data)
                             {
-                                bytesToWrite = RemainingSize;
+                                int bytesToWrite = header.BytesInBlock;
+                                if (bytesToWrite > RemainingSize)
+                                {
+                                    bytesToWrite = RemainingSize;
+                                }
+
+                                f.Write(header.bytes, 0x100, bytesToWrite);
+
+                                RemainingSize -= bytesToWrite;
                             }
+                            else if (header.HeaderType == HeaderType.Metadata)
+                            {
+                                int bytesToWrite = header.BytesInBlock;
+                                if (bytesToWrite > RemainingSize)
+                                {
+                                    bytesToWrite = RemainingSize;
+                                }
 
-                            f.Write(header.bytes, 0x100, bytesToWrite);
+                                f.Write(header.bytes, 0x400, bytesToWrite);
 
-                            RemainingSize -= bytesToWrite;
+                                RemainingSize -= bytesToWrite;
+                            }
                         }
 
                         if (RemainingSize == 0)
@@ -252,6 +267,7 @@ namespace sgibackup
             public HeaderType HeaderType { get; }
             public int Sequence { get; }
             public int Size { get; }
+            public int BytesInBlock { get; }
             public string Name { get; }
             public DateTime CreateDate { get; }
             public DateTime ModifyDate { get; }
@@ -265,7 +281,12 @@ namespace sgibackup
                 bytes = new byte[0x800];
                 stream.Read(bytes, 0, bytes.Length);
 
-                Name = Encoding.ASCII.GetString(bytes, 0, 0x80).Replace("\0", "");
+                Name = Encoding.ASCII.GetString(bytes, 0, 0x80);
+                int izero = Name.IndexOf('\0');
+                if (izero >= 0)
+                {
+                    Name = Name.Substring(0, izero);
+                }
                 if (Name.Length < 1)
                 {
                     Valid = false;
@@ -283,10 +304,12 @@ namespace sgibackup
                 else if (type == "2345")
                 {
                     HeaderType = HeaderType.Metadata;
+                    BytesInBlock = (int)Convert.ToUInt32(Encoding.ASCII.GetString(bytes, 0xDC, 4).Trim(), 16);
                 }
                 else if (type == "3456")
                 {
                     HeaderType = HeaderType.Data;
+                    BytesInBlock = (int)Convert.ToUInt32(Encoding.ASCII.GetString(bytes, 0xDC, 4).Trim(), 16);
                 }
                 else
                 {
