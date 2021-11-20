@@ -200,7 +200,7 @@ namespace sgibackup
                             path += pathArr[i];
                         }
 
-                        path = Path.Combine(baseDirectory, path);
+                        path = baseDirectory + (path.StartsWith(Path.DirectorySeparatorChar.ToString()) ? "" : Path.DirectorySeparatorChar.ToString()) + path;
                         if (header.HeaderType == HeaderType.Metadata)
                         {
                             Directory.CreateDirectory(path);
