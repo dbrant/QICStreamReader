@@ -70,9 +70,9 @@ namespace arcadabackup1
                             {
                                 stream.Read(bytes, 0, 0x8000);
 
-                                // Each block of 0x8000 bytes ends with 0x400 bytes of ECC and/or parity data.
+                                // Each block of 0x8000 bytes ends with 0xC00 bytes of ECC and/or parity data.
                                 // TODO: actually use the ECC to verify and correct the data itself.
-                                outStream.Write(bytes, 0, 0x8000 - 0x400);
+                                outStream.Write(bytes, 0, 0x8000 - 0xC00);
                             }
                         }
                     }
@@ -108,8 +108,8 @@ namespace arcadabackup1
                                     // pad to 0x200
                                     if ((outStream.Position % 0x200) > 0)
                                     {
-                                        Array.Clear(bytes, 0, bytes.Length);
-                                        outStream.Write(bytes, 0, 0x200 - (int)(outStream.Position % 0x200));
+                                        //Array.Clear(bytes, 0, bytes.Length);
+                                        //outStream.Write(bytes, 0, 0x200 - (int)(outStream.Position % 0x200));
                                     }
                                 }
 
@@ -158,8 +158,8 @@ namespace arcadabackup1
                 {
                     while (stream.Position < (stream.Length - 16))
                     {
-                        long headerPos = 0;
-                        long dataPos = 0;
+                        long headerPos = -1;
+                        long dataPos = -1;
 
                         while (stream.Position < (stream.Length - 16))
                         {
@@ -167,18 +167,13 @@ namespace arcadabackup1
                             if (BitConverter.ToUInt32(bytes, 0) == FileHeaderMagic)
                             {
                                 headerPos = stream.Position - 4;
-                                break;
                             }
-                            stream.Seek(-3, SeekOrigin.Current);
-                        }
-
-                        while (stream.Position < (stream.Length - 16))
-                        {
-                            stream.Read(bytes, 0, 4);
-                            if (BitConverter.ToUInt32(bytes, 0) == DataHeaderMagic)
+                            else if (BitConverter.ToUInt32(bytes, 0) == DataHeaderMagic)
                             {
                                 dataPos = stream.Position - 4;
-                                stream.Position = headerPos + 4;
+                            }
+                            if (headerPos >= 0 && dataPos > headerPos)
+                            {
                                 break;
                             }
                             stream.Seek(-3, SeekOrigin.Current);
@@ -189,10 +184,27 @@ namespace arcadabackup1
                             break;
                         }
 
+                        long nextHeaderPos = stream.Length;
+
+                        while (stream.Position < (stream.Length - 16))
+                        {
+                            stream.Read(bytes, 0, 4);
+                            if (BitConverter.ToUInt32(bytes, 0) == FileHeaderMagic)
+                            {
+                                nextHeaderPos = stream.Position - 4;
+                                break;
+                            }
+                            stream.Seek(-3, SeekOrigin.Current);
+                        }
+
+                        if (nextHeaderPos < headerPos)
+                        {
+                            nextHeaderPos = stream.Length;
+                        }
 
                         stream.Position = headerPos;
 
-                        var header = new FileHeader(stream, false, dataPos);
+                        var header = new FileHeader(stream, false, dataPos, nextHeaderPos);
                         if (!header.Valid)
                         {
                             stream.Position = headerPos + 1;
@@ -207,7 +219,7 @@ namespace arcadabackup1
                         {
                             if (header.Size > 0)
                             {
-                                stream.Seek(header.Size, SeekOrigin.Current);
+                                //stream.Seek(header.Size, SeekOrigin.Current);
                             }
                             continue;
                         }
@@ -231,10 +243,11 @@ namespace arcadabackup1
                             filePath = filePath.Substring(0, 259);
                         }
 
-                        while (File.Exists(filePath))
+                        if (File.Exists(filePath))
                         {
-                            Console.WriteLine("Warning: file already exists (amending name): " + filePath);
-                            filePath += "_";
+                            Console.WriteLine("Warning: file already exists (skipping): " + filePath);
+                            //filePath += "_";
+                            continue;
                         }
 
                         Console.WriteLine(stream.Position.ToString("X") + ": " + filePath + " - " + header.Size.ToString() + " bytes - " + header.CreateDate.ToShortDateString());
@@ -293,7 +306,7 @@ namespace arcadabackup1
             public bool IsLastEntry { get; }
             public bool IsFinalEntry { get; }
 
-            public FileHeader(Stream stream, bool isCatalog, long dataPos)
+            public FileHeader(Stream stream, bool isCatalog, long dataPos, long nextHeaderPos)
             {
                 Subdirectory = "";
                 byte[] bytes = new byte[1024];
@@ -317,6 +330,10 @@ namespace arcadabackup1
 
                 stream.Read(bytes, 0, 2);
                 int nameLength = BitConverter.ToUInt16(bytes, 0);
+                if (nameLength > bytes.Length)
+                {
+                    return;
+                }
                 if (nameLength > 0)
                 {
                     stream.Read(bytes, 0, nameLength);
@@ -343,7 +360,10 @@ namespace arcadabackup1
                     Console.WriteLine("Warning: suspicious name length (" + nameLength + "). Skipping...");
                     return;
                 }
-
+                if (nameLength > bytes.Length)
+                {
+                    return;
+                }
                 if (nameLength > 0)
                 {
                     stream.Read(bytes, 0, nameLength);
@@ -362,10 +382,21 @@ namespace arcadabackup1
                 }
 
                 int dirLen = (int)(dataPos - stream.Position);
+                if (dirLen > bytes.Length)
+                {
+                    return;
+                }
 
                 stream.Read(bytes, 0, dirLen);
 
                 Subdirectory = Encoding.Unicode.GetString(bytes, 2, dirLen - 2);
+
+                if (Name == "" && DosName == "")
+                {
+                    Valid = false;
+                }
+
+                Size = nextHeaderPos - stream.Position - 6;
 
                 Valid = true;
             }
