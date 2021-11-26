@@ -189,8 +189,8 @@ namespace QicStreamV1
                                     // pad to 0x200
                                     if ((outStream.Position % 0x200) > 0)
                                     {
-                                        Array.Clear(bytes, 0, bytes.Length);
-                                        outStream.Write(bytes, 0, 0x200 - (int)(outStream.Position % 0x200));
+                                        //Array.Clear(bytes, 0, bytes.Length);
+                                        //outStream.Write(bytes, 0, 0x200 - (int)(outStream.Position % 0x200));
                                     }
                                 }
 
@@ -306,7 +306,8 @@ namespace QicStreamV1
                             filePath += "_";
                         }
 
-                        Console.WriteLine(stream.Position.ToString("X") +  ": " + filePath + " - " + header.Size.ToString() + " bytes - " + header.DateTime.ToShortDateString());
+                        Console.WriteLine(stream.Position.ToString("X") +  ": " + filePath + " - "
+                            + header.Size.ToString() + " bytes - " + header.DateTime.ToShortDateString());
 
                         using (var f = new FileStream(filePath, FileMode.Create, FileAccess.Write))
                         {
