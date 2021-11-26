@@ -115,12 +115,14 @@ namespace sgibackup
             string inFileName = "";
             string baseDirectory = "out";
             bool doConvertEndian = false;
+            bool dryRun = false;
 
             for (int i = 0; i < args.Length; i++)
             {
                 if (args[i] == "-f") { inFileName = args[i + 1]; }
                 if (args[i] == "-d") { baseDirectory = args[i + 1]; }
                 if (args[i] == "-c") { doConvertEndian = true; }
+                if (args[i] == "--dry") { dryRun = true; }
             }
 
             if (inFileName.Length == 0 || !File.Exists(inFileName))
@@ -160,19 +162,19 @@ namespace sgibackup
                     FileHeader currentHeader = null;
                     int currentSequence = -1;
 
-                    while (true)
+                    while (stream.Position < stream.Length)
                     {
                         var header = new FileHeader(stream);
 
                         if (!header.Valid)
                         {
-                            Console.WriteLine("Invalid file header, probably end of archive.");
-                            break;
+                            Console.WriteLine("Invalid file header, skipping...");
+                            continue;
                         }
 
                         if (header.Sequence - currentSequence != 1)
                         {
-                            Console.WriteLine("Warning: sequence number inconsistent.");
+                            Console.WriteLine("Warning: sequence number (" + header.Sequence + ") inconsistent with current (" + currentSequence + ")");
                             //continue;
                         }
                         currentSequence = header.Sequence;
@@ -197,11 +199,11 @@ namespace sgibackup
                         for (int i = 0; i < (header.IsDirectory ? pathArr.Length : pathArr.Length - 1); i++)
                         {
                             if (i > 0) path += Path.DirectorySeparatorChar;
-                            path += pathArr[i];
+                            path += QicUtils.Utils.ReplaceInvalidChars(pathArr[i]);
                         }
 
                         path = baseDirectory + (path.StartsWith(Path.DirectorySeparatorChar.ToString()) ? "" : Path.DirectorySeparatorChar.ToString()) + path;
-                        if (header.HeaderType == HeaderType.Metadata)
+                        if (header.HeaderType == HeaderType.Metadata && !dryRun)
                         {
                             Directory.CreateDirectory(path);
                         }
@@ -211,7 +213,12 @@ namespace sgibackup
                             continue;
                         }
 
-                        string fileName = Path.Combine(path, pathArr[pathArr.Length - 1]);
+                        if (dryRun)
+                        {
+                            continue;
+                        }
+
+                        string fileName = Path.Combine(path, QicUtils.Utils.ReplaceInvalidChars(pathArr[pathArr.Length - 1]));
 
                         using (var f = new FileStream(fileName, FileMode.Append, FileAccess.Write))
                         {
@@ -252,6 +259,7 @@ namespace sgibackup
             }
             catch (Exception e)
             {
+                Console.WriteLine(e.StackTrace);
                 Console.WriteLine("Error: " + e.Message);
             }
         }
