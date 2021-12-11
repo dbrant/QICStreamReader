@@ -55,6 +55,12 @@ using System.Text;
 /// 0xbc         0x4               unknown
 /// 
 /// 0xc0         0x4               unknown
+/// 
+/// 0xdc         0x4               Number of bytes in this block that are actual data that belongs
+///                                to the current file. If this block is type "2345" then the data
+///                                starts at offset 0x400 (meaning this block can contain up to 0x400
+///                                bytes), and if this block is type "3456" then the data starts at
+///                                offset 0x100 (meaning this block can contain up to 0x700 bytes).
 /// ------------------------------------------------------------------------------------
 /// 
 /// Header types:
