@@ -39,7 +39,7 @@ using System.Text;
 /// 0x90         0x8               Sequence number of this block within the current file. Starts
 ///                                with "0", "1", "2", etc.
 /// 
-/// 0x98         0x8               Modification date of the file.
+/// 0x98         0x8               Backup date of the file.
 /// 
 /// 0xa0         0x8               unknown
 /// 
