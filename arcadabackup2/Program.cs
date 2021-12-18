@@ -92,7 +92,9 @@ namespace arcadabackup2
                 {
                     using (var stream = new FileStream(inFileName, FileMode.Open, FileAccess.Read))
                     {
-                        using (var outStream = new FileStream(outFileName, FileMode.Create, FileAccess.Write))
+
+                        Stream outStream = new FileStream(outFileName, FileMode.Create, FileAccess.Write);
+
                         {
                             bool firstCompressedFrame = true;
 
@@ -111,8 +113,8 @@ namespace arcadabackup2
                                     // pad to 0x200
                                     if ((outStream.Position % 0x200) > 0)
                                     {
-                                        Array.Clear(bytes, 0, bytes.Length);
-                                        outStream.Write(bytes, 0, 0x200 - (int)(outStream.Position % 0x200));
+                                        //Array.Clear(bytes, 0, bytes.Length);
+                                        //outStream.Write(bytes, 0, 0x200 - (int)(outStream.Position % 0x200));
                                     }
                                 }
 
@@ -122,6 +124,25 @@ namespace arcadabackup2
                                 {
                                     stream.Seek(0x200 - (stream.Position % 0x200), SeekOrigin.Current);
                                 }
+
+                                if (frameSize == 0)
+                                {
+                                    Console.WriteLine("Warning: skipping empty frame.");
+                                    continue;
+                                }
+
+                                Console.WriteLine("input: " + stream.Position.ToString("X") + ", frameSize: " + frameSize.ToString("X")
+                                    + ", absPos: " + absolutePos.ToString("X") + ", outputPos: " + outStream.Position.ToString("X"));
+
+
+
+                                if (absolutePos < outStream.Position)
+                                {
+                                    Console.WriteLine("Warning: frame position out of sync with output. Starting new stream.");
+                                    outFileName += "_";
+                                    outStream = new FileStream(outFileName, FileMode.Create, FileAccess.Write);
+                                }
+
 
 
                                 if (absPos && (absolutePos != outStream.Position))
