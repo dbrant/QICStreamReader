@@ -239,8 +239,10 @@ namespace ConnerBackup
 
                         while (File.Exists(filePath))
                         {
-                            Console.WriteLine("Warning: file already exists (amending name): " + filePath);
+                            Console.WriteLine("Warning: file already exists (skipping): " + filePath);
                             filePath += "_";
+
+                            continue;
                         }
 
                         Console.WriteLine(stream.Position.ToString("X") + ": " + filePath + " - " + header.Size.ToString() + " bytes - " + header.DateTime.ToShortDateString());
