@@ -93,7 +93,7 @@ namespace arcadabackup2
                     using (var stream = new FileStream(inFileName, FileMode.Open, FileAccess.Read))
                     {
 
-                        Stream outStream = new FileStream(outFileName, FileMode.Create, FileAccess.Write);
+                        Stream outStream = new FileStream(outFileName, FileMode.OpenOrCreate, FileAccess.ReadWrite);
 
                         {
                             bool firstCompressedFrame = true;
@@ -134,19 +134,18 @@ namespace arcadabackup2
                                 Console.WriteLine("input: " + stream.Position.ToString("X") + ", frameSize: " + frameSize.ToString("X")
                                     + ", absPos: " + absolutePos.ToString("X") + ", outputPos: " + outStream.Position.ToString("X"));
 
-
-
                                 if (absolutePos < outStream.Position)
                                 {
                                     Console.WriteLine("Warning: frame position out of sync with output. Starting new stream.");
                                     outFileName += "_";
-                                    outStream = new FileStream(outFileName, FileMode.Create, FileAccess.Write);
+                                    outStream = new FileStream(outFileName, FileMode.OpenOrCreate, FileAccess.Write);
                                 }
 
 
 
                                 if (absPos && (absolutePos != outStream.Position))
                                 {
+                                    Console.WriteLine(">>> adjusting position!");
                                     outStream.Position = absolutePos;
                                 }
 
