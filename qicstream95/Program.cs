@@ -257,7 +257,8 @@ namespace qicstream1a
                             filePath += "_";
                         }
 
-                        Console.WriteLine(stream.Position.ToString("X") + ": " + filePath + " - " + header.Size.ToString() + " bytes - " + header.DateTime.ToShortDateString());
+                        Console.WriteLine(stream.Position.ToString("X") + ": " + filePath + " - "
+                            + header.Size.ToString() + " bytes - " + header.DateTime.ToShortDateString());
 
                         using (var f = new FileStream(filePath, FileMode.Create, FileAccess.Write))
                         {
@@ -329,6 +330,10 @@ namespace qicstream1a
 
                 stream.Read(bytes, 0, 2);
                 int nameLength = BitConverter.ToUInt16(bytes, 0);
+                if (nameLength > 0x100)
+                {
+                    return;
+                }
                 if (nameLength > 0)
                 {
                     stream.Read(bytes, 0, nameLength);
