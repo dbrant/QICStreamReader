@@ -160,7 +160,8 @@ namespace QicStreamV1
                 {
                     using (var stream = new FileStream(inFileName, FileMode.Open, FileAccess.Read))
                     {
-                        using (var outStream = new FileStream(outFileName, FileMode.Create, FileAccess.Write))
+                        Stream outStream = new FileStream(outFileName, FileMode.OpenOrCreate, FileAccess.ReadWrite);
+
                         {
                             bool firstCompressedFrame = true;
 
@@ -173,12 +174,6 @@ namespace QicStreamV1
                                 // stream.Read(bytes, 0, 8);
                                 // uint absolutePos = BitConverter.ToUInt32(bytes, 2);
                                 // int frameSize = BitConverter.ToUInt16(bytes, 6);
-
-                                if (frameSize == 0)
-                                {
-                                    Console.WriteLine("Warning: empty frame size; bailing.");
-                                    break;
-                                }
 
                                 bool compressed = (frameSize & 0x8000) == 0;
                                 frameSize &= 0x7FFF;
@@ -196,8 +191,34 @@ namespace QicStreamV1
 
                                 stream.Read(bytes, 0, frameSize);
 
+                                // always align to 256 bytes
+                                if ((stream.Position % 0x100) > 0)
+                                {
+                                    //Array.Clear(bytes, 0, bytes.Length);
+                                    stream.Position += 0x100 - (int)(stream.Position % 0x100);
+                                    //outStream.Write(bytes, 0, 0x200 - (int)(outStream.Position % 0x200));
+                                }
+
+
+                                if (frameSize == 0)
+                                {
+                                    Console.WriteLine("Warning: skipping empty frame.");
+                                    continue;
+                                }
+
+                                Console.WriteLine("input: " + stream.Position.ToString("X") + ", frameSize: " + frameSize.ToString("X")
+                                    + ", absPos: " + absolutePos.ToString("X") + ", outputPos: " + outStream.Position.ToString("X"));
+
+                                if (absolutePos < outStream.Position)
+                                {
+                                    Console.WriteLine("Warning: frame position out of sync with output. Starting new stream.");
+                                    outFileName += "_";
+                                    outStream = new FileStream(outFileName, FileMode.OpenOrCreate, FileAccess.Write);
+                                }
+
                                 if (absPos && (absolutePos != outStream.Position))
                                 {
+                                    Console.WriteLine(">>> adjusting position!");
                                     outStream.Position = absolutePos;
                                 }
 
