@@ -161,8 +161,7 @@ namespace qicstream1a
                         long posBeforeHeader = stream.Position;
 
                         long headerPos = 0;
-                        long dataStartPos = 0;
-                        long dataEndPos = 0;
+                        long dataPos = 0;
                         long nextHeaderPos = 0;
 
                         while (true)
@@ -181,51 +180,52 @@ namespace qicstream1a
                             stream.Read(bytes, 0, 4);
                             if (BitConverter.ToUInt32(bytes, 0) == DataHeaderMagic)
                             {
-                                stream.Read(bytes, 0, 2);
-                                if (bytes[0] == 0x7)
-                                {
-                                    dataStartPos = stream.Position - 6;
-                                    break;
-                                }
-                                stream.Seek(-2, SeekOrigin.Current);
+                                dataPos = stream.Position - 4;
+                                stream.Position = headerPos + 4;
+                                break;
                             }
                             stream.Seek(-3, SeekOrigin.Current);
                         }
 
+
                         while (true)
                         {
                             stream.Read(bytes, 0, 4);
-                            if (BitConverter.ToUInt32(bytes, 0) == DataHeaderMagic)
+                            if (BitConverter.ToUInt32(bytes, 0) == FileHeaderMagic)
                             {
-                                stream.Read(bytes, 0, 2);
-                                if (bytes[0] == 0xA)
-                                {
-                                    dataEndPos = stream.Position - 6;
-                                    break;
-                                }
-                                stream.Seek(-2, SeekOrigin.Current);
+                                nextHeaderPos = stream.Position - 4;
+                                break;
                             }
+
+                            if (stream.Position >= stream.Length)
+                            {
+                                Console.WriteLine("Warning: reached end of file.");
+                                nextHeaderPos = stream.Position;
+                                break;
+                            }
+
                             stream.Seek(-3, SeekOrigin.Current);
+                        }
+
+
+                        if (nextHeaderPos < dataPos)
+                        {
+                            // zero-length file? skip it.
+                            stream.Position = nextHeaderPos;
+                            continue;
                         }
 
 
                         stream.Position = headerPos;
 
-                        var header = new FileHeader(stream, false, dataStartPos, dataEndPos);
+                        var header = new FileHeader(stream, false, dataPos, nextHeaderPos);
                         if (!header.Valid)
                         {
                             stream.Position = posBeforeHeader + 1;
                             continue;
                         }
 
-                        stream.Position = dataStartPos + 6;
-
-
-
-                        if (header.Size <= 0)
-                        {
-                            continue;
-                        }
+                        stream.Position = dataPos + 6;
 
 
 
@@ -312,7 +312,7 @@ namespace qicstream1a
             public bool IsLastEntry { get; }
             public bool IsFinalEntry { get; }
 
-            public FileHeader(Stream stream, bool isCatalog, long dataStartPos, long dataEndPos)
+            public FileHeader(Stream stream, bool isCatalog, long dataPos, long nextHeaderPos)
             {
                 Subdirectory = "";
                 byte[] bytes = new byte[1024];
@@ -326,7 +326,7 @@ namespace qicstream1a
 
                 stream.Read(bytes, 0, 0x45);
 
-                DateTime = new DateTime(1970, 1, 1).AddSeconds(BitConverter.ToUInt32(bytes, 0x3D));
+                DateTime = new DateTime(1970, 1, 1).AddSeconds(BitConverter.ToUInt32(bytes, 0x2D));
 
                 stream.Read(bytes, 0, 2);
                 int nameLength = BitConverter.ToUInt16(bytes, 0);
@@ -359,13 +359,13 @@ namespace qicstream1a
                 }
 
 
-                int dirLen = (int)(dataStartPos - stream.Position);
+                int dirLen = (int)(dataPos - stream.Position);
 
                 stream.Read(bytes, 0, dirLen);
 
-                Subdirectory = Encoding.Unicode.GetString(bytes, 0, dirLen);
+                Subdirectory = Encoding.Unicode.GetString(bytes, 2, dirLen - 2);
 
-                Size = dataEndPos - dataStartPos - 6;
+                Size = nextHeaderPos - dataPos - 6;
 
 
                 Valid = true;
