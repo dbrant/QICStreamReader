@@ -19,6 +19,8 @@ namespace QicUtils
         private byte[] history;
         private int historyPtr;
 
+        private const int HISTORY_SIZE = 0x800;
+
         /// <summary>
         /// Decompress data from one stream to another.
         /// </summary>
@@ -27,7 +29,8 @@ namespace QicUtils
         public Qic122Decompressor(Stream stream, Stream outStream)
         {
             this.stream = stream;
-            history = new byte[0x100000];
+            history = new byte[HISTORY_SIZE];
+            int historySizeMask = HISTORY_SIZE - 1;
 
             int type, offset, length;
             byte b;
@@ -40,7 +43,9 @@ namespace QicUtils
                     // raw byte
                     b = (byte)NextNumBits(8);
                     outStream.WriteByte(b);
-                    history[historyPtr++] = b;
+                    history[historyPtr] = b;
+                    historyPtr++;
+                    historyPtr %= HISTORY_SIZE;
                 }
                 else
                 {
@@ -52,16 +57,12 @@ namespace QicUtils
 
                     for (int i = 0; i < length; i++)
                     {
-                        b = history[historyPtr - offset];
+                        b = history[(historyPtr - offset) & historySizeMask];
                         outStream.WriteByte(b);
-                        history[historyPtr++] = b;
+                        history[historyPtr] = b;
+                        historyPtr++;
+                        historyPtr %= HISTORY_SIZE;
                     }
-                }
-
-                if (historyPtr > 0x8000)
-                {
-                    Array.Copy(history, 0x4000, history, 0, historyPtr - 0x4000);
-                    historyPtr -= 0x4000;
                 }
             }
         }
