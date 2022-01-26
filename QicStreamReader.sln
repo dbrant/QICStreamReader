@@ -27,6 +27,8 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "arcadabackup2", "arcadaback
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "sgibackup", "sgibackup\sgibackup.csproj", "{03EB1EDF-4158-4CA3-85C8-499A8996C36D}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "qicstream95a", "qicstream95a\qicstream95a.csproj", "{2F33119B-2FD8-4053-AC98-40F745D0EEF6}"
+EndProject
 Global
 	GlobalSection(SharedMSBuildProjectFiles) = preSolution
 		QicUtils\QicUtils.projitems*{03eb1edf-4158-4ca3-85c8-499a8996c36d}*SharedItemsImports = 4
@@ -34,6 +36,7 @@ Global
 		QicUtils\QicUtils.projitems*{08f1ec26-07b7-4554-94b1-92a230d3f0ed}*SharedItemsImports = 4
 		QicUtils\QicUtils.projitems*{144841c0-4f93-4145-9530-d8e2a866ff38}*SharedItemsImports = 4
 		QicUtils\QicUtils.projitems*{253078f4-51e7-4ddb-904f-55e662bd1aeb}*SharedItemsImports = 4
+		QicUtils\QicUtils.projitems*{2f33119b-2fd8-4053-ac98-40f745d0eef6}*SharedItemsImports = 4
 		QicUtils\QicUtils.projitems*{6ff3423b-bf04-4cc9-9aeb-0b62b0c76fc1}*SharedItemsImports = 4
 		QicUtils\QicUtils.projitems*{7c68adf6-cae4-454f-b4d7-02d5f3c9475c}*SharedItemsImports = 4
 		QicUtils\QicUtils.projitems*{80e32514-e2ec-41e4-9418-cd4eb8a73168}*SharedItemsImports = 4
@@ -183,6 +186,18 @@ Global
 		{03EB1EDF-4158-4CA3-85C8-499A8996C36D}.Release|x64.Build.0 = Release|Any CPU
 		{03EB1EDF-4158-4CA3-85C8-499A8996C36D}.Release|x86.ActiveCfg = Release|Any CPU
 		{03EB1EDF-4158-4CA3-85C8-499A8996C36D}.Release|x86.Build.0 = Release|Any CPU
+		{2F33119B-2FD8-4053-AC98-40F745D0EEF6}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{2F33119B-2FD8-4053-AC98-40F745D0EEF6}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{2F33119B-2FD8-4053-AC98-40F745D0EEF6}.Debug|x64.ActiveCfg = Debug|Any CPU
+		{2F33119B-2FD8-4053-AC98-40F745D0EEF6}.Debug|x64.Build.0 = Debug|Any CPU
+		{2F33119B-2FD8-4053-AC98-40F745D0EEF6}.Debug|x86.ActiveCfg = Debug|Any CPU
+		{2F33119B-2FD8-4053-AC98-40F745D0EEF6}.Debug|x86.Build.0 = Debug|Any CPU
+		{2F33119B-2FD8-4053-AC98-40F745D0EEF6}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{2F33119B-2FD8-4053-AC98-40F745D0EEF6}.Release|Any CPU.Build.0 = Release|Any CPU
+		{2F33119B-2FD8-4053-AC98-40F745D0EEF6}.Release|x64.ActiveCfg = Release|Any CPU
+		{2F33119B-2FD8-4053-AC98-40F745D0EEF6}.Release|x64.Build.0 = Release|Any CPU
+		{2F33119B-2FD8-4053-AC98-40F745D0EEF6}.Release|x86.ActiveCfg = Release|Any CPU
+		{2F33119B-2FD8-4053-AC98-40F745D0EEF6}.Release|x86.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
