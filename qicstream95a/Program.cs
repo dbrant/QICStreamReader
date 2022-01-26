@@ -8,7 +8,7 @@ using System.Text;
 /// the Windows 95 Backup utility.
 /// https://www.qic.org/html/standards/11x.x/qic113g.pdf
 /// 
-/// Copyright Dmitry Brant, 2020.
+/// Copyright Dmitry Brant, 2022.
 /// 
 /// TODO: combine with `qicstreamv1`.
 /// 
