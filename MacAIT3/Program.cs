@@ -38,21 +38,14 @@ namespace MacAIT3
                     Console.WriteLine("Opening: " + fileNum + ".bin");
                     using (var stream = new FileStream(fileNum + ".bin", FileMode.Open, FileAccess.Read))
                     {
-                        if (fileNum == 0)
-                        {
-                            stream.Seek(0x2000, SeekOrigin.Begin);
-
-                            Directory.CreateDirectory(baseDirectory);
-                        }
-
-                        string currentDirectory = baseDirectory;
-
                         while (stream.Position < stream.Length)
                         {
                             stream.Read(bytes, 0, 8);
 
                             if (bytes[0] == 0 && bytes[1] == 0)
                             {
+                                // If we land on null values in the block name, we might need to align onto
+                                // a 0x200-byte boundary.
                                 if ((stream.Position % 0x200) > 0)
                                 {
                                     stream.Seek(0x200 - (stream.Position % 0x200), SeekOrigin.Current);
@@ -61,6 +54,15 @@ namespace MacAIT3
                             }
 
                             string blockName = Encoding.ASCII.GetString(bytes, 0, 4);
+
+                            if (blockName == "Rxvr")
+                            {
+                                // Probably the first segment, which begins with a 0x2000 byte header.
+                                // Just skip it.
+                                stream.Seek(0x2000 - 8, SeekOrigin.Current);
+                                continue;
+                            }
+
                             long blockSize = QicUtils.Utils.BigEndian(BitConverter.ToUInt32(bytes, 4));
 
                             blockSize -= 8;
@@ -68,13 +70,15 @@ namespace MacAIT3
 
                             int bytesToWrite = 0;
 
-                            Console.WriteLine(stream.Position.ToString("X2") + " > " + blockName + ": " + blockSize);
+                            // If we want to be verbose:
+                            //Console.WriteLine(stream.Position.ToString("X2") + ": " + blockName + ": " + blockSize);
 
                             if (blockName == "File")
                             {
 
                                 if (curHeader != null)
                                 {
+                                    // If we're closing out the current file, apply any metadata and attributes to it.
                                     try
                                     {
                                         File.SetCreationTime(curHeader.AbsPath, curHeader.DateTime);
@@ -84,17 +88,18 @@ namespace MacAIT3
                                 }
 
                                 curHeader = new FileHeader(stream, (int)blockSize);
-                                Console.WriteLine(stream.Position.ToString("X2") + " file > " + curHeader.Name + ": " + curHeader.Size);
+                                Console.WriteLine(stream.Position.ToString("X2") + ": New file > " + curHeader.Name + ": " + curHeader.Size);
                             }
                             else if (blockName == "Diry")
                             {
                                 var header = new DirectoryHeader(stream, (int)blockSize);
-                                Console.WriteLine(stream.Position.ToString("X2") + " dir > " + header.Name);
+                                Console.WriteLine(stream.Position.ToString("X2") + ": New directory > " + header.Name);
                                 curDirectory = header.Name;
                             }
                             else if (blockName == "Fork")
                             {
-                                // Skip over fork header ??
+                                // The Fork block seems to have a 0x16-byte header, followed by the data.
+                                // TODO: figure out the use of the header in the Fork block?
                                 stream.Seek(0x16, SeekOrigin.Current);
                                 blockSize -= 0x16;
 
@@ -118,6 +123,8 @@ namespace MacAIT3
                             if (curHeader.AbsPath == null)
                             {
                                 string filePath = baseDirectory;
+
+                                // TODO: correctly handle subdirectories.
                                 /*
                                 if (curHeader.Subdirectory.Length > 0)
                                 {
