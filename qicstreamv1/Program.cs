@@ -258,6 +258,7 @@ namespace QicStreamV1
                     }
                     else
                     {
+                        /*
                         // read through the catalog (don't do anything with it).
                         while (stream.Position < stream.Length)
                         {
@@ -276,6 +277,7 @@ namespace QicStreamV1
                         {
                             return;
                         }
+                        */
                     }
 
                     bool printHeaderWarning = false;

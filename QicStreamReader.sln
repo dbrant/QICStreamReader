@@ -29,6 +29,8 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "sgibackup", "sgibackup\sgib
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "qicstream95a", "qicstream95a\qicstream95a.csproj", "{2F33119B-2FD8-4053-AC98-40F745D0EEF6}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "MacAIT3", "MacAIT3\MacAIT3.csproj", "{C060FBE7-E320-458C-940E-60681D0FD307}"
+EndProject
 Global
 	GlobalSection(SharedMSBuildProjectFiles) = preSolution
 		QicUtils\QicUtils.projitems*{03eb1edf-4158-4ca3-85c8-499a8996c36d}*SharedItemsImports = 4
@@ -42,6 +44,7 @@ Global
 		QicUtils\QicUtils.projitems*{80e32514-e2ec-41e4-9418-cd4eb8a73168}*SharedItemsImports = 4
 		QicUtils\QicUtils.projitems*{89dd4a55-4506-498d-8619-a52beb06bf47}*SharedItemsImports = 4
 		QicUtils\QicUtils.projitems*{b562c774-6604-4e5f-ad12-3e25daa28b4c}*SharedItemsImports = 4
+		QicUtils\QicUtils.projitems*{c060fbe7-e320-458c-940e-60681d0fd307}*SharedItemsImports = 4
 		QicUtils\QicUtils.projitems*{cf664fcf-fd1d-4a7d-8454-5671a575ed40}*SharedItemsImports = 4
 		QicUtils\QicUtils.projitems*{ef3d9d1f-c8cd-416c-8de4-a9f0de94297b}*SharedItemsImports = 4
 	EndGlobalSection
@@ -198,6 +201,18 @@ Global
 		{2F33119B-2FD8-4053-AC98-40F745D0EEF6}.Release|x64.Build.0 = Release|Any CPU
 		{2F33119B-2FD8-4053-AC98-40F745D0EEF6}.Release|x86.ActiveCfg = Release|Any CPU
 		{2F33119B-2FD8-4053-AC98-40F745D0EEF6}.Release|x86.Build.0 = Release|Any CPU
+		{C060FBE7-E320-458C-940E-60681D0FD307}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{C060FBE7-E320-458C-940E-60681D0FD307}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{C060FBE7-E320-458C-940E-60681D0FD307}.Debug|x64.ActiveCfg = Debug|Any CPU
+		{C060FBE7-E320-458C-940E-60681D0FD307}.Debug|x64.Build.0 = Debug|Any CPU
+		{C060FBE7-E320-458C-940E-60681D0FD307}.Debug|x86.ActiveCfg = Debug|Any CPU
+		{C060FBE7-E320-458C-940E-60681D0FD307}.Debug|x86.Build.0 = Debug|Any CPU
+		{C060FBE7-E320-458C-940E-60681D0FD307}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{C060FBE7-E320-458C-940E-60681D0FD307}.Release|Any CPU.Build.0 = Release|Any CPU
+		{C060FBE7-E320-458C-940E-60681D0FD307}.Release|x64.ActiveCfg = Release|Any CPU
+		{C060FBE7-E320-458C-940E-60681D0FD307}.Release|x64.Build.0 = Release|Any CPU
+		{C060FBE7-E320-458C-940E-60681D0FD307}.Release|x86.ActiveCfg = Release|Any CPU
+		{C060FBE7-E320-458C-940E-60681D0FD307}.Release|x86.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
