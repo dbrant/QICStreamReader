@@ -90,6 +90,7 @@ namespace QicStreamV1
     class Program
     {
         private const uint FileHeaderMagic = 0x33CC33CC;
+        private const int SEG_SIZE = 0x7400;
 
         static void Main(string[] args)
         {
@@ -161,82 +162,92 @@ namespace QicStreamV1
                     using (var stream = new FileStream(inFileName, FileMode.Open, FileAccess.Read))
                     {
                         Stream outStream = new FileStream(outFileName, FileMode.OpenOrCreate, FileAccess.ReadWrite);
-
                         {
-                            bool firstCompressedFrame = true;
-
                             while (stream.Position < stream.Length)
                             {
-                                stream.Read(bytes, 0, 6);
+                                // always align to segment boundary
+                                if ((stream.Position % 0x100) > 0)
+                                {
+                                    stream.Position += 0x100 - (int)(stream.Position % 0x100);
+                                }
+
+
+                                int segBytesLeft = SEG_SIZE;
+
+                                stream.Read(bytes, 0, 4);
+                                segBytesLeft -= 4;
                                 uint absolutePos = BitConverter.ToUInt32(bytes, 0);
-                                int frameSize = BitConverter.ToUInt16(bytes, 4);
                                 // I've seen tapes that have an 8-byte chunk header, instead of a 6-byte header:
                                 // stream.Read(bytes, 0, 8);
                                 // uint absolutePos = BitConverter.ToUInt32(bytes, 2);
                                 // int frameSize = BitConverter.ToUInt16(bytes, 6);
 
-                                bool compressed = (frameSize & 0x8000) == 0;
-                                frameSize &= 0x7FFF;
 
-                                if (compressed && firstCompressedFrame)
+                                while (segBytesLeft > 18)
                                 {
-                                    firstCompressedFrame = false;
-                                    // pad to 0x200
-                                    if ((outStream.Position % 0x200) > 0)
+
+                                    stream.Read(bytes, 0, 2);
+                                    segBytesLeft -= 2;
+                                    int frameSize = BitConverter.ToUInt16(bytes, 0);
+
+                                    bool compressed = (frameSize & 0x8000) == 0;
+                                    frameSize &= 0x7FFF;
+
+                                    if (frameSize > segBytesLeft)
                                     {
-                                        //Array.Clear(bytes, 0, bytes.Length);
-                                        //outStream.Write(bytes, 0, 0x200 - (int)(outStream.Position % 0x200));
+                                        Console.WriteLine("Warning: frame extends beyond segment boundary.");
                                     }
-                                }
 
-                                stream.Read(bytes, 0, frameSize);
+                                    stream.Read(bytes, 0, frameSize);
+                                    segBytesLeft -= frameSize;
 
-                                // always align to 256 bytes
-                                if ((stream.Position % 0x100) > 0)
-                                {
-                                    //Array.Clear(bytes, 0, bytes.Length);
-                                    stream.Position += 0x100 - (int)(stream.Position % 0x100);
-                                    //outStream.Write(bytes, 0, 0x200 - (int)(outStream.Position % 0x200));
-                                }
-
-
-                                if (frameSize == 0)
-                                {
-                                    Console.WriteLine("Warning: skipping empty frame.");
-                                    continue;
-                                }
-
-                                Console.WriteLine("input: " + stream.Position.ToString("X") + ", frameSize: " + frameSize.ToString("X")
-                                    + ", absPos: " + absolutePos.ToString("X") + ", outputPos: " + outStream.Position.ToString("X"));
-
-                                if (absolutePos < outStream.Position)
-                                {
-                                    Console.WriteLine("Warning: frame position out of sync with output. Starting new stream.");
-                                    outFileName += "_";
-                                    outStream = new FileStream(outFileName, FileMode.OpenOrCreate, FileAccess.Write);
-                                }
-
-                                if (absPos && (absolutePos != outStream.Position))
-                                {
-                                    Console.WriteLine(">>> adjusting position!");
-                                    outStream.Position = absolutePos;
-                                }
-
-                                if (compressed)
-                                {
-                                    try
+                                    if (frameSize == 0)
                                     {
-                                        new QicUtils.Qic122Decompressor(new MemoryStream(bytes), outStream);
+                                        Console.WriteLine("Warning: skipping empty frame.");
+                                        break;
                                     }
-                                    catch (Exception ex)
+
+                                    Console.WriteLine("input: " + stream.Position.ToString("X") + ", frameSize: " + frameSize.ToString("X")
+                                        + ", absPos: " + absolutePos.ToString("X") + ", outputPos: " + outStream.Position.ToString("X"));
+
+                                    if (absolutePos < outStream.Position)
                                     {
-                                        Console.WriteLine("Warning: failed to decompress frame: " + ex.Message);
+                                        Console.WriteLine("Warning: frame position out of sync with output. Starting new stream.");
+                                        outFileName += "_";
+                                        outStream = new FileStream(outFileName, FileMode.OpenOrCreate, FileAccess.Write);
                                     }
+
+                                    if (absPos && (absolutePos != outStream.Position))
+                                    {
+                                        Console.WriteLine(">>> adjusting position!");
+                                        outStream.Position = absolutePos;
+                                    }
+
+                                    if (compressed)
+                                    {
+                                        try
+                                        {
+                                            new QicUtils.Qic122Decompressor(new MemoryStream(bytes), outStream);
+                                        }
+                                        catch (Exception ex)
+                                        {
+                                            Console.WriteLine("Warning: failed to decompress frame: " + ex.Message);
+                                        }
+                                    }
+                                    else
+                                    {
+                                        outStream.Write(bytes, 0, frameSize);
+                                    }
+                                    absolutePos = (uint)outStream.Position;
+
+
+                                    if ((segBytesLeft - 0x400) >= 0 && (segBytesLeft - 0x400) < 18)
+                                    {
+                                        break;
+                                    }
+
                                 }
-                                else
-                                {
-                                    outStream.Write(bytes, 0, frameSize);
-                                }
+
                             }
                         }
                     }
