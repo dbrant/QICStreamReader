@@ -31,6 +31,8 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "qicstream95a", "qicstream95
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "MacAIT3", "MacAIT3\MacAIT3.csproj", "{C060FBE7-E320-458C-940E-60681D0FD307}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "savlib", "savlib\savlib.csproj", "{87002DE5-C670-4FB7-BD80-ECFFC4D2784D}"
+EndProject
 Global
 	GlobalSection(SharedMSBuildProjectFiles) = preSolution
 		QicUtils\QicUtils.projitems*{03eb1edf-4158-4ca3-85c8-499a8996c36d}*SharedItemsImports = 4
@@ -42,6 +44,7 @@ Global
 		QicUtils\QicUtils.projitems*{6ff3423b-bf04-4cc9-9aeb-0b62b0c76fc1}*SharedItemsImports = 4
 		QicUtils\QicUtils.projitems*{7c68adf6-cae4-454f-b4d7-02d5f3c9475c}*SharedItemsImports = 4
 		QicUtils\QicUtils.projitems*{80e32514-e2ec-41e4-9418-cd4eb8a73168}*SharedItemsImports = 4
+		QicUtils\QicUtils.projitems*{87002de5-c670-4fb7-bd80-ecffc4d2784d}*SharedItemsImports = 4
 		QicUtils\QicUtils.projitems*{89dd4a55-4506-498d-8619-a52beb06bf47}*SharedItemsImports = 4
 		QicUtils\QicUtils.projitems*{b562c774-6604-4e5f-ad12-3e25daa28b4c}*SharedItemsImports = 4
 		QicUtils\QicUtils.projitems*{c060fbe7-e320-458c-940e-60681d0fd307}*SharedItemsImports = 4
@@ -213,6 +216,18 @@ Global
 		{C060FBE7-E320-458C-940E-60681D0FD307}.Release|x64.Build.0 = Release|Any CPU
 		{C060FBE7-E320-458C-940E-60681D0FD307}.Release|x86.ActiveCfg = Release|Any CPU
 		{C060FBE7-E320-458C-940E-60681D0FD307}.Release|x86.Build.0 = Release|Any CPU
+		{87002DE5-C670-4FB7-BD80-ECFFC4D2784D}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{87002DE5-C670-4FB7-BD80-ECFFC4D2784D}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{87002DE5-C670-4FB7-BD80-ECFFC4D2784D}.Debug|x64.ActiveCfg = Debug|Any CPU
+		{87002DE5-C670-4FB7-BD80-ECFFC4D2784D}.Debug|x64.Build.0 = Debug|Any CPU
+		{87002DE5-C670-4FB7-BD80-ECFFC4D2784D}.Debug|x86.ActiveCfg = Debug|Any CPU
+		{87002DE5-C670-4FB7-BD80-ECFFC4D2784D}.Debug|x86.Build.0 = Debug|Any CPU
+		{87002DE5-C670-4FB7-BD80-ECFFC4D2784D}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{87002DE5-C670-4FB7-BD80-ECFFC4D2784D}.Release|Any CPU.Build.0 = Release|Any CPU
+		{87002DE5-C670-4FB7-BD80-ECFFC4D2784D}.Release|x64.ActiveCfg = Release|Any CPU
+		{87002DE5-C670-4FB7-BD80-ECFFC4D2784D}.Release|x64.Build.0 = Release|Any CPU
+		{87002DE5-C670-4FB7-BD80-ECFFC4D2784D}.Release|x86.ActiveCfg = Release|Any CPU
+		{87002DE5-C670-4FB7-BD80-ECFFC4D2784D}.Release|x86.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
