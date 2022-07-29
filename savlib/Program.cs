@@ -170,9 +170,11 @@ namespace savlib
 
                             string objName = EbcdicToAscii(bytes, 0x4, 0x1E);
                             int objType = QicUtils.Utils.BigEndian(BitConverter.ToUInt16(bytes, 0x22));
+                            string descVersion = EbcdicToAscii(bytes, 0xBA, 4);
                             int numBlocks = (int)QicUtils.Utils.BigEndian(BitConverter.ToUInt32(bytes, 0xCC));
                             uint objIndex = QicUtils.Utils.BigEndian(BitConverter.ToUInt32(bytes, 0xD0));
-                            int dataSize = (int)QicUtils.Utils.BigEndian(BitConverter.ToUInt32(bytes, 0x124)) & 0xFFFFFF;
+                            int dataSize = descVersion == "6380" ? ((numBlocks - 0x10) * 0x200) :
+                                 (int)QicUtils.Utils.BigEndian(BitConverter.ToUInt32(bytes, 0x124));
 
                             Console.WriteLine(objName);
                             Console.WriteLine("> type: " + objType.ToString("X4") + ", blocks: " + numBlocks.ToString("X4") + ", size: " + dataSize);
@@ -215,12 +217,13 @@ namespace savlib
                                 else if (pair.Key == null)
                                 {
                                     // Infer extension from subdirectory
-                                    if (subDir.Contains("DOCUMENT") || subDir == "MANUAL") { fileName += ".TXT"; }
+                                    if (subDir.Contains("DOCUMENT") || subDir.Contains("TEXT") || subDir.Contains("TXT") || subDir == "MANUAL") { fileName += ".TXT"; }
                                     else if (subDir == "MENU") { fileName += ".MNUDDS"; }
                                     else if (subDir == "QCLSRC") { fileName += ".CLP"; }
                                     else if (subDir == "QCMDSRC") { fileName += ".CMD"; }
                                     else if (subDir == "QDDSSRC") { fileName += ".DSPF"; }
                                     else if (subDir == "QLBLSRC") { fileName += ".CBL"; }
+                                    else if (subDir == "QQMQRYSRC") { fileName += ".QMQRY"; }
                                 }
                             }
 
@@ -339,7 +342,7 @@ namespace savlib
 
         private static void ConvertAndWriteFile(byte[] bytes, int offset, int count, string fileName)
         {
-            if (count < 2)
+            if (count < 0x10)
             {
                 Console.WriteLine("File size too small, skipping: " + fileName);
                 return;
@@ -347,7 +350,7 @@ namespace savlib
 
             using (var outStream = new FileStream(fileName, FileMode.Create, FileAccess.Write))
             {
-                if (bytes[0] == 0x3 && bytes[1] == 0xB4)
+                if ((bytes[0] == 0x3 && bytes[1] == 0xB4) || (bytes[1] == 0x3 && bytes[5] == 0xB4))
                 {
                     // text content
                     // TODO: investigate the correctness of this:
