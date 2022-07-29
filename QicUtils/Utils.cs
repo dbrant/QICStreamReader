@@ -1,5 +1,6 @@
 ﻿using System;
 using System.IO;
+using System.Text;
 
 namespace QicUtils
 {
@@ -72,6 +73,11 @@ namespace QicUtils
 			catch { date = DateTime.Now; }
 			return date;
 		}
+
+        public static string EbcdicToAscii(byte[] ebcdicData, int index, int count)
+        {
+            return Encoding.ASCII.GetString(Encoding.Convert(Encoding.GetEncoding("IBM037"), Encoding.ASCII, ebcdicData, index, count));
+        }
 
         private static UInt16 conv_endian(UInt16 val)
         {

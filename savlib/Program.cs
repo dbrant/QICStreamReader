@@ -18,6 +18,7 @@ namespace savlib
             long initialOffset = 0;
             bool uncompressSna = false;
             bool removeTapeErrorPages = false;
+            bool dryRun = false;
 
             for (int i = 0; i < args.Length; i++)
             {
@@ -27,6 +28,7 @@ namespace savlib
                 else if (args[i] == "--offset") { initialOffset = Convert.ToInt64(args[i + 1]); }
                 else if (args[i] == "--sna") { uncompressSna = true; }
                 else if (args[i] == "--tep") { removeTapeErrorPages = true; }
+                else if (args[i] == "--dryrun") { dryRun = true; }
             }
 
             try
@@ -50,11 +52,11 @@ namespace savlib
 
                                 uint magic4 = QicUtils.Utils.BigEndian(BitConverter.ToUInt32(bytes, 0));
                                 int magic2 = QicUtils.Utils.BigEndian(BitConverter.ToUInt16(bytes, 0));
-                                string objDescStr = EbcdicToAscii(bytes, 0x96, 0x15);
+                                string objDescStr = QicUtils.Utils.EbcdicToAscii(bytes, 0x96, 0x15);
 
                                 if (magic4 == 0xFFFFFFFF && objDescStr == "L/D OBJECT DESCRIPTOR")
                                 {
-                                    string objName = EbcdicToAscii(bytes, 0x4, 0x1E).Trim();
+                                    string objName = QicUtils.Utils.EbcdicToAscii(bytes, 0x4, 0x1E).Trim();
                                     int objType = QicUtils.Utils.BigEndian(BitConverter.ToUInt16(bytes, 0x22));
                                     int numBlocks = (int)QicUtils.Utils.BigEndian(BitConverter.ToUInt32(bytes, 0xCC));
                                     uint objIndex = QicUtils.Utils.BigEndian(BitConverter.ToUInt32(bytes, 0xD0));
@@ -137,7 +139,7 @@ namespace savlib
                             {
                                 stream.Read(bytes, 0, SAVLIB_BLOCK_SIZE);
 
-                                var blockStr = EbcdicToAscii(bytes, 0, SAVLIB_BLOCK_SIZE);
+                                var blockStr = QicUtils.Utils.EbcdicToAscii(bytes, 0, SAVLIB_BLOCK_SIZE);
 
                                 if (blockStr.Contains("L/D TAPE ERROR RECOVERY PAGE"))
                                 {
@@ -159,14 +161,14 @@ namespace savlib
 
                         uint magic4 = QicUtils.Utils.BigEndian(BitConverter.ToUInt32(bytes, 0));
                         int magic2 = QicUtils.Utils.BigEndian(BitConverter.ToUInt16(bytes, 0));
-                        string objDescStr = EbcdicToAscii(bytes, 0x96, 0x15);
+                        string objDescStr = QicUtils.Utils.EbcdicToAscii(bytes, 0x96, 0x15);
 
                         if (magic4 == 0xFFFFFFFF && objDescStr == "L/D OBJECT DESCRIPTOR")
                         {
 
-                            string objName = EbcdicToAscii(bytes, 0x4, 0x1E);
+                            string objName = QicUtils.Utils.EbcdicToAscii(bytes, 0x4, 0x1E);
                             int objType = QicUtils.Utils.BigEndian(BitConverter.ToUInt16(bytes, 0x22));
-                            string descVersion = EbcdicToAscii(bytes, 0xBA, 4);
+                            string descVersion = QicUtils.Utils.EbcdicToAscii(bytes, 0xBA, 4);
                             int numBlocks = (int)QicUtils.Utils.BigEndian(BitConverter.ToUInt32(bytes, 0xCC));
                             uint objIndex = QicUtils.Utils.BigEndian(BitConverter.ToUInt32(bytes, 0xD0));
                             int dataSize = descVersion == "6380" ? ((numBlocks - 0x10) * SAVLIB_BLOCK_SIZE) :
@@ -243,7 +245,11 @@ namespace savlib
 
                             stream.Seek((numBlocks - 1) * SAVLIB_BLOCK_SIZE - dataSize, SeekOrigin.Current);
                             stream.Read(bytes, 0, dataSize);
-                            ConvertAndWriteFile(bytes, 0, dataSize, GetFullFileName(filePath, finalFileName));
+
+                            if (!dryRun)
+                            {
+                                ConvertAndWriteFile(bytes, 0, dataSize, GetFullFileName(filePath, finalFileName));
+                            }
 
                         }
                         else if (magic2 == 0xC4FF)
@@ -292,7 +298,7 @@ namespace savlib
                     // Explicitly bump the offset by 0x20, since the first 0x20 bytes appear to be additional metadata.
                     int metadataCount = count > 0x20 ? 0x20 : 0;
 
-                    string fileStr = EbcdicToAscii(bytes, offset + metadataCount, count - metadataCount);
+                    string fileStr = QicUtils.Utils.EbcdicToAscii(bytes, offset + metadataCount, count - metadataCount);
 
                     // Remove null characters (usually present at the end, to fill to block size)
                     fileStr = fileStr.Replace("\0", "");
@@ -319,9 +325,9 @@ namespace savlib
                 if (bytes[ptr] == 0 && bytes[ptr + 1] == 0 && (bytes[ptr + 2] == 0 || bytes[ptr + 2] == 1) && bytes[ptr + 0x10] == 0x80 && bytes[ptr + 0x11] == 0
                     && bytes[ptr + 0x48] >= 0xF0 && bytes[ptr + 0x48] <= 0xF9 && bytes[ptr + 0x49] >= 0xF0 && bytes[ptr + 0x49] <= 0xF9)
                 {
-                    var name = EbcdicToAscii(bytes, ptr + 4, 10).Trim();
-                    var description = EbcdicToAscii(bytes, ptr + 0x16, 0x32).Trim();
-                    var extension = EbcdicToAscii(bytes, ptr + 0x60, 10).Trim();
+                    var name = QicUtils.Utils.EbcdicToAscii(bytes, ptr + 4, 10).Trim();
+                    var description = QicUtils.Utils.EbcdicToAscii(bytes, ptr + 0x16, 0x32).Trim();
+                    var extension = QicUtils.Utils.EbcdicToAscii(bytes, ptr + 0x60, 10).Trim();
 
                     list.Add(new KeyValuePair<string, string>(name, extension));
 
@@ -338,11 +344,6 @@ namespace savlib
         private static string GetFullFileName(string path, string name)
         {
             return Path.Combine(path, name /* + ".CBL" */);
-        }
-
-        public static string EbcdicToAscii(byte[] ebcdicData, int index, int count)
-        {
-            return Encoding.ASCII.GetString(Encoding.Convert(Encoding.GetEncoding("IBM037"), Encoding.ASCII, ebcdicData, index, count));
         }
     }
 }
