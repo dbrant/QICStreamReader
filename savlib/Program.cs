@@ -15,7 +15,8 @@ namespace savlib
             string outFileName = "out.bin";
             string baseDirectory = "out";
             long initialOffset = 0;
-            bool snaCompressed = false;
+            bool uncompressSna = false;
+            bool removeTapeErrorPages = false;
 
             for (int i = 0; i < args.Length; i++)
             {
@@ -23,7 +24,8 @@ namespace savlib
                 else if (args[i] == "-d") { baseDirectory = args[i + 1]; }
                 else if (args[i] == "-o") { outFileName = args[i + 1]; }
                 else if (args[i] == "--offset") { initialOffset = Convert.ToInt64(args[i + 1]); }
-                else if (args[i] == "--sna") { snaCompressed = true; }
+                else if (args[i] == "--sna") { uncompressSna = true; }
+                else if (args[i] == "--tep") { removeTapeErrorPages = true; }
             }
 
             try
@@ -39,16 +41,47 @@ namespace savlib
                     byte[] bytes = new byte[stream.Length];
 
 
-                    var searchBytes = Encoding.GetEncoding("IBM037").GetBytes("IDENTIFICATION DIVISION.");
-
-
-
-                    if (snaCompressed)
+                    if (uncompressSna)
                     {
-
-
                         using (var outStream = new FileStream(outFileName, FileMode.Create, FileAccess.Write))
                         {
+                            while (stream.Position < stream.Length)
+                            {
+                                stream.Read(bytes, 0, 0x200);
+
+                                uint magic4 = QicUtils.Utils.BigEndian(BitConverter.ToUInt32(bytes, 0));
+                                int magic2 = QicUtils.Utils.BigEndian(BitConverter.ToUInt16(bytes, 0));
+                                string objDescStr = EbcdicToAscii(bytes, 0x96, 0x15);
+
+                                if (magic4 == 0xFFFFFFFF && objDescStr == "L/D OBJECT DESCRIPTOR")
+                                {
+                                    string objName = EbcdicToAscii(bytes, 0x4, 0x1E).Trim();
+                                    int objType = QicUtils.Utils.BigEndian(BitConverter.ToUInt16(bytes, 0x22));
+                                    int numBlocks = (int)QicUtils.Utils.BigEndian(BitConverter.ToUInt32(bytes, 0xCC));
+                                    uint objIndex = QicUtils.Utils.BigEndian(BitConverter.ToUInt32(bytes, 0xD0));
+                                    int dataSize = (int)QicUtils.Utils.BigEndian(BitConverter.ToUInt32(bytes, 0x124));
+
+                                    stream.Seek(-0x200, SeekOrigin.Current);
+                                    stream.Read(bytes, 0, numBlocks * 0x200);
+                                    outStream.Write(bytes, 0, numBlocks * 0x200);
+                                }
+                                else if (magic2 == 0xC4FF)
+                                {
+                                    Console.WriteLine("Compressed block detected. Entering decompress stage. Position: " + (stream.Position - 0x200).ToString("X") + " (" + (stream.Position - 0x200) + ")");
+                                    stream.Seek(-0x200, SeekOrigin.Current);
+                                    break;
+                                }
+                                else if (magic4 == 0x40404040)
+                                {
+                                    Console.WriteLine("Space filler detected.");
+                                    outStream.Write(bytes, 0, 0x200);
+                                }
+                                else
+                                {
+                                    Console.WriteLine("Warning: unknown block detected.");
+                                    outStream.Write(bytes, 0, 0x200);
+                                }
+                            }
 
                             while (stream.Position < stream.Length)
                             {
@@ -97,7 +130,27 @@ namespace savlib
 
                         return;
                     }
+                    else if (removeTapeErrorPages)
+                    {
+                        using (var outStream = new FileStream(outFileName, FileMode.Create, FileAccess.Write))
+                        {
+                            while (stream.Position < stream.Length)
+                            {
+                                stream.Read(bytes, 0, 0x200);
 
+                                var blockStr = EbcdicToAscii(bytes, 0, 0x200);
+
+                                if (blockStr.Contains("L/D TAPE ERROR RECOVERY PAGE"))
+                                {
+                                    continue;
+                                }
+
+                                outStream.Write(bytes, 0, 0x200);
+                            }
+                        }
+
+                        return;
+                    }
 
 
 
@@ -115,16 +168,16 @@ namespace savlib
                         if (magic4 == 0xFFFFFFFF && objDescStr == "L/D OBJECT DESCRIPTOR")
                         {
 
-                            string objName = EbcdicToAscii(bytes, 0x4, 0x1E).Trim();
+                            string objName = EbcdicToAscii(bytes, 0x4, 0x1E);
                             int objType = QicUtils.Utils.BigEndian(BitConverter.ToUInt16(bytes, 0x22));
                             int numBlocks = (int)QicUtils.Utils.BigEndian(BitConverter.ToUInt32(bytes, 0xCC));
                             uint objIndex = QicUtils.Utils.BigEndian(BitConverter.ToUInt32(bytes, 0xD0));
-                            int dataSize = (int)QicUtils.Utils.BigEndian(BitConverter.ToUInt32(bytes, 0x124));
+                            int dataSize = (int)QicUtils.Utils.BigEndian(BitConverter.ToUInt32(bytes, 0x124)) & 0xFFFFFF;
 
                             Console.WriteLine(objName);
                             Console.WriteLine("> type: " + objType.ToString("X4") + ", blocks: " + numBlocks.ToString("X4") + ", size: " + dataSize);
 
-                            if (objName == "QSRDSSPC.1")
+                            if (objName.Contains("QSRDSSPC.1"))
                             {
                                 Console.WriteLine("Parsing catalog...");
                                 stream.Read(bytes, 0, (numBlocks - 1) * 0x200);
@@ -138,6 +191,8 @@ namespace savlib
                                 continue;
                             }
 
+
+
                             string subDir = objName.Substring(0, 10).Trim();
                             string fileName = objName.Substring(10).Trim();
 
@@ -149,11 +204,24 @@ namespace savlib
                             }
 
                             // Append extension to file name, if available from our catalog.
-                            var pair = namesAndExtensionsList.Find(c => c.Key == fileName);
-                            if (pair.Key == fileName)
+                            if (subDir.Length > 0)
                             {
-                                fileName += "." + pair.Value;
-                                namesAndExtensionsList.Remove(pair);
+                                var pair = namesAndExtensionsList.Find(c => c.Key == fileName);
+                                if (pair.Key == fileName)
+                                {
+                                    fileName += "." + pair.Value;
+                                    namesAndExtensionsList.Remove(pair);
+                                }
+                                else if (pair.Key == null)
+                                {
+                                    // Infer extension from subdirectory
+                                    if (subDir.Contains("DOCUMENT") || subDir == "MANUAL") { fileName += ".TXT"; }
+                                    else if (subDir == "MENU") { fileName += ".MNUDDS"; }
+                                    else if (subDir == "QCLSRC") { fileName += ".CLP"; }
+                                    else if (subDir == "QCMDSRC") { fileName += ".CMD"; }
+                                    else if (subDir == "QDDSSRC") { fileName += ".DSPF"; }
+                                    else if (subDir == "QLBLSRC") { fileName += ".CBL"; }
+                                }
                             }
 
 
@@ -271,25 +339,41 @@ namespace savlib
 
         private static void ConvertAndWriteFile(byte[] bytes, int offset, int count, string fileName)
         {
+            if (count < 2)
+            {
+                Console.WriteLine("File size too small, skipping: " + fileName);
+                return;
+            }
+
             using (var outStream = new FileStream(fileName, FileMode.Create, FileAccess.Write))
             {
-                // TODO: investigate the correctness of this:
-                for (int i = offset; i < offset + count; i++)
+                if (bytes[0] == 0x3 && bytes[1] == 0xB4)
                 {
-                    // Replace the EBCDIC 0x80 character with a newline, since that's what we seem to be getting.
-                    if (bytes[i] == 0x80) { bytes[i] = 0x25; }
+                    // text content
+                    // TODO: investigate the correctness of this:
+                    for (int i = offset; i < offset + count; i++)
+                    {
+                        // Replace the EBCDIC 0x80 character with a newline, since that's what we seem to be getting.
+                        if (bytes[i] == 0x80) { bytes[i] = 0x25; }
+                    }
+
+                    // Explicitly bump the offset by 0x20, since the first 0x20 bytes appear to be additional metadata.
+                    int metadataCount = count > 0x20 ? 0x20 : 0;
+
+                    string fileStr = EbcdicToAscii(bytes, offset + metadataCount, count - metadataCount);
+
+                    // Remove null characters (usually present at the end, to fill to block size)
+                    fileStr = fileStr.Replace("\0", "");
+
+                    var writer = new StreamWriter(outStream);
+                    writer.Write(fileStr);
+                    writer.Flush();
                 }
-
-                // Explicitly bump the offset by 0x20, since the first 0x20 bytes appear to be additional metadata.
-                int metadataCount = 0x20;
-                string fileStr = EbcdicToAscii(bytes, offset + metadataCount, count - metadataCount);
-
-                // Remove null characters (usually present at the end, to fill to block size)
-                fileStr = fileStr.Replace("\0", "");
-
-                var writer = new StreamWriter(outStream);
-                writer.Write(fileStr);
-                writer.Flush();
+                else
+                {
+                    // binary content
+                    outStream.Write(bytes, offset, count);
+                }
             }
         }
 
@@ -300,7 +384,7 @@ namespace savlib
 
             while (ptr < count)
             {
-                if (bytes[ptr] == 0 && bytes[ptr + 1] == 0 && bytes[ptr + 2] == 1 && bytes[ptr + 0x10] == 0x80 && bytes[ptr + 0x11] == 0
+                if (bytes[ptr] == 0 && bytes[ptr + 1] == 0 && (bytes[ptr + 2] == 0 || bytes[ptr + 2] == 1) && bytes[ptr + 0x10] == 0x80 && bytes[ptr + 0x11] == 0
                     && bytes[ptr + 0x48] >= 0xF0 && bytes[ptr + 0x48] <= 0xF9 && bytes[ptr + 0x49] >= 0xF0 && bytes[ptr + 0x49] <= 0xF9)
                 {
                     var name = EbcdicToAscii(bytes, ptr + 4, 10).Trim();
@@ -327,28 +411,6 @@ namespace savlib
         public static string EbcdicToAscii(byte[] ebcdicData, int index, int count)
         {
             return Encoding.ASCII.GetString(Encoding.Convert(Encoding.GetEncoding("IBM037"), Encoding.ASCII, ebcdicData, index, count));
-        }
-
-        public static int SearchBytes(byte[] bytesToSearch, byte[] matchBytes, int startIndex, int count)
-        {
-            int ret = -1, max = count - matchBytes.Length + 1;
-            bool found;
-            for (int i = startIndex; i < max; i++)
-            {
-                found = true;
-                for (int j = 0; j < matchBytes.Length; j++)
-                {
-                    if (bytesToSearch[i + j] != matchBytes[j]) { found = false; break; }
-                }
-                if (found) { ret = i; break; }
-            }
-            return ret;
-        }
-
-        public static int SearchBytes(byte[] bytesToSearch, string matchStr, int startIndex, int count)
-        {
-            byte[] matchBytes = Encoding.ASCII.GetBytes(matchStr);
-            return SearchBytes(bytesToSearch, matchBytes, startIndex, count);
         }
     }
 }
