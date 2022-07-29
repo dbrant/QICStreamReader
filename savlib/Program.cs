@@ -3,6 +3,92 @@ using System.Collections.Generic;
 using System.IO;
 using System.Text;
 
+/// <summary>
+/// 
+/// Decoder for tape images written using the SAVLIB command on AS/400 systems.
+/// 
+/// Copyright Dmitry Brant, 2022
+/// 
+/// This is far from a complete implementation, but just enough to recover data from tapes
+/// I've seen in the wild so far.
+/// 
+/// The tape image contains files, written consecutively. Each file is a multiple of 512-byte
+/// blocks. If the actual file data doesn't end at a block boundary, it's padded with zeros
+/// until the next block. Therefore each file in the archive always begins on a 512-byte block
+/// boundary.
+/// 
+/// Each file begins with several blocks' worth of metadata, which is then followed by the contents
+/// of the file. (The file contents also always begin on a block bondary.)
+/// 
+/// NOTE 1: All text content is encoded as EBCDIC (IBM037), so set your hex editors accordingly.
+/// 
+/// NOTE 2: All multi-byte numeric values are big-endian.
+/// 
+/// NOTE 3: Some blocks in between files are filled with spaces (0x40) and may be skipped.
+/// 
+/// NOTE 4: Some blocks are some kind of special "TAPE ERROR RECOVERY" blocks, and should be
+///         removed from the image, since these blocks don't count towards the block counts
+///         specified in the file metadata.
+/// 
+/// The first block of a file is a header that contains the following metadata, which can be used
+/// to detect the beginning of a new file:
+/// 
+/// Offset    Count            Meaning
+/// ----------------------------------------
+/// 0         4                Magic value of 0xFFFFFFFF. NOTE: If the magic value begins with C4FF,
+///                            it implies that the rest of the data is compressed with SNA encoding
+///                            (see below).
+/// 
+/// 4         1E               File name. This is actually three names of 10 bytes each (total 30
+///                            bytes). Unused bytes are padded with spaces. This is to accommodate
+///                            up to two subdirectories. For example, "DOCUMENTS ALICE     DOC1      "
+///                            would mean "DOCUMENTS\ALICE\DOC1" in modern terms.
+/// 
+/// 22        2                Type of this file. Some known types:
+///                            19DB - master catalog file, with name "QSRDSSPC.1"
+///                            0B90 - text file
+///                            0201, 1901, 190A, 1911, 1916 - executable program
+/// 
+/// 96        15               Magic value of "L/D OBJECT DESCRIPTOR".
+/// 
+/// BA        4                Version code (?). Observed values have been "6380", "6341", "6346", "6347".
+///                            This can be used to determine slight variations in the format.
+/// 
+/// CC        4                Total blocks in this file record (including this header block). If you skip
+///                            forward this number of blocks, you should reach the next file record.
+/// 
+/// 124       4                Number of bytes of actual data in this file. To reach the beginning of the
+///                            data, take the total blocks in this record (the field above) and subtract
+///                            this field.
+/// 
+/// ----------------------------------------
+/// 
+/// Some tapes are compressed using SNA encoding. The first file record ("QSRDSSPC.1") is always uncompressed.
+/// However, if the next record starts with a value of 0xC4FF instead of 0xFFFFFFFF, it means that the
+/// remainder of the image is compressed and should be decoded before being parsed.
+/// 
+/// https://www.ibm.com/docs/en/zos/2.1.0?topic=format-sna-transmission-buffer
+/// https://www.ibm.com/docs/en/zos/2.1.0?topic=format-string-control-byte-scb
+/// 
+/// ----------------------------------------
+/// 
+/// The tape images themselves will have header and footer files (i.e. written onto the tape as separate files,
+/// separated by file markers) that are in the Standard Label format.
+/// https://www.ibm.com/support/pages/standard-label-format-tapes
+/// 
+/// These labels contain metadata about the overall volume of the backup.
+/// 
+/// ----------------------------------------
+/// 
+/// This tool provides three possible stages of operation:
+/// 
+/// - Stage 1: Uncompress from SNA encoding, if necessary. (use the --sna parameter)
+/// 
+/// - Stage 2: Remove "TAPE ERROR RECOVERY" blocks, if necessary. (use the --tep parameter)
+/// 
+/// - Stage 3: Extract actual files from the image.
+/// 
+/// </summary>
 namespace savlib
 {
     class Program
@@ -231,7 +317,10 @@ namespace savlib
                                 filePath = Path.Combine(filePath, subDir);
                             }
 
-                            Directory.CreateDirectory(filePath);
+                            if (!dryRun)
+                            {
+                                Directory.CreateDirectory(filePath);
+                            }
 
                             string finalFileName = fileName;
                             int existFileNo = 1;
