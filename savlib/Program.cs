@@ -7,6 +7,7 @@ namespace savlib
 {
     class Program
     {
+        const int SAVLIB_BLOCK_SIZE = 0x200;
         const int EBCDIC_SPACE = 0x40;
 
         static void Main(string[] args)
@@ -37,9 +38,7 @@ namespace savlib
                         stream.Seek(initialOffset, SeekOrigin.Begin);
                     }
 
-
                     byte[] bytes = new byte[stream.Length];
-
 
                     if (uncompressSna)
                     {
@@ -47,7 +46,7 @@ namespace savlib
                         {
                             while (stream.Position < stream.Length)
                             {
-                                stream.Read(bytes, 0, 0x200);
+                                stream.Read(bytes, 0, SAVLIB_BLOCK_SIZE);
 
                                 uint magic4 = QicUtils.Utils.BigEndian(BitConverter.ToUInt32(bytes, 0));
                                 int magic2 = QicUtils.Utils.BigEndian(BitConverter.ToUInt16(bytes, 0));
@@ -61,25 +60,25 @@ namespace savlib
                                     uint objIndex = QicUtils.Utils.BigEndian(BitConverter.ToUInt32(bytes, 0xD0));
                                     int dataSize = (int)QicUtils.Utils.BigEndian(BitConverter.ToUInt32(bytes, 0x124));
 
-                                    stream.Seek(-0x200, SeekOrigin.Current);
-                                    stream.Read(bytes, 0, numBlocks * 0x200);
-                                    outStream.Write(bytes, 0, numBlocks * 0x200);
+                                    stream.Seek(-SAVLIB_BLOCK_SIZE, SeekOrigin.Current);
+                                    stream.Read(bytes, 0, numBlocks * SAVLIB_BLOCK_SIZE);
+                                    outStream.Write(bytes, 0, numBlocks * SAVLIB_BLOCK_SIZE);
                                 }
                                 else if (magic2 == 0xC4FF)
                                 {
-                                    Console.WriteLine("Compressed block detected. Entering decompress stage. Position: " + (stream.Position - 0x200).ToString("X") + " (" + (stream.Position - 0x200) + ")");
-                                    stream.Seek(-0x200, SeekOrigin.Current);
+                                    Console.WriteLine("Compressed block detected. Entering decompress stage. Position: " + (stream.Position - SAVLIB_BLOCK_SIZE).ToString("X") + " (" + (stream.Position - SAVLIB_BLOCK_SIZE) + ")");
+                                    stream.Seek(-SAVLIB_BLOCK_SIZE, SeekOrigin.Current);
                                     break;
                                 }
                                 else if (magic4 == 0x40404040)
                                 {
                                     Console.WriteLine("Space filler detected.");
-                                    outStream.Write(bytes, 0, 0x200);
+                                    outStream.Write(bytes, 0, SAVLIB_BLOCK_SIZE);
                                 }
                                 else
                                 {
                                     Console.WriteLine("Warning: unknown block detected.");
-                                    outStream.Write(bytes, 0, 0x200);
+                                    outStream.Write(bytes, 0, SAVLIB_BLOCK_SIZE);
                                 }
                             }
 
@@ -120,7 +119,7 @@ namespace savlib
                                     }
 
                                     // uncompressed characters
-                                    Array.Clear(bytes, 0, 0x200);
+                                    Array.Clear(bytes, 0, SAVLIB_BLOCK_SIZE);
                                     stream.Read(bytes, 0, count);
 
                                     outStream.Write(bytes, 0, count);
@@ -136,30 +135,27 @@ namespace savlib
                         {
                             while (stream.Position < stream.Length)
                             {
-                                stream.Read(bytes, 0, 0x200);
+                                stream.Read(bytes, 0, SAVLIB_BLOCK_SIZE);
 
-                                var blockStr = EbcdicToAscii(bytes, 0, 0x200);
+                                var blockStr = EbcdicToAscii(bytes, 0, SAVLIB_BLOCK_SIZE);
 
                                 if (blockStr.Contains("L/D TAPE ERROR RECOVERY PAGE"))
                                 {
                                     continue;
                                 }
 
-                                outStream.Write(bytes, 0, 0x200);
+                                outStream.Write(bytes, 0, SAVLIB_BLOCK_SIZE);
                             }
                         }
 
                         return;
                     }
 
-
-
                     var namesAndExtensionsList = new List<KeyValuePair<string, string>>();
-
 
                     while (stream.Position < stream.Length)
                     {
-                        stream.Read(bytes, 0, 0x200);
+                        stream.Read(bytes, 0, SAVLIB_BLOCK_SIZE);
 
                         uint magic4 = QicUtils.Utils.BigEndian(BitConverter.ToUInt32(bytes, 0));
                         int magic2 = QicUtils.Utils.BigEndian(BitConverter.ToUInt16(bytes, 0));
@@ -173,7 +169,7 @@ namespace savlib
                             string descVersion = EbcdicToAscii(bytes, 0xBA, 4);
                             int numBlocks = (int)QicUtils.Utils.BigEndian(BitConverter.ToUInt32(bytes, 0xCC));
                             uint objIndex = QicUtils.Utils.BigEndian(BitConverter.ToUInt32(bytes, 0xD0));
-                            int dataSize = descVersion == "6380" ? ((numBlocks - 0x10) * 0x200) :
+                            int dataSize = descVersion == "6380" ? ((numBlocks - 0x10) * SAVLIB_BLOCK_SIZE) :
                                  (int)QicUtils.Utils.BigEndian(BitConverter.ToUInt32(bytes, 0x124));
 
                             Console.WriteLine(objName);
@@ -182,18 +178,16 @@ namespace savlib
                             if (objName.Contains("QSRDSSPC.1"))
                             {
                                 Console.WriteLine("Parsing catalog...");
-                                stream.Read(bytes, 0, (numBlocks - 1) * 0x200);
-                                namesAndExtensionsList = ParseCatalog(bytes, 0, (numBlocks - 1) * 0x200);
+                                stream.Read(bytes, 0, (numBlocks - 1) * SAVLIB_BLOCK_SIZE);
+                                namesAndExtensionsList = ParseCatalog(bytes, 0, (numBlocks - 1) * SAVLIB_BLOCK_SIZE);
                                 continue;
                             }
 
                             if (dataSize == 0)
                             {
-                                stream.Read(bytes, 0, (numBlocks - 1) * 0x200);
+                                stream.Read(bytes, 0, (numBlocks - 1) * SAVLIB_BLOCK_SIZE);
                                 continue;
                             }
-
-
 
                             string subDir = objName.Substring(0, 10).Trim();
                             string fileName = objName.Substring(10).Trim();
@@ -247,19 +241,14 @@ namespace savlib
 
                             Console.WriteLine(GetFullFileName(filePath, finalFileName));
 
-                            if (dataSize % 0x200 != 0)
-                            {
-                                Console.WriteLine("Warning: data size is not multiple of block size.");
-                            }
-
-                            stream.Seek((numBlocks - 1) * 0x200 - dataSize, SeekOrigin.Current);
+                            stream.Seek((numBlocks - 1) * SAVLIB_BLOCK_SIZE - dataSize, SeekOrigin.Current);
                             stream.Read(bytes, 0, dataSize);
                             ConvertAndWriteFile(bytes, 0, dataSize, GetFullFileName(filePath, finalFileName));
 
                         }
                         else if (magic2 == 0xC4FF)
                         {
-                            Console.WriteLine("Compressed data detected. Please decompress first. Position: " + (stream.Position - 0x200).ToString("X") + " (" + (stream.Position - 0x200) + ")");
+                            Console.WriteLine("Compressed data detected. Please decompress first. Position: " + (stream.Position - SAVLIB_BLOCK_SIZE).ToString("X") + " (" + (stream.Position - SAVLIB_BLOCK_SIZE) + ")");
                             break;
                         }
                         else if (magic4 == 0x40404040)
@@ -271,66 +260,6 @@ namespace savlib
                             Console.WriteLine("Warning: unknown block detected.");
                         }
                     }
-
-
-
-
-
-                    /*
-
-
-                    string fileName = "";
-                    int pos = curText.IndexOf("PROGRAM-ID.");
-                    if (pos > 0)
-                    {
-                        pos += 11;
-                        int end = curText.IndexOf('.', pos);
-                        if (end - pos < 256)
-                        {
-                            fileName = curText.Substring(pos, end - pos).Trim();
-                        }
-                    }
-
-                    if (fileName.Length == 0)
-                    {
-                        Console.WriteLine("Warning: couldn't find program ID.");
-                        fileName = "PROGRAM";
-                    }
-
-
-                    string filePath = baseDirectory;
-
-                    
-                    //if (Subdirectory.Length > 0)
-                    //{
-                    //    string[] dirArray = Subdirectory.Split('\0');
-                    //    for (int i = 0; i < dirArray.Length; i++)
-                    //    {
-                    //        filePath = Path.Combine(filePath, dirArray[i]);
-                    //    }
-                    //}
-                    
-
-                    Directory.CreateDirectory(filePath);
-
-                    string finalFileName = fileName;
-                    int existFileNo = 1;
-                    while (File.Exists(GetFullFileName(filePath, finalFileName)))
-                    {
-                        finalFileName = fileName + (existFileNo++).ToString();
-                        Console.WriteLine("Warning: file already exists (amending name): " + finalFileName);
-                    }
-
-                    Console.WriteLine(GetFullFileName(filePath, finalFileName));
-
-                    using (var outStream = new FileStream(GetFullFileName(filePath, finalFileName), FileMode.Create, FileAccess.Write))
-                    {
-                        var writer = new StreamWriter(outStream);
-                        writer.Write(curText);
-                        writer.Flush();
-                    }
-                    */
-
 
                 }
             }
