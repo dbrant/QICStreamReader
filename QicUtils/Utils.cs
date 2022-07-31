@@ -79,23 +79,23 @@ namespace QicUtils
             return Encoding.ASCII.GetString(Encoding.Convert(Encoding.GetEncoding("IBM037"), Encoding.ASCII, ebcdicData, index, count));
         }
 
-        private static UInt16 conv_endian(UInt16 val)
+        private static ushort ConvEndian(ushort val)
         {
-            UInt16 temp;
-            temp = (UInt16)(val << 8); temp &= 0xFF00; temp |= (UInt16)((val >> 8) & 0xFF);
+            ushort temp;
+            temp = (ushort)(val << 8); temp &= 0xFF00; temp |= (ushort)((val >> 8) & 0xFF);
             return temp;
         }
-        private static UInt32 conv_endian(UInt32 val)
+        private static uint ConvEndian(uint val)
         {
-            UInt32 temp = (val & 0x000000FF) << 24;
+            uint temp = (val & 0x000000FF) << 24;
             temp |= (val & 0x0000FF00) << 8;
             temp |= (val & 0x00FF0000) >> 8;
             temp |= (val & 0xFF000000) >> 24;
-            return (temp);
+            return temp;
         }
-        private static UInt64 conv_endian(UInt64 val)
+        private static ulong ConvEndian(ulong val)
         {
-            UInt64 temp = (val & 0xFF) << 56;
+            ulong temp = (val & 0xFF) << 56;
             temp |= (val & 0xFF00) << 40;
             temp |= (val & 0xFF0000) << 24;
             temp |= (val & 0xFF000000) << 8;
@@ -103,40 +103,33 @@ namespace QicUtils
             temp |= (val & 0xFF0000000000) >> 24;
             temp |= (val & 0xFF000000000000) >> 40;
             temp |= (val & 0xFF00000000000000) >> 56;
-            return (temp);
+            return temp;
         }
 
-
-        public static UInt16 LittleEndian(UInt16 val)
+        public static ushort LittleEndian(ushort val)
         {
-            if (BitConverter.IsLittleEndian) return val;
-            return conv_endian(val);
+            return BitConverter.IsLittleEndian ? val : ConvEndian(val);
         }
-        public static UInt32 LittleEndian(UInt32 val)
+        public static uint LittleEndian(uint val)
         {
-            if (BitConverter.IsLittleEndian) return val;
-            return conv_endian(val);
+            return BitConverter.IsLittleEndian ? val : ConvEndian(val);
         }
-        public static UInt64 LittleEndian(UInt64 val)
+        public static ulong LittleEndian(ulong val)
         {
-            if (BitConverter.IsLittleEndian) return val;
-            return conv_endian(val);
+            return BitConverter.IsLittleEndian ? val : ConvEndian(val);
         }
 
-        public static UInt16 BigEndian(UInt16 val)
+        public static ushort BigEndian(ushort val)
         {
-            if (!BitConverter.IsLittleEndian) return val;
-            return conv_endian(val);
+            return BitConverter.IsLittleEndian ? ConvEndian(val) : val;
         }
-        public static UInt32 BigEndian(UInt32 val)
+        public static uint BigEndian(uint val)
         {
-            if (!BitConverter.IsLittleEndian) return val;
-            return conv_endian(val);
+            return BitConverter.IsLittleEndian ? ConvEndian(val) : val;
         }
-        public static UInt64 BigEndian(UInt64 val)
+        public static ulong BigEndian(ulong val)
         {
-            if (!BitConverter.IsLittleEndian) return val;
-            return conv_endian(val);
+            return BitConverter.IsLittleEndian ? ConvEndian(val) : val;
         }
     }
 }
