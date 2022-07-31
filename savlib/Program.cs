@@ -20,15 +20,20 @@ using System.Text;
 /// Each file begins with several blocks' worth of metadata, which is then followed by the contents
 /// of the file. (The file contents also always begin on a block bondary.)
 /// 
-/// NOTE 1: All text content is encoded as EBCDIC (IBM037), so set your hex editors accordingly.
+/// NOTE: All text content is encoded as EBCDIC (IBM037), so set your hex editors accordingly.
 /// 
-/// NOTE 2: All multi-byte numeric values are big-endian.
+/// NOTE: All multi-byte numeric values are big-endian.
 /// 
-/// NOTE 3: Some blocks in between files are filled with spaces (0x40) and may be skipped.
+/// NOTE: Some blocks in between files are filled with spaces (0x40) and may be skipped.
 /// 
-/// NOTE 4: Some blocks are some kind of special "TAPE ERROR RECOVERY" blocks, and should be
-///         removed from the image, since these blocks don't count towards the block counts
-///         specified in the file metadata.
+/// NOTE: Some blocks are some kind of special "TAPE ERROR RECOVERY PAGE" blocks, and should be
+///       removed from the image, since these blocks don't count towards the block counts
+///       specified in the file metadata.
+/// 
+/// NOTE: Many sources on the web seem to insist that the block size in these types of backups is
+///       528 bytes (512 bytes of data, 4 byte RRN, 12 byte checksum), but that doesn't seem to be
+///       the case for the tape backups that I've come across. The blocks are definitely 512 bytes,
+///       with no RRN or checksum.
 /// 
 /// The first block of a file is a header that contains the following metadata, which can be used
 /// to detect the beginning of a new file:
@@ -41,13 +46,17 @@ using System.Text;
 /// 
 /// 4         1E               File name. This is actually three names of 10 bytes each (total 30
 ///                            bytes). Unused bytes are padded with spaces. This is to accommodate
-///                            up to two subdirectories. For example, "DOCUMENTS ALICE     DOC1      "
-///                            would mean "DOCUMENTS\ALICE\DOC1" in modern terms.
+///                            a rudimentary "directory" structure. For example, "DOCUMENTS ALICE     DOC1      "
+///                            can be interpreted as "DOCUMENTS\ALICE\DOC1" in modern terms.
 /// 
-/// 22        2                Type of this file. Some known types:
-///                            19DB - master catalog file, with name "QSRDSSPC.1"
-///                            0B90 - text file
-///                            0201, 1901, 190A, 1911, 1916 - executable program
+/// 22        2                Type of this file. Some types relevant to us:
+///                            19DB - "Save/restore descriptor space", with name "QSRDSSPC.1", in other
+///                                   words a catalog file with metadata about all the contents.
+///                            0B90 - "Data space", in other words text files, etc.
+///                            0201 - executable program
+///                            1903 - job description
+///                            others:
+///                            https://www.ibm.com/docs/en/i/7.2?topic=ssw_ibm_i_72/rzatk/conObject.htm
 /// 
 /// 96        15               Magic value of "L/D OBJECT DESCRIPTOR".
 /// 
@@ -63,10 +72,9 @@ using System.Text;
 /// 
 /// ----------------------------------------
 /// 
-/// Some tapes are compressed using SNA encoding. The first file record ("QSRDSSPC.1") is always uncompressed.
-/// However, if the next record starts with a value of 0xC4FF instead of 0xFFFFFFFF, it means that the
-/// remainder of the image is compressed and should be decoded before being parsed.
-/// 
+/// Some tapes are compressed using SNA encoding. The first file record ("QSRDSSPC.1") seems to be always
+/// uncompressed. However, if the next record starts with a value of 0xC4FF instead of 0xFFFFFFFF, it means
+/// that the remainder of the image is compressed and should be decoded before being parsed.
 /// https://www.ibm.com/docs/en/zos/2.1.0?topic=format-sna-transmission-buffer
 /// https://www.ibm.com/docs/en/zos/2.1.0?topic=format-string-control-byte-scb
 /// 
@@ -84,7 +92,7 @@ using System.Text;
 /// 
 /// - Stage 1: Uncompress from SNA encoding, if necessary. (use the --sna parameter)
 /// 
-/// - Stage 2: Remove "TAPE ERROR RECOVERY" blocks, if necessary. (use the --tep parameter)
+/// - Stage 2: Remove "TAPE ERROR RECOVERY PAGE" blocks, if necessary. (use the --tep parameter)
 /// 
 /// - Stage 3: Extract actual files from the image.
 /// 
