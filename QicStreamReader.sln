@@ -220,6 +220,9 @@ Global
 	EndGlobalSection
 	GlobalSection(SharedMSBuildProjectFiles) = preSolution
 		QicUtils\QicUtils.projitems*{07ea6af2-80ba-4de7-9e48-9470d21a909b}*SharedItemsImports = 13
+		QicUtils\QicUtils.projitems*{08f1ec26-07b7-4554-94b1-92a230d3f0ed}*SharedItemsImports = 5
+		QicUtils\QicUtils.projitems*{144841c0-4f93-4145-9530-d8e2a866ff38}*SharedItemsImports = 5
 		QicUtils\QicUtils.projitems*{6ff3423b-bf04-4cc9-9aeb-0b62b0c76fc1}*SharedItemsImports = 5
+		QicUtils\QicUtils.projitems*{89dd4a55-4506-498d-8619-a52beb06bf47}*SharedItemsImports = 5
 	EndGlobalSection
 EndGlobal
