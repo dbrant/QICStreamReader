@@ -217,6 +217,12 @@ namespace QicStreamV1
                                         outStream = new FileStream(outFileName, FileMode.OpenOrCreate, FileAccess.Write);
                                     }
 
+                                    if (absolutePos > 0x10000000)
+                                    {
+                                        Console.WriteLine(">>> Absolute position a bit too large...");
+                                        break;
+                                    }
+
                                     if (absPos && (absolutePos != outStream.Position))
                                     {
                                         Console.WriteLine(">>> adjusting position!");
