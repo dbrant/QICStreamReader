@@ -3,35 +3,35 @@ Microsoft Visual Studio Solution File, Format Version 12.00
 # Visual Studio Version 17
 VisualStudioVersion = 17.4.33122.133
 MinimumVisualStudioVersion = 10.0.40219.1
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "qicstreamv2", "qicstreamv2\qicstreamv2.csproj", "{B562C774-6604-4E5F-AD12-3E25DAA28B4C}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "qicstreamv2", "qicstreamv2\qicstreamv2.csproj", "{B562C774-6604-4E5F-AD12-3E25DAA28B4C}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "qicstreamv1", "qicstreamv1\qicstreamv1.csproj", "{7C68ADF6-CAE4-454F-B4D7-02D5F3C9475C}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "qicstreamv1", "qicstreamv1\qicstreamv1.csproj", "{7C68ADF6-CAE4-454F-B4D7-02D5F3C9475C}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "qicstreamv4", "qicstreamv4\qicstreamv4.csproj", "{253078F4-51E7-4DDB-904F-55E662BD1AEB}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "qicstreamv4", "qicstreamv4\qicstreamv4.csproj", "{253078F4-51E7-4DDB-904F-55E662BD1AEB}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "hpbackup", "hpbackup\hpbackup.csproj", "{80E32514-E2EC-41E4-9418-CD4EB8A73168}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "hpbackup", "hpbackup\hpbackup.csproj", "{80E32514-E2EC-41E4-9418-CD4EB8A73168}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "headerview", "headerview\headerview.csproj", "{144841C0-4F93-4145-9530-D8E2A866FF38}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "headerview", "headerview\headerview.csproj", "{144841C0-4F93-4145-9530-D8E2A866FF38}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "qicstream95", "qicstream95\qicstream95.csproj", "{EF3D9D1F-C8CD-416C-8DE4-A9F0DE94297B}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "qicstream95", "qicstream95\qicstream95.csproj", "{EF3D9D1F-C8CD-416C-8DE4-A9F0DE94297B}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "connerbackup", "connerbackup\connerbackup.csproj", "{89DD4A55-4506-498D-8619-A52BEB06BF47}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "connerbackup", "connerbackup\connerbackup.csproj", "{89DD4A55-4506-498D-8619-A52BEB06BF47}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "ntbackup", "ntbackup\ntbackup.csproj", "{CF664FCF-FD1D-4A7D-8454-5671A575ED40}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "ntbackup", "ntbackup\ntbackup.csproj", "{CF664FCF-FD1D-4A7D-8454-5671A575ED40}"
 EndProject
 Project("{D954291E-2A0B-460D-934E-DC6B0785DB48}") = "QicUtils", "QicUtils\QicUtils.shproj", "{07EA6AF2-80BA-4DE7-9E48-9470D21A909B}"
 EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "arcadabackup1", "arcadabackup1\arcadabackup1.csproj", "{6FF3423B-BF04-4CC9-9AEB-0B62B0C76FC1}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "arcadabackup2", "arcadabackup2\arcadabackup2.csproj", "{08F1EC26-07B7-4554-94B1-92A230D3F0ED}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "arcadabackup2", "arcadabackup2\arcadabackup2.csproj", "{08F1EC26-07B7-4554-94B1-92A230D3F0ED}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "sgibackup", "sgibackup\sgibackup.csproj", "{03EB1EDF-4158-4CA3-85C8-499A8996C36D}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "sgibackup", "sgibackup\sgibackup.csproj", "{03EB1EDF-4158-4CA3-85C8-499A8996C36D}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "qicstream95a", "qicstream95a\qicstream95a.csproj", "{2F33119B-2FD8-4053-AC98-40F745D0EEF6}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "qicstream95a", "qicstream95a\qicstream95a.csproj", "{2F33119B-2FD8-4053-AC98-40F745D0EEF6}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "MacAIT3", "MacAIT3\MacAIT3.csproj", "{C060FBE7-E320-458C-940E-60681D0FD307}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "MacAIT3", "MacAIT3\MacAIT3.csproj", "{C060FBE7-E320-458C-940E-60681D0FD307}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "savlib", "savlib\savlib.csproj", "{87002DE5-C670-4FB7-BD80-ECFFC4D2784D}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "savlib", "savlib\savlib.csproj", "{87002DE5-C670-4FB7-BD80-ECFFC4D2784D}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
@@ -139,6 +139,12 @@ Global
 		{CF664FCF-FD1D-4A7D-8454-5671A575ED40}.Release|x64.Build.0 = Release|Any CPU
 		{CF664FCF-FD1D-4A7D-8454-5671A575ED40}.Release|x86.ActiveCfg = Release|Any CPU
 		{CF664FCF-FD1D-4A7D-8454-5671A575ED40}.Release|x86.Build.0 = Release|Any CPU
+		{07EA6AF2-80BA-4DE7-9E48-9470D21A909B}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{07EA6AF2-80BA-4DE7-9E48-9470D21A909B}.Debug|x64.ActiveCfg = Debug|Any CPU
+		{07EA6AF2-80BA-4DE7-9E48-9470D21A909B}.Debug|x86.ActiveCfg = Debug|Any CPU
+		{07EA6AF2-80BA-4DE7-9E48-9470D21A909B}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{07EA6AF2-80BA-4DE7-9E48-9470D21A909B}.Release|x64.ActiveCfg = Release|Any CPU
+		{07EA6AF2-80BA-4DE7-9E48-9470D21A909B}.Release|x86.ActiveCfg = Release|Any CPU
 		{6FF3423B-BF04-4CC9-9AEB-0B62B0C76FC1}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
 		{6FF3423B-BF04-4CC9-9AEB-0B62B0C76FC1}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{6FF3423B-BF04-4CC9-9AEB-0B62B0C76FC1}.Debug|x64.ActiveCfg = Debug|Any CPU
