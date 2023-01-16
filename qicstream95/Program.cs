@@ -19,6 +19,7 @@ namespace qicstream1a
     {
         private const uint FileHeaderMagic = 0x33CC33CC;
         private const uint DataHeaderMagic = 0x66996699;
+        private const int SEG_SIZE = 0x7400;
 
         static void Main(string[] args)
         {
@@ -89,8 +90,102 @@ namespace qicstream1a
                 {
                     using (var stream = new FileStream(inFileName, FileMode.Open, FileAccess.Read))
                     {
-                        using (var outStream = new FileStream(outFileName, FileMode.Create, FileAccess.Write))
+                        Stream outStream = new FileStream(outFileName, FileMode.OpenOrCreate, FileAccess.ReadWrite);
                         {
+                            while (stream.Position < stream.Length)
+                            {
+                                // always align to segment boundary
+                                if ((stream.Position % 0x100) > 0)
+                                {
+                                    stream.Position += 0x100 - (int)(stream.Position % 0x100);
+                                }
+
+
+                                int segBytesLeft = SEG_SIZE;
+
+                                stream.Read(bytes, 0, 8);
+                                segBytesLeft -= 8;
+                                uint absolutePos = BitConverter.ToUInt32(bytes, 0);
+
+
+                                while (segBytesLeft > 18)
+                                {
+
+                                    stream.Read(bytes, 0, 2);
+                                    segBytesLeft -= 2;
+                                    int frameSize = BitConverter.ToUInt16(bytes, 0);
+
+                                    bool compressed = (frameSize & 0x8000) == 0;
+                                    frameSize &= 0x7FFF;
+
+                                    if (frameSize > segBytesLeft)
+                                    {
+                                        Console.WriteLine("Warning: frame extends beyond segment boundary.");
+                                    }
+
+                                    stream.Read(bytes, 0, frameSize);
+                                    segBytesLeft -= frameSize;
+
+                                    if (frameSize == 0)
+                                    {
+                                        Console.WriteLine("Warning: skipping empty frame.");
+                                        break;
+                                    }
+
+                                    Console.WriteLine("input: " + stream.Position.ToString("X") + ", frameSize: " + frameSize.ToString("X")
+                                        + ", absPos: " + absolutePos.ToString("X") + ", outputPos: " + outStream.Position.ToString("X"));
+
+                                    if (absolutePos < outStream.Position)
+                                    {
+                                        Console.WriteLine("Warning: frame position out of sync with output. Starting new stream.");
+                                        outFileName += "_";
+                                        outStream = new FileStream(outFileName, FileMode.OpenOrCreate, FileAccess.Write);
+                                    }
+
+                                    if (absolutePos > 0x10000000)
+                                    {
+                                        Console.WriteLine(">>> Absolute position a bit too large...");
+                                        break;
+                                    }
+
+                                    if (absPos && (absolutePos != outStream.Position))
+                                    {
+                                        Console.WriteLine(">>> adjusting position!");
+                                        outStream.Position = absolutePos;
+                                    }
+
+                                    if (compressed)
+                                    {
+                                        try
+                                        {
+                                            new QicUtils.Qic122Decompressor(new MemoryStream(bytes), outStream);
+                                        }
+                                        catch (Exception ex)
+                                        {
+                                            Console.WriteLine("Warning: failed to decompress frame: " + ex.Message);
+                                        }
+                                    }
+                                    else
+                                    {
+                                        outStream.Write(bytes, 0, frameSize);
+                                    }
+                                    absolutePos = (uint)outStream.Position;
+
+
+                                    if ((segBytesLeft - 0x400) >= 0 && (segBytesLeft - 0x400) < 18)
+                                    {
+                                        break;
+                                    }
+
+                                }
+
+                            }
+
+
+
+
+
+                            /*
                             bool firstCompressedFrame = true;
 
                             while (stream.Position < stream.Length)
@@ -142,6 +237,7 @@ namespace qicstream1a
                                     outStream.Write(bytes, 0, frameSize);
                                 }
                             }
+                            */
                         }
                     }
                 }
