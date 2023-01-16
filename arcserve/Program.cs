@@ -13,7 +13,7 @@ using System.Text;
 /// Copyright Dmitry Brant, 2023.
 /// 
 /// </summary>
-namespace arcadabackup2
+namespace arcserve
 {
     class Program
     {
@@ -97,7 +97,7 @@ namespace arcadabackup2
                             // Make sure the fully qualified name does not exceed 260 chars
                             if (filePath.Length >= 260)
                             {
-                                filePath = filePath.Substring(0, 259);
+                                filePath = filePath[..259];
                             }
 
                             while (File.Exists(filePath))
