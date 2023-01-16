@@ -29,7 +29,13 @@ namespace QicUtils
 			return str.Replace("\0", "").Trim();
 		}
 
-		public static DateTime GetQicDateTime(uint date)
+        public static string GetNullTerminatedString(string str)
+        {
+            int i = str.IndexOf('\0');
+            return i >= 0 ? str.Substring(0, i) : str;
+        }
+
+        public static DateTime GetQicDateTime(uint date)
 		{
 			DateTime d = new DateTime();
 			int year = (int)((date & 0xFE000000) >> 25) + 1970;
