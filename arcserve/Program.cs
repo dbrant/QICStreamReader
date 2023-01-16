@@ -6,7 +6,11 @@ using System.Text;
 
 /// <summary>
 /// 
-/// Copyright Dmitry Brant, 2021.
+/// Decoder for tape backup images made with ancient versions of ArcServeIT, circa 1999.
+/// Extracts only uncompressed files, for now. The compression appears to be proprietary,
+/// and is thus very difficult to RE.
+/// 
+/// Copyright Dmitry Brant, 2023.
 /// 
 /// </summary>
 namespace arcadabackup2
@@ -37,10 +41,6 @@ namespace arcadabackup2
                 return;
             }
 
-            byte[] bytes = new byte[0x10000];
-
-            
-            
             try
             {
                 using (var stream = new FileStream(inFileName, FileMode.Open, FileAccess.Read))
@@ -146,11 +146,8 @@ namespace arcadabackup2
             public DateTime CreateDate { get; }
             public DateTime ModifyDate { get; }
             public FileAttributes Attributes { get; }
-            public string Subdirectory { get; }
             public bool Valid { get; }
             public bool IsDirectory { get; }
-            public bool IsLastEntry { get; }
-            public bool IsFinalEntry { get; }
 
             public Stream dataStream;
 
@@ -169,7 +166,6 @@ namespace arcadabackup2
 
             public FileHeader(Stream stream)
             {
-                Subdirectory = "";
                 byte[] bytes = new byte[0x20000];
                 long initialPos = stream.Position;
 
@@ -180,6 +176,7 @@ namespace arcadabackup2
 
                 Name = Utils.GetNullTerminatedString(Encoding.ASCII.GetString(bytes, 0, 0xFA));
                 if (Name.Length == 0) { return; }
+                DosName = Name;
 
                 stream.Read(bytes, 0, 0x26); // short name + possibly date?
 
@@ -192,14 +189,8 @@ namespace arcadabackup2
                 //ModifyDate = QicUtils.Utils.DateTimeFromTimeT(BitConverter.ToUInt32(bytes, 0x3E));
                 //DateTime = QicUtils.Utils.GetQicDateTime(BitConverter.ToUInt32(bytes, 0x2E));
 
-
-
-
-
-
                 while (true)
                 {
-
                     // read until next nonnull byte
                     while (true)
                     {
@@ -255,69 +246,6 @@ namespace arcadabackup2
                     }
 
                 }
-
-
-
-
-
-                Valid = true;
-
-                return;
-
-
-
-
-
-
-
-                stream.Read(bytes, 0, 2);
-                int nameLength = BitConverter.ToUInt16(bytes, 0);
-                if (nameLength > 0)
-                {
-                    stream.Read(bytes, 0, nameLength);
-                    Name = Encoding.Unicode.GetString(bytes, 0, nameLength);
-                }
-                else
-                {
-                    Name = "";
-                }
-
-                if (Name.Length > 100)
-                {
-                    Console.WriteLine("Warning: trimming very long name: " + Name);
-                    Name = Name.Substring(0, 100);
-                }
-
-                stream.Read(bytes, 0, 0x15);
-
-                stream.Read(bytes, 0, 2);
-                nameLength = BitConverter.ToUInt16(bytes, 0);
-
-                if (nameLength > 255)
-                {
-                    Console.WriteLine("Warning: suspicious name length (" + nameLength + "). Skipping...");
-                    return;
-                }
-
-                if (nameLength > 0)
-                {
-                    stream.Read(bytes, 0, nameLength);
-                    DosName = Encoding.Unicode.GetString(bytes, 0, nameLength);
-                }
-                else
-                {
-                    DosName = "";
-                }
-
-
-                if (Size == 0)
-                {
-                    Console.WriteLine("Warning: skipping zero-length file: " + Name);
-                    return;
-                }
-
-
-                Subdirectory = "";// Encoding.Unicode.GetString(bytes, 2, dirLen - 2);
 
                 Valid = true;
             }
