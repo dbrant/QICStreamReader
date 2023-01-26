@@ -61,13 +61,21 @@ namespace arcserve
 
                         if (header.Size == 0)
                         {
-                            Console.WriteLine(stream.Position.ToString("X") + ": " + header.Name;
+                            Console.WriteLine(stream.Position.ToString("X") + ": " + header.Name);
                             Console.WriteLine("Warning: skipping zero-length file.");
                             continue;
                         }
 
-                        string filePath = baseDirectory;
-                        string[] dirArray = header.Name.Split("/");
+                        var bytes = new byte[header.Size];
+                        stream.Read(bytes, 0, (int)header.Size);
+                        bool compressed = false;
+                        if (bytes[0] == 0 && bytes[1] == 0x21)
+                        {
+                            compressed = true;
+                        }
+
+                        string filePath = compressed ? baseDirectory + "c" : baseDirectory;
+                        string[] dirArray = header.Name.Split("\\");
                         string fileName = dirArray[^1];
                         for (int i = 0; i < dirArray.Length - 1; i++)
                         {
@@ -93,9 +101,6 @@ namespace arcserve
                             }
 
                             Console.WriteLine(stream.Position.ToString("X") + ": " + filePath + " - " + header.Size.ToString() + " bytes - " + header.CreateDate.ToShortDateString());
-
-                            var bytes = new byte[header.Size];
-                            stream.Read(bytes, 0, (int)header.Size);
 
                             using (var f = new FileStream(filePath, FileMode.Create, FileAccess.Write))
                             {
@@ -149,6 +154,13 @@ namespace arcserve
 
                 Name = Utils.GetNullTerminatedString(Encoding.ASCII.GetString(bytes, 0x10, 0x50));
                 if (Name.Length == 0) { return; }
+
+                // remove leading drive letter, if any
+                if (Name[1] == ':' && Name[2] == '\\')
+                {
+                    Name = Name.Substring(3);
+                }
+
                 DosName = Name;
 
 
