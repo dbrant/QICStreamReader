@@ -35,7 +35,7 @@ Project("{D954291E-2A0B-460D-934E-DC6B0785DB48}") = "QicUtils", "QicUtils\QicUti
 EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "arcserve", "arcserve\arcserve.csproj", "{28EA4091-7085-45DB-BFA4-98B3D9F998CF}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "txver45", "txver45\txver45.csproj", "{0B74B4EC-B65C-434D-BF26-6BAD8C3B8E18}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "txver45", "txver45\txver45.csproj", "{0B74B4EC-B65C-434D-BF26-6BAD8C3B8E18}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
@@ -215,6 +215,12 @@ Global
 		{87002DE5-C670-4FB7-BD80-ECFFC4D2784D}.Release|x64.Build.0 = Release|Any CPU
 		{87002DE5-C670-4FB7-BD80-ECFFC4D2784D}.Release|x86.ActiveCfg = Release|Any CPU
 		{87002DE5-C670-4FB7-BD80-ECFFC4D2784D}.Release|x86.Build.0 = Release|Any CPU
+		{A4FD7512-D2FB-4FEB-9F09-C1998694CAAC}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{A4FD7512-D2FB-4FEB-9F09-C1998694CAAC}.Debug|x64.ActiveCfg = Debug|Any CPU
+		{A4FD7512-D2FB-4FEB-9F09-C1998694CAAC}.Debug|x86.ActiveCfg = Debug|Any CPU
+		{A4FD7512-D2FB-4FEB-9F09-C1998694CAAC}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{A4FD7512-D2FB-4FEB-9F09-C1998694CAAC}.Release|x64.ActiveCfg = Release|Any CPU
+		{A4FD7512-D2FB-4FEB-9F09-C1998694CAAC}.Release|x86.ActiveCfg = Release|Any CPU
 		{28EA4091-7085-45DB-BFA4-98B3D9F998CF}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
 		{28EA4091-7085-45DB-BFA4-98B3D9F998CF}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{28EA4091-7085-45DB-BFA4-98B3D9F998CF}.Debug|x64.ActiveCfg = Debug|Any CPU

@@ -158,7 +158,7 @@ namespace arcserve
                 // remove leading drive letter, if any
                 if (Name[1] == ':' && Name[2] == '\\')
                 {
-                    Name = Name.Substring(3);
+                    Name = Name[3..];
                 }
 
                 DosName = Name;
