@@ -37,7 +37,7 @@ namespace QicUtils
 
         public static DateTime GetQicDateTime(uint date)
 		{
-			DateTime d = new DateTime();
+			DateTime d = new();
 			int year = (int)((date & 0xFE000000) >> 25) + 1970;
 			int s = (int)(date & 0x1FFFFFF);
 			int second = s % 60; s /= 60;
@@ -53,7 +53,26 @@ namespace QicUtils
 			return d;
 		}
 
-		public static DateTime DateTimeFromTimeT(long timeT)
+        public static DateTime GetDosDateTime(int date, int time)
+        {
+            DateTime d = new();
+            int sec = time & 0x1F; time >>= 5;
+            int min = time & 0x3F; time >>= 6;
+            int hour = time & 0x1F;
+            int day = date & 0x1F; date >>= 5;
+            int month = date & 0xF; date >>= 4;
+            int year = 1980 + (date & 0x7F);
+            try
+            {
+                d = new DateTime(year, month, day, hour, min, sec);
+            }
+            catch {
+                Console.WriteLine(">>");
+            }
+            return d;
+        }
+
+        public static DateTime DateTimeFromTimeT(long timeT)
 		{
 			return new DateTime(1970, 1, 1).AddSeconds(timeT);
 		}
