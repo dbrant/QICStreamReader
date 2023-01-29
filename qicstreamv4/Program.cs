@@ -151,7 +151,9 @@ namespace QicStreamV4
 
                     while (stream.Position < stream.Length)
                     {
-                        FileHeader header = new FileHeader(stream);
+                        AlignToNextBlock(stream);
+
+                        FileHeader header = new(stream);
 
                         if (!header.Valid)
                         {
@@ -181,6 +183,12 @@ namespace QicStreamV4
                             if (header.Continuation)
                             {
                                 Console.WriteLine("Warning: continuing file " + header.Name + " (will append contents).");
+                            }
+                            else if (File.Exists(fileName))
+                            {
+                                Console.WriteLine("Warning: file exists: " + header.Name);
+                                Console.ReadKey();
+                                continue;
                             }
                             using (var f = new FileStream(fileName, header.Continuation ? FileMode.Append : FileMode.Create, FileAccess.Write))
                             {
@@ -221,8 +229,6 @@ namespace QicStreamV4
 
                             Console.WriteLine(stream.Position.ToString("X") + ": " + fileName + ", " + header.Size.ToString() + " bytes - " + header.DateTime.ToShortDateString());
                         }
-
-                        AlignToNextBlock(stream);
                     }
                 }
             }
