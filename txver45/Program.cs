@@ -144,9 +144,9 @@ namespace arcserve
 
                         try
                         {
-                            //File.SetCreationTime(filePath, header.CreateDate);
-                            //File.SetLastWriteTime(filePath, header.ModifyDate);
-                            //File.SetAttributes(filePath, header.Attributes);
+                            File.SetCreationTime(filePath, header.CreateDate);
+                            File.SetLastWriteTime(filePath, header.ModifyDate);
+                            File.SetAttributes(filePath, header.Attributes);
                         }
                         catch { }
                     }
