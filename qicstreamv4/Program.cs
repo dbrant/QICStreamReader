@@ -139,9 +139,7 @@ namespace QicStreamV4
                     // Read the volume header
                     stream.Read(bytes, 0, BLOCK_SIZE);
 
-                    string volName = Encoding.ASCII.GetString(bytes, 0xAC, 0x80);
-                    int zeroPos = volName.IndexOf("\0");
-                    if (zeroPos > 0) { volName = volName.Substring(0, zeroPos); }
+                    string volName = QicUtils.Utils.GetNullTerminatedString(Encoding.ASCII.GetString(bytes, 0xAC, 0x80));
                     Console.WriteLine("Backup label: " + volName);
 
                     Directory.CreateDirectory(baseDirectory);
