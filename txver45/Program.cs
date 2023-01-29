@@ -65,13 +65,19 @@ namespace arcserve
                         continue;
                     }
 
-                    var bytes = new byte[header.Size];
-                    stream.Read(bytes, 0, (int)header.Size);
-                    bool compressed = false;
-                    if (bytes[0] == 0 && bytes[1] == 0x21)
+
+
+                    int firstByte = stream.ReadByte();
+                    bool compressed = firstByte == 0;
+
+                    stream.Seek(-1, SeekOrigin.Current);
+
+
+                    if (compressed)
                     {
-                        compressed = true;
+                        continue;
                     }
+
 
                     string filePath = compressed ? baseDirectory + "c" : baseDirectory;
                     string[] dirArray = header.Name.Split("\\");
@@ -101,10 +107,39 @@ namespace arcserve
 
                         Console.WriteLine(stream.Position.ToString("X") + ": " + filePath + " - " + header.Size.ToString() + " bytes - " + header.CreateDate.ToShortDateString());
 
-                        using (var f = new FileStream(filePath, FileMode.Create, FileAccess.Write))
+                        // read the whole file into a memory buffer, so that we can pass it into the decompressor when ready.
+                        using (var memStream = new MemoryStream())
                         {
-                            f.Write(bytes);
-                            f.Flush();
+                            int bytesPerChunk = 0x200;
+
+                            // initialize, subtracting the initial size of the header.
+                            int bytesToRead = bytesPerChunk - FileHeader.HEADER_SIZE;
+                            int bytesToWrite = 0;
+                            long bytesLeft = header.Size;
+                            var bytes = new byte[bytesPerChunk];
+
+                            while (bytesLeft > 0)
+                            {
+                                stream.Read(bytes, 0, bytesToRead);
+                                bytesToWrite = bytesToRead - 2;
+                                bytesToRead = bytesPerChunk;
+
+                                if (bytesToWrite > bytesLeft)
+                                {
+                                    bytesToWrite = (int)bytesLeft;
+                                }
+                                memStream.Write(bytes, 0, bytesToWrite);
+
+                                bytesLeft -= bytesToWrite;
+                            }
+                            memStream.Seek(0, SeekOrigin.Begin);
+
+                            // TODO: uncompress if necessary
+
+                            using (var f = new FileStream(filePath, FileMode.Create, FileAccess.Write))
+                            {
+                                memStream.WriteTo(f);
+                            }
                         }
 
                         try
@@ -141,9 +176,11 @@ namespace arcserve
             public bool Valid { get; }
             public bool IsDirectory { get; }
 
+            public const int HEADER_SIZE = 0x60;
+
             public FileHeader(Stream stream)
             {
-                byte[] bytes = new byte[0x60];
+                byte[] bytes = new byte[HEADER_SIZE];
 
                 stream.Read(bytes, 0, bytes.Length);
                 if (Utils.LittleEndian(BitConverter.ToUInt32(bytes, 0)) != FileHeaderBlock) { return; }
