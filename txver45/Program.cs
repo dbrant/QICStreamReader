@@ -136,10 +136,9 @@ namespace arcserve
 
                             // TODO: uncompress if necessary
 
-                            using (var f = new FileStream(filePath, FileMode.Create, FileAccess.Write))
-                            {
-                                memStream.WriteTo(f);
-                            }
+                            using var f = new FileStream(filePath, FileMode.Create, FileAccess.Write);
+                            memStream.WriteTo(f);
+                            f.Flush();
                         }
 
                         try
