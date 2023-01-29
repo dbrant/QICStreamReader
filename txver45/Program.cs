@@ -72,13 +72,6 @@ namespace arcserve
 
                     stream.Seek(-1, SeekOrigin.Current);
 
-
-                    if (compressed)
-                    {
-                        continue;
-                    }
-
-
                     string filePath = compressed ? baseDirectory + "c" : baseDirectory;
                     string[] dirArray = header.Name.Split("\\");
                     string fileName = dirArray[^1];
@@ -105,7 +98,8 @@ namespace arcserve
                             filePath += "_";
                         }
 
-                        Console.WriteLine(stream.Position.ToString("X") + ": " + filePath + " - " + header.Size.ToString() + " bytes - " + header.CreateDate.ToShortDateString());
+                        Console.WriteLine("(" + (compressed ? "c" : " ") + ")" + stream.Position.ToString("X") + ": " + filePath + " - "
+                            + header.Size.ToString() + " bytes - " + header.CreateDate.ToShortDateString());
 
                         // read the whole file into a memory buffer, so that we can pass it into the decompressor when ready.
                         using (var memStream = new MemoryStream())
@@ -152,7 +146,8 @@ namespace arcserve
                     else
                     {
                         filePath = Path.Combine(filePath, fileName);
-                        Console.WriteLine(stream.Position.ToString("X") + ": " + filePath + " - " + header.Size.ToString() + " bytes - " + header.CreateDate.ToShortDateString());
+                        Console.WriteLine("(" + (compressed ? "c" : " ") + ")" + stream.Position.ToString("X") + ": " + filePath + " - "
+                            + header.Size.ToString() + " bytes - " + header.CreateDate.ToShortDateString());
                     }
                 }
             }
