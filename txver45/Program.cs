@@ -72,7 +72,7 @@ namespace arcserve
 
                     stream.Seek(-1, SeekOrigin.Current);
 
-                    string filePath = compressed ? baseDirectory + "c" : baseDirectory;
+                    string filePath = baseDirectory;
                     string[] dirArray = header.Name.Split("\\");
                     string fileName = dirArray[^1];
                     for (int i = 0; i < dirArray.Length - 1; i++)
@@ -100,6 +100,8 @@ namespace arcserve
 
                         Console.WriteLine("(" + (compressed ? "c" : " ") + ")" + stream.Position.ToString("X") + ": " + filePath + " - "
                             + header.Size.ToString() + " bytes - " + header.CreateDate.ToShortDateString());
+
+                        long posBeforeRead = stream.Position;
 
                         // read the whole file into a memory buffer, so that we can pass it into the decompressor when ready.
                         using (var memStream = new MemoryStream())
@@ -133,6 +135,13 @@ namespace arcserve
                             using var f = new FileStream(filePath, FileMode.Create, FileAccess.Write);
                             memStream.WriteTo(f);
                             f.Flush();
+                        }
+
+                        // Rewind the stream back to the beginning of the current file.
+                        // TODO: remove this when decompression is working.
+                        if (compressed)
+                        {
+                            stream.Seek(posBeforeRead, SeekOrigin.Begin);
                         }
 
                         try
