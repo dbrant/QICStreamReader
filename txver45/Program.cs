@@ -1,6 +1,7 @@
 ﻿using QicUtils;
 using System;
 using System.IO;
+using System.IO.Compression;
 using System.Text;
 
 
@@ -17,6 +18,55 @@ namespace arcserve
 
         static void Main(string[] args)
         {
+
+
+
+
+
+
+
+            /*
+
+
+            using (var f = new FileStream("u1.bin", FileMode.Open))
+            {
+
+                using (var m = new MemoryStream())
+                {
+
+
+                    using (var deflateStream = new ZLibStream(f, CompressionMode.Decompress, true))
+                    {
+                        //var b = new byte[0x100000];
+                        //deflateStream.Read(b, 0, b.Length);
+                        deflateStream.CopyTo(m);
+                        //bytesRead = deflateStream.Read(tempBytes, 0, 0x1000);
+                    }
+
+
+                    //var d = new ALDCDecompressor(f, m);
+
+
+                    using (var f2 = new FileStream("ux.bin", FileMode.Create))
+                    {
+                        m.Position = 0;
+                        m.CopyTo(f2);
+                        f2.Flush();
+                    }
+                }
+            }
+            return;
+
+
+
+            */
+
+
+
+
+
+
+
             string inFileName = "";
             string baseDirectory = "out";
 
@@ -198,6 +248,7 @@ namespace arcserve
                 {
                     Name = Name[3..];
                 }
+                Name = Utils.ReplaceInvalidChars(Name);
 
                 DosName = Name;
 
