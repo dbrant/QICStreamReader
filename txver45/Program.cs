@@ -7,7 +7,56 @@ using System.Text;
 
 /// <summary>
 /// 
+/// Decoder for tape images saved using the TXPLUS tool.
+/// This extracts the files from the archive successfully, but unfortunately
+/// we still don't know the exact compression algorithm (when compression is
+/// enabled), so the extracted files might be compressed and thus unusable.
+/// 
+/// Research into this is ongoing. If you have information on the compression
+/// used in TXPLUS, please get in touch.
+/// 
 /// Copyright Dmitry Brant, 2023.
+/// 
+/// 
+/// * Sectors are 512 bytes, and all sectors end with a 2-byte checksum, so there
+///   are 510 usable bytes per sector.
+/// * All data fields are little-endian.
+/// 
+/// The basic structure of the archive is as follows:
+/// [tape header sector]
+/// [file header]
+/// [file contents]
+/// [file header] <-- aligned to next sector
+/// [file contents]
+/// [file header] <-- aligned to next sector
+/// [file contents]
+/// ...
+/// 
+/// * The [tape header sector] starts with the magic string "?TXVer-45", although
+/// there may be other "Ver" numbers out there.
+/// 
+/// * Each [file header] is 0x60 bytes long, and has the following structure:
+/// 
+/// Byte offset (hex)         Meaning
+/// ------------------------------------------------------------------------------
+/// 0x0                       Magic bytes 0x3A3A3A3A
+/// 0x4                       File length (32 bit)
+/// 0x8                       File date/time (32-bit MS-DOS date-time format)
+/// 0xC                       File attributes (1 byte, followed by 3 more padding
+///                           bytes of 0x3A)
+/// 0x10                      File name (full path, including drive letter, padded
+///                           with null bytes until the end of the header)
+/// 
+/// * The header is followed immediately by the file contents.
+/// * If the contents start with a null byte (0x0), it means that the file is
+/// compressed, otherwise the file is uncompressed.
+/// * The "file length" in the header is always the uncompressed length of the file.
+/// * When reading the file contents, remember that every sector ends with a 2-byte
+/// checksum, which is _not_ part of the file contents, and should be ignored (or
+/// ideally used to verify the sector bytes).
+/// * If the file contents don't end on a sector boundary, they are padded with bytes
+/// of value 0x50 until the start of the next sector, which will be the next file
+/// header, or the end of the archive.
 /// 
 /// </summary>
 namespace arcserve
@@ -18,55 +67,6 @@ namespace arcserve
 
         static void Main(string[] args)
         {
-
-
-
-
-
-
-
-            /*
-
-
-            using (var f = new FileStream("u1.bin", FileMode.Open))
-            {
-
-                using (var m = new MemoryStream())
-                {
-
-
-                    using (var deflateStream = new ZLibStream(f, CompressionMode.Decompress, true))
-                    {
-                        //var b = new byte[0x100000];
-                        //deflateStream.Read(b, 0, b.Length);
-                        deflateStream.CopyTo(m);
-                        //bytesRead = deflateStream.Read(tempBytes, 0, 0x1000);
-                    }
-
-
-                    //var d = new ALDCDecompressor(f, m);
-
-
-                    using (var f2 = new FileStream("ux.bin", FileMode.Create))
-                    {
-                        m.Position = 0;
-                        m.CopyTo(f2);
-                        f2.Flush();
-                    }
-                }
-            }
-            return;
-
-
-
-            */
-
-
-
-
-
-
-
             string inFileName = "";
             string baseDirectory = "out";
 
@@ -81,7 +81,7 @@ namespace arcserve
 
             if (inFileName.Length == 0 || !File.Exists(inFileName))
             {
-                Console.WriteLine("Usage:");
+                Console.WriteLine("Usage: txver45 -f <file name> [-d <output directory>]");
                 return;
             }
 
