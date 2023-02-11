@@ -1,24 +1,20 @@
 ﻿using System;
+using System.Collections.Generic;
 using System.IO;
 
 namespace QicUtils
 {
-    /// <summary>
-    /// Decompression utility compatible with QIC-122 (rev B) compressed frames.
-    /// https://www.qic.org/html/standards/12x.x/qic122b.pdf
-    ///
-    /// Copyright Dmitry Brant, 2020.
-    /// </summary>
-    public class Qic122Decompressor : Decompressor
+    public class ALDCDecompressor : Decompressor
     {
-        private const int HISTORY_SIZE = 0x800;
+        private const int HISTORY_SIZE_BITS = 11;
+        private const int HISTORY_SIZE = 1 << HISTORY_SIZE_BITS;
 
         /// <summary>
         /// Decompress data from one stream to another.
         /// </summary>
         /// <param name="stream">Stream containing a single compression frame that's compressed using the QIC-122 algorithm.</param>
         /// <param name="outStream">Stream to which uncompressed data will be written.</param>
-        public Qic122Decompressor(Stream stream, Stream outStream)
+        public ALDCDecompressor(Stream stream, Stream outStream)
             : base(stream, HISTORY_SIZE)
         {
             int historySizeMask = HISTORY_SIZE - 1;
@@ -26,7 +22,7 @@ namespace QicUtils
             int type, offset, length;
             byte b;
 
-            while (true)
+            while (stream.Position < stream.Length)
             {
                 type = NextBit();
                 if (type == 0)
@@ -40,11 +36,15 @@ namespace QicUtils
                 }
                 else
                 {
-                    // compressed bytes
-                    offset = NextOffset();
-                    if (offset == 0) { break; }
-
+                    // copy ptr
                     length = NextLength();
+                    offset = NextNumBits(HISTORY_SIZE_BITS);
+
+                    if (length >= 270)
+                    {
+                        // control code.
+                        break;
+                    }
 
                     for (int i = 0; i < length; i++)
                     {
@@ -58,29 +58,37 @@ namespace QicUtils
             }
         }
 
-        private int NextOffset()
-        {
-            int type = NextBit();
-            int offsetLen = type == 1 ? 7 : 11;
-            return NextNumBits(offsetLen);
-        }
-
         private int NextLength()
         {
-            int length = 2;
-            length += NextNumBits(2);
-            if (length < 5) { return length; }
-            length += NextNumBits(2);
-            if (length < 8) { return length; }
-
-            int chunk;
-            while (true)
+            int b;
+            int a = NextNumBits(2);
+            if (a < 2)
             {
-                chunk = NextNumBits(4);
-                length += chunk;
-                if (chunk < 0xF) { break; }
+                return a + 2;
             }
-            return length;
+            else if (a == 2)
+            {
+                b = NextNumBits(2);
+                return a + b + 2;
+            }
+            a <<= 1;
+            a |= NextBit();
+            if ((a & 0x1) == 0)
+            {
+                b = NextNumBits(3);
+                return a + b + 2;
+            }
+            a <<= 1;
+            a |= NextBit();
+            if ((a & 0x1) == 0)
+            {
+                b = NextNumBits(4);
+                return a + b + 2;
+            }
+            a <<= 4;
+            a |= NextNumBits(4);
+            b = NextNumBits(4);
+            return a + b + 2;
         }
     }
 }

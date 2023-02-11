@@ -9,6 +9,8 @@
     <Import_RootNamespace>QicUtils</Import_RootNamespace>
   </PropertyGroup>
   <ItemGroup>
+    <Compile Include="$(MSBuildThisFileDirectory)ALDCDecompressor.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)Decompressor.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Mtf.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Qic122Decompressor.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Utils.cs" />
