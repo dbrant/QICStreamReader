@@ -64,24 +64,10 @@ namespace arcserve
 
 
 
-
-        class Node
-        {
-            public int offset;
-            public int instr;
-
-            public Node(int offset, int instr)
-            {
-                this.offset = offset;
-                this.instr = instr;
-            }
-        }
-
-
-
         static List<byte>[] history = new List<byte>[0x1000];
         static int histPtr = 0;
-
+        static int lastOffsetUsed = 0;
+        static int lastSubOffsetUsed = 0;
 
         static void dumpHistory()
         {
@@ -142,53 +128,6 @@ namespace arcserve
         }
 
 
-
-        /*
-        static void repeatNode(int offset, Stream outStream, int level, int max = 2)
-        {
-            if (level > 16)
-            {
-                Console.WriteLine("Warning: possible closed loop.");
-                return;
-            }
-
-            offset -= 3;
-            if (offset < 0)
-            {
-                Console.WriteLine("Warning: invalid offset.");
-                offset = 0;
-            }
-
-            var n = history[offset];
-            if (n != null)
-            {
-                for (int i = 0; i < max; i++)
-                {
-                    if (n.instr == 0)
-                    {
-                        outStream.WriteByte((byte)n.offset);
-
-                    }
-                    else if (n.instr == 1)
-                    {
-
-                        //if (level > 0)
-                        //    addNode(n.offset, n.instr);
-
-
-                        repeatNode(n.offset, outStream, level + 1, i == 0 ? 2 : 1);
-                    }
-                    offset++;
-                    if (offset < history.Length && history[offset] != null)
-                    {
-                        n = history[offset];
-                    }
-                }
-            }
-        }
-        */
-
-
         static bool execute(int instr, int offset, Stream inStream, Stream outStream)
         {
             if (instr == 0)
@@ -198,8 +137,10 @@ namespace arcserve
 
                 pushValue(offset);
             }
-            else if (instr == 1)
+            else if (instr >= 1 && instr < 0xF0)
             {
+                offset += ((instr - 1) * 0x100);
+
                 if (offset == 0)
                 {
                     // start of compressed data
@@ -227,83 +168,55 @@ namespace arcserve
                 }
                 else
                 {
-
-
                     // repeat past bytes
                     offset -= 3;
 
                     if (offset < 0 || history[offset] == null)
                     {
                         Console.WriteLine(">>>> Warning: invalid offset?");
+                        dumpHistory();
                     }
                     else
                     {
-                        var list = history[offset];
-                        var newList = new List<byte>();
-
-                        newList.AddRange(list);
-
-                        offset++;
-                        if (offset < history.Length && (history[offset] != null))
-                        {
-                            newList.Add(history[offset].First());
-                        }
-                        else
-                        {
-                            newList.Add(list.First());
-                        }
-
-                        for (int i = 0; i < newList.Count; i++)
-                        {
-                            outStream.WriteByte(newList[i]);
-                        }
-                        pushValue(newList);
+                        appendFromOffset(offset, outStream);
                     }
-                }
-            }
-            else if (instr >= 2 && instr < 0xF0)
-            {
-                // repeat past bytes
-                offset += ((instr - 1) * 0x100);
-
-                offset -= 0x3;
-                //offset = histPtr - offset - 4;
-
-                //dumpHistory();
-
-                if (offset < 0 || history[offset] == null)
-                {
-                    Console.WriteLine(">>>> Warning: invalid offset?");
-                }
-                else
-                {
-                    var list = history[offset];
-                    var newList = new List<byte>();
-
-                    newList.AddRange(list);
-
-                    offset++;
-                    if (offset < history.Length && (history[offset] != null))
-                    {
-                        newList.Add(history[offset].First());
-                    }
-                    else
-                    {
-                        newList.Add(list.First());
-                    }
-
-                    for (int i = 0; i < newList.Count; i++)
-                    {
-                        outStream.WriteByte(newList[i]);
-                    }
-                    pushValue(newList);
                 }
             }
             else
             {
                 Console.WriteLine(">>>> Warning: invalid instruction?");
             }
+
+            outStream.Flush();
             return true;
+        }
+
+        static void appendFromOffset(int offset, Stream outStream)
+        {
+            var list = history[offset];
+            var newList = new List<byte>();
+
+            newList.AddRange(list);
+
+            offset++;
+            if (offset < history.Length && (history[offset] != null))
+            {
+                newList.Add(history[offset].First());
+            }
+            else
+            {
+                newList.Add(list.First());
+                offset--;
+            }
+
+            for (int i = 0; i < newList.Count; i++)
+            {
+                outStream.WriteByte(newList[i]);
+            }
+            pushValue(newList);
+
+            lastOffsetUsed = offset;
+            lastSubOffsetUsed = 1;
         }
 
 
@@ -313,7 +226,7 @@ namespace arcserve
             var tempBytes = new byte[0x100];
             
 
-            using (var inFile = new FileStream("E:\\Desktop\\dos\\DOS\\COUNTRY.TXT", FileMode.Open, FileAccess.Read, FileShare.Read))
+            using (var inFile = new FileStream("E:\\Desktop\\dos\\DOS\\DOSHELP.HLP", FileMode.Open, FileAccess.Read, FileShare.Read))
             {
                 using (var outFile = new FileStream("E:\\Desktop\\foo.bin", FileMode.Create, FileAccess.Write))
                 {
@@ -330,12 +243,27 @@ namespace arcserve
 
                         int curPos = (int)inFile.Position;
 
-                        offset = parser.NextNumBits(8);
-
-                        if (offset == 2)
+                        if (!parser.Aligned())
                         {
+                            offset = parser.NextNumBits(8);
                             instr = parser.NextNumBits(4);
 
+                            if (!execute(instr, offset, inFile, outFile))
+                                return;
+
+                            continue;
+                        }
+
+                        offset = parser.NextNumBits(8);
+                        instr = parser.NextNumBits(4);
+
+                        if (offset != 2)
+                        {
+                            if (!execute(instr, offset, inFile, outFile))
+                                return;
+                        }
+                        else
+                        {
                             if (instr == 1)
                             {
                                 // repeat the next number of literal bytes
@@ -361,27 +289,64 @@ namespace arcserve
 
                                 }
                             }
+                            else if (instr == 2)
+                            {
+                                // repeat the next two values after the last offset
+
+                                var list = history[lastOffsetUsed];
+                                if (list == null)
+                                {
+                                    Console.WriteLine("Warning: invalid offset?");
+                                }
+                                else
+                                {
+                                    var newList = new List<byte>();
+
+                                    for (int i = 0; i < 2; i++)
+                                    {
+                                        if (lastSubOffsetUsed >= list.Count)
+                                        {
+                                            lastOffsetUsed++;
+                                            lastSubOffsetUsed = 0;
+                                            list = history[lastOffsetUsed];
+                                            if (list == null)
+                                            {
+                                                Console.WriteLine("Warning: invalid offset?");
+                                            }
+                                        }
+
+                                        outFile.WriteByte(list[lastSubOffsetUsed]);
+                                        newList.Add(list[lastSubOffsetUsed]);
+                                        lastSubOffsetUsed++;
+                                    }
+                                    pushValue(newList);
+                                }
+
+                            }
                             else
                             {
                                 // unknown
                                 Console.WriteLine(">>>> 2 : 1");
 
+                                //var list = history[histPtr - 4];
+
+                                var list = new List<byte>();
+                                for (int i = 0; i < 10; i++)
+                                {
+                                    list.Add((byte)'-');
+                                }
+                                
+                                
+                                for (int i = 0; i < list.Count; i++)
+                                {
+                                    outFile.WriteByte(list[i]);
+                                }
+                                pushValue(list);
+
+
                                 dumpHistory();
                             }
 
-                        }
-                        else
-                        {
-                            instr = parser.NextNumBits(4);
-
-                            if (!execute(instr, offset, inFile, outFile))
-                                return;
-
-                            offset = parser.NextNumBits(8);
-                            instr = parser.NextNumBits(4);
-
-                            if (!execute(instr, offset, inFile, outFile))
-                                return;
                         }
 
                     }
@@ -613,6 +578,11 @@ namespace arcserve
                 this.stream = stream;
                 this.historySize = historySize;
                 history = new byte[historySize];
+            }
+
+            public bool Aligned()
+            {
+                return curBitMask > 0x80;
             }
 
             protected int NextBit()
