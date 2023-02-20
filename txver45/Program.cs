@@ -243,31 +243,15 @@ namespace arcserve
 
                         int curPos = (int)inFile.Position;
 
-                        if (!parser.Aligned())
-                        {
-                            offset = parser.NextNumBits(8);
-                            instr = parser.NextNumBits(4);
-
-                            if (!execute(instr, offset, inFile, outFile))
-                                return;
-
-                            continue;
-                        }
-
                         offset = parser.NextNumBits(8);
                         instr = parser.NextNumBits(4);
 
-                        if (offset != 2)
-                        {
-                            if (!execute(instr, offset, inFile, outFile))
-                                return;
-                        }
-                        else
+                        if (offset == 2 && instr < 2)
                         {
                             if (instr == 1)
                             {
                                 // repeat the next number of literal bytes
-                                offset = parser.NextNumBits(4);
+                                offset = parser.Aligned() ? parser.NextNumBits(8) : parser.NextNumBits(4);
 
                                 // if offset is 0, then the actual number is the next byte
                                 if (offset == 0)
@@ -347,6 +331,11 @@ namespace arcserve
                                 dumpHistory();
                             }
 
+                        }
+                        else
+                        {
+                            if (!execute(instr, offset, inFile, outFile))
+                                return;
                         }
 
                     }
