@@ -64,10 +64,8 @@ namespace arcserve
 
 
 
-        static List<byte>[] history = new List<byte>[0x1000];
+        static List<byte>[] history = new List<byte>[0x10000];
         static int histPtr = 0;
-        static int lastOffsetUsed = 0;
-        static int lastSubOffsetUsed = 0;
 
         static void dumpHistory()
         {
@@ -143,7 +141,9 @@ namespace arcserve
 
                 if (offset == 0)
                 {
-                    // start of compressed data
+                    // start of compressed data / clear dictionary
+                    for (int i = 0; i < history.Length; i++) history[i] = null;
+                    histPtr = 0;
                 }
                 else if (offset == 1)
                 {
@@ -178,7 +178,26 @@ namespace arcserve
                     }
                     else
                     {
-                        appendFromOffset(offset, outStream);
+                        var list = history[offset];
+                        var newList = new List<byte>();
+
+                        newList.AddRange(list);
+
+                        offset++;
+                        if (offset < history.Length && (history[offset] != null))
+                        {
+                            newList.Add(history[offset].First());
+                        }
+                        else
+                        {
+                            newList.Add(list.First());
+                        }
+
+                        for (int i = 0; i < newList.Count; i++)
+                        {
+                            outStream.WriteByte(newList[i]);
+                        }
+                        pushValue(newList);
                     }
                 }
             }
@@ -191,42 +210,13 @@ namespace arcserve
             return true;
         }
 
-        static void appendFromOffset(int offset, Stream outStream)
-        {
-            var list = history[offset];
-            var newList = new List<byte>();
-
-            newList.AddRange(list);
-
-            offset++;
-            if (offset < history.Length && (history[offset] != null))
-            {
-                newList.Add(history[offset].First());
-            }
-            else
-            {
-                newList.Add(list.First());
-                offset--;
-            }
-
-            for (int i = 0; i < newList.Count; i++)
-            {
-                outStream.WriteByte(newList[i]);
-            }
-            pushValue(newList);
-
-            lastOffsetUsed = offset;
-            lastSubOffsetUsed = 1;
-        }
-
-
 
         static void Main(string[] args)
         {
             var tempBytes = new byte[0x100];
             
 
-            using (var inFile = new FileStream("E:\\Desktop\\dos\\DOS\\DOSHELP.HLP", FileMode.Open, FileAccess.Read, FileShare.Read))
+            using (var inFile = new FileStream("E:\\Desktop\\dos\\DOS\\COUNTRY.TXT", FileMode.Open, FileAccess.Read, FileShare.Read))
             {
                 using (var outFile = new FileStream("E:\\Desktop\\foo.bin", FileMode.Create, FileAccess.Write))
                 {
@@ -241,7 +231,7 @@ namespace arcserve
                     {
                         outFile.Flush();
 
-                        int curPos = (int)inFile.Position;
+                        int curPos = (int)outFile.Position;
 
                         offset = parser.NextNumBits(8);
                         instr = parser.NextNumBits(4);
@@ -272,40 +262,6 @@ namespace arcserve
                                     pushValue(a);
 
                                 }
-                            }
-                            else if (instr == 2)
-                            {
-                                // repeat the next two values after the last offset
-
-                                var list = history[lastOffsetUsed];
-                                if (list == null)
-                                {
-                                    Console.WriteLine("Warning: invalid offset?");
-                                }
-                                else
-                                {
-                                    var newList = new List<byte>();
-
-                                    for (int i = 0; i < 2; i++)
-                                    {
-                                        if (lastSubOffsetUsed >= list.Count)
-                                        {
-                                            lastOffsetUsed++;
-                                            lastSubOffsetUsed = 0;
-                                            list = history[lastOffsetUsed];
-                                            if (list == null)
-                                            {
-                                                Console.WriteLine("Warning: invalid offset?");
-                                            }
-                                        }
-
-                                        outFile.WriteByte(list[lastSubOffsetUsed]);
-                                        newList.Add(list[lastSubOffsetUsed]);
-                                        lastSubOffsetUsed++;
-                                    }
-                                    pushValue(newList);
-                                }
-
                             }
                             else
                             {
