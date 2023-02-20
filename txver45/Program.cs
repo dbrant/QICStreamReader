@@ -58,35 +58,6 @@ namespace txver45
 
         static void Main(string[] args)
         {
-
-            /*
-            
-            using (var inFile = new FileStream("E:\\Desktop\\dos\\DOS\\RIPAINT.EXE", FileMode.Open, FileAccess.Read, FileShare.Read))
-            {
-                using (var outFile = new FileStream("E:\\Desktop\\foo.bin", FileMode.Create, FileAccess.Write))
-                {
-
-
-                    try
-                    {
-                        new TxDecompressor(inFile).DecompressTo(outFile);
-                    }
-                    catch (Exception ex)
-                    {
-                        Console.WriteLine(ex.ToString());
-                    }
-
-
-                    outFile.Flush();
-                }
-            }
-            return;
-            */
-
-
-
-
-
             string inFileName = "";
             string baseDirectory = "out";
 

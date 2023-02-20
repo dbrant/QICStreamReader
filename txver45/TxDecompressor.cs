@@ -3,6 +3,13 @@ using System.Collections.Generic;
 
 namespace txver45
 {
+    /// <summary>
+    /// 
+    /// Decompressor for tape images saved using the TXPLUS tool.
+    /// 
+    /// Copyright Dmitry Brant, 2023.
+    /// 
+    /// </summary>
     internal class TxDecompressor
     {
         protected Stream stream;
@@ -17,54 +24,6 @@ namespace txver45
         {
             this.stream = stream;
         }
-
-        void dumpHistory()
-        {
-            using (var f = new FileStream("history.txt", FileMode.Create, FileAccess.Write))
-            {
-                var writer = new StreamWriter(f);
-
-                for (int i = 0; i < history.Length; i++)
-                {
-                    if (history[i] == null)
-                        break;
-
-
-                    var str = "";
-                    for (int j = 0; j < history[i].Count; j++)
-                    {
-                        if (history[i][j] > 0x20 && history[i][j] < 0x80)
-                        {
-                            str += (char)history[i][j];
-                        }
-                        else if (history[i][j] == 0x20)
-                        {
-                            str += "□";
-                        }
-                        else if (history[i][j] == 0x0D)
-                        {
-                            str += "┘";
-                        }
-                        else if (history[i][j] == 0x0A)
-                        {
-                            str += "╝";
-                        }
-                        else
-                        {
-                            str += " " + history[i][j].ToString("X2") + " ";
-                        }
-                    }
-
-                    writer.WriteLine(i.ToString("X2") + "\t" + str);
-
-                }
-
-                writer.Flush();
-            }
-        }
-
-
-
 
         void pushValue(int i)
         {
@@ -109,7 +68,7 @@ namespace txver45
 
                     if (n == 0)
                     {
-                        Console.WriteLine("Warning: empty run length.");
+                        throw new ApplicationException("Warning: empty run length.");
                     }
                     for (int i = 0; i < n; i++)
                     {
@@ -154,10 +113,8 @@ namespace txver45
             }
             else
             {
-                Console.WriteLine("Warning: invalid instruction?");
+                throw new ApplicationException("Warning: invalid instruction?");
             }
-
-            outStream.Flush();
             return true;
         }
 
@@ -170,15 +127,6 @@ namespace txver45
             {
                 offset = NextNumBits(8);
                 instr = NextNumBits(4);
-
-                outStream.Flush();
-
-                long pos = outStream.Position;
-                if (pos > 0x59618)
-                {
-                    //Console.WriteLine(">>");
-                    //dumpHistory();
-                }
 
                 if (offset == 2 && instr < 2)
                 {
@@ -207,7 +155,7 @@ namespace txver45
 
                         if (offset == 1)
                         {
-                            Console.WriteLine("Warning: offset seems wrong?");
+                            throw new ApplicationException("Warning: offset seems wrong?");
                         }
 
                         for (int i = 0; i < offset; i++)
