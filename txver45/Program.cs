@@ -1,7 +1,4 @@
 ﻿using QicUtils;
-using System;
-using System.IO;
-using System.IO.Compression;
 using System.Text;
 
 
@@ -65,8 +62,342 @@ namespace arcserve
     {
         private const uint FileHeaderBlock = 0x3A3A3A3A;
 
+
+
+
+        class Node
+        {
+            public int offset;
+            public int instr;
+
+            public Node(int offset, int instr)
+            {
+                this.offset = offset;
+                this.instr = instr;
+            }
+        }
+
+
+
+        static List<byte>[] history = new List<byte>[0x1000];
+        static int histPtr = 0;
+
+
+        static void dumpHistory()
+        {
+            using (var f = new FileStream("E:\\Desktop\\history.txt", FileMode.Create, FileAccess.Write))
+            {
+                var writer = new StreamWriter(f);
+
+                for (int i = 0; i < history.Length; i++)
+                {
+                    if (history[i] == null)
+                        break;
+
+
+                    var str = "";
+                    for (int j = 0; j < history[i].Count; j++)
+                    {
+                        if (history[i][j] > 0x20 && history[i][j] < 0x80)
+                        {
+                            str += (char)history[i][j];
+                        }
+                        else if (history[i][j] == 0x20)
+                        {
+                            str += "□";
+                        }
+                        else if (history[i][j] == 0x0D)
+                        {
+                            str += "┘";
+                        }
+                        else if (history[i][j] == 0x0A)
+                        {
+                            str += "╝";
+                        }
+                        else
+                        {
+                            str += " " + history[i][j].ToString("X2") + " ";
+                        }
+                    }
+
+                    writer.WriteLine(i.ToString("X2") + "\t" + str);
+
+                }
+
+                writer.Flush();
+            }
+        }
+
+
+        static void pushValue(int i)
+        {
+            pushValue(new List<byte> { (byte)i });
+        }
+
+        static void pushValue(List<byte> list)
+        {
+            history[histPtr] = list;
+            histPtr++;
+            if (histPtr >= history.Length) { histPtr = 0; }
+        }
+
+
+
+        /*
+        static void repeatNode(int offset, Stream outStream, int level, int max = 2)
+        {
+            if (level > 16)
+            {
+                Console.WriteLine("Warning: possible closed loop.");
+                return;
+            }
+
+            offset -= 3;
+            if (offset < 0)
+            {
+                Console.WriteLine("Warning: invalid offset.");
+                offset = 0;
+            }
+
+            var n = history[offset];
+            if (n != null)
+            {
+                for (int i = 0; i < max; i++)
+                {
+                    if (n.instr == 0)
+                    {
+                        outStream.WriteByte((byte)n.offset);
+
+                    }
+                    else if (n.instr == 1)
+                    {
+
+                        //if (level > 0)
+                        //    addNode(n.offset, n.instr);
+
+
+                        repeatNode(n.offset, outStream, level + 1, i == 0 ? 2 : 1);
+                    }
+                    offset++;
+                    if (offset < history.Length && history[offset] != null)
+                    {
+                        n = history[offset];
+                    }
+                }
+            }
+        }
+        */
+
+
+        static bool execute(int instr, int offset, Stream inStream, Stream outStream)
+        {
+            if (instr == 0)
+            {
+                // literal byte
+                outStream.WriteByte((byte)offset);
+
+                pushValue(offset);
+            }
+            else if (instr == 1)
+            {
+                if (offset == 0)
+                {
+                    // start of compressed data
+                }
+                else if (offset == 1)
+                {
+                    // end of compressed data
+                    return false;
+                }
+                else if (offset == 2)
+                {
+                    // read next byte, and take that many next bytes literally
+                    int n = inStream.ReadByte();
+
+                    if (n == 0)
+                    {
+                        Console.WriteLine(">>>> Warning: empty run length.");
+                    }
+                    for (int i = 0; i < n; i++)
+                    {
+                        byte a = (byte)inStream.ReadByte();
+                        pushValue(a);
+                        outStream.WriteByte(a);
+                    }
+                }
+                else
+                {
+
+
+                    // repeat past bytes
+                    offset -= 3;
+
+                    if (offset < 0 || history[offset] == null)
+                    {
+                        Console.WriteLine(">>>> Warning: invalid offset?");
+                    }
+                    else
+                    {
+                        var list = history[offset];
+                        var newList = new List<byte>();
+
+                        newList.AddRange(list);
+
+                        offset++;
+                        if (offset < history.Length && (history[offset] != null))
+                        {
+                            newList.Add(history[offset].First());
+                        }
+                        else
+                        {
+                            newList.Add(list.First());
+                        }
+
+                        for (int i = 0; i < newList.Count; i++)
+                        {
+                            outStream.WriteByte(newList[i]);
+                        }
+                        pushValue(newList);
+                    }
+                }
+            }
+            else if (instr >= 2 && instr < 0xF0)
+            {
+                // repeat past bytes
+                offset += ((instr - 1) * 0x100);
+
+                offset -= 0x3;
+                //offset = histPtr - offset - 4;
+
+                //dumpHistory();
+
+                if (offset < 0 || history[offset] == null)
+                {
+                    Console.WriteLine(">>>> Warning: invalid offset?");
+                }
+                else
+                {
+                    var list = history[offset];
+                    var newList = new List<byte>();
+
+                    newList.AddRange(list);
+
+                    offset++;
+                    if (offset < history.Length && (history[offset] != null))
+                    {
+                        newList.Add(history[offset].First());
+                    }
+                    else
+                    {
+                        newList.Add(list.First());
+                    }
+
+                    for (int i = 0; i < newList.Count; i++)
+                    {
+                        outStream.WriteByte(newList[i]);
+                    }
+                    pushValue(newList);
+                }
+            }
+            else
+            {
+                Console.WriteLine(">>>> Warning: invalid instruction?");
+            }
+            return true;
+        }
+
+
+
         static void Main(string[] args)
         {
+            var tempBytes = new byte[0x100];
+            
+
+            using (var inFile = new FileStream("E:\\Desktop\\dos\\DOS\\COUNTRY.TXT", FileMode.Open, FileAccess.Read, FileShare.Read))
+            {
+                using (var outFile = new FileStream("E:\\Desktop\\foo.bin", FileMode.Create, FileAccess.Write))
+                {
+
+                    int a, instr, offset;
+
+
+                    var parser = new StreamParser(inFile, 0x1000);
+
+
+                    while (true)
+                    {
+                        outFile.Flush();
+
+                        int curPos = (int)inFile.Position;
+
+                        offset = parser.NextNumBits(8);
+
+                        if (offset == 2)
+                        {
+                            instr = parser.NextNumBits(4);
+
+                            if (instr == 1)
+                            {
+                                // repeat the next number of literal bytes
+                                offset = parser.NextNumBits(4);
+
+                                // if offset is 0, then the actual number is the next byte
+                                if (offset == 0)
+                                {
+                                    offset = parser.NextNumBits(8);
+                                }
+
+                                if (offset < 2)
+                                {
+                                    // unknown
+                                    Console.WriteLine(">>>> 0 : 1");
+                                }
+
+                                for (int i = 0; i < offset; i++)
+                                {
+                                    a = inFile.ReadByte();
+                                    outFile.WriteByte((byte)a);
+                                    pushValue(a);
+
+                                }
+                            }
+                            else
+                            {
+                                // unknown
+                                Console.WriteLine(">>>> 2 : 1");
+
+                                dumpHistory();
+                            }
+
+                        }
+                        else
+                        {
+                            instr = parser.NextNumBits(4);
+
+                            if (!execute(instr, offset, inFile, outFile))
+                                return;
+
+                            offset = parser.NextNumBits(8);
+                            instr = parser.NextNumBits(4);
+
+                            if (!execute(instr, offset, inFile, outFile))
+                                return;
+                        }
+
+                    }
+
+                }
+            }
+            return;
+
+
+
+
+
+
+
+
+
             string inFileName = "";
             string baseDirectory = "out";
 
@@ -266,5 +597,45 @@ namespace arcserve
 
         }
 
+        public class StreamParser
+        {
+            protected Stream stream;
+
+            protected int historySize;
+            protected byte[] history;
+            protected int historyPtr = 0;
+
+            private int curByte;
+            private int curBitMask = 0x100;
+
+            public StreamParser(Stream stream, int historySize)
+            {
+                this.stream = stream;
+                this.historySize = historySize;
+                history = new byte[historySize];
+            }
+
+            protected int NextBit()
+            {
+                if (curBitMask > 0x80)
+                {
+                    curByte = stream.ReadByte();
+                    curBitMask = 0x1;
+                }
+                int ret = (curByte & curBitMask) != 0 ? 1 : 0;
+                curBitMask <<= 1;
+                return ret;
+            }
+
+            public int NextNumBits(int bits)
+            {
+                int num = 0;
+                for (int i = 0; i < bits; i++)
+                {
+                    num |= (NextBit() << i);
+                }
+                return num;
+            }
+        }
     }
 }
