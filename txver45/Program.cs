@@ -115,10 +115,10 @@ namespace txver45
 
                     string filePath = baseDirectory;
                     string[] dirArray = header.Name.Split("\\");
-                    string fileName = dirArray[^1];
+                    string fileName = Utils.ReplaceInvalidChars(dirArray[^1]);
                     for (int i = 0; i < dirArray.Length - 1; i++)
                     {
-                        filePath = Path.Combine(filePath, dirArray[i]);
+                        filePath = Path.Combine(filePath, Utils.ReplaceInvalidChars(dirArray[i]));
                     }
 
                     if (!dryRun)
@@ -171,10 +171,15 @@ namespace txver45
                             }
                             memStream.Seek(0, SeekOrigin.Begin);
 
-                            // TODO: uncompress if necessary
-
                             using var f = new FileStream(filePath, FileMode.Create, FileAccess.Write);
-                            memStream.WriteTo(f);
+                            if (compressed)
+                            {
+                                new TxDecompressor(memStream).DecompressTo(f);
+                            }
+                            else
+                            {
+                                memStream.WriteTo(f);
+                            }
                             f.Flush();
                         }
 
@@ -239,7 +244,6 @@ namespace txver45
                 {
                     Name = Name[3..];
                 }
-                Name = Utils.ReplaceInvalidChars(Name);
 
                 DosName = Name;
 
