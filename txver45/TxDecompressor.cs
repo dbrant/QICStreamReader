@@ -18,6 +18,54 @@ namespace txver45
             this.stream = stream;
         }
 
+        void dumpHistory()
+        {
+            using (var f = new FileStream("history.txt", FileMode.Create, FileAccess.Write))
+            {
+                var writer = new StreamWriter(f);
+
+                for (int i = 0; i < history.Length; i++)
+                {
+                    if (history[i] == null)
+                        break;
+
+
+                    var str = "";
+                    for (int j = 0; j < history[i].Count; j++)
+                    {
+                        if (history[i][j] > 0x20 && history[i][j] < 0x80)
+                        {
+                            str += (char)history[i][j];
+                        }
+                        else if (history[i][j] == 0x20)
+                        {
+                            str += "□";
+                        }
+                        else if (history[i][j] == 0x0D)
+                        {
+                            str += "┘";
+                        }
+                        else if (history[i][j] == 0x0A)
+                        {
+                            str += "╝";
+                        }
+                        else
+                        {
+                            str += " " + history[i][j].ToString("X2") + " ";
+                        }
+                    }
+
+                    writer.WriteLine(i.ToString("X2") + "\t" + str);
+
+                }
+
+                writer.Flush();
+            }
+        }
+
+
+
+
         void pushValue(int i)
         {
             pushValue(new List<byte> { (byte)i });
@@ -77,7 +125,7 @@ namespace txver45
 
                     if (offset < 0 || history[offset] == null)
                     {
-                        Console.WriteLine("Warning: invalid offset?");
+                        throw new ApplicationException("Warning: invalid offset?");
                     }
                     else
                     {
@@ -118,24 +166,46 @@ namespace txver45
         {
             int a, instr, offset;
 
-            while (true)
+            while (stream.Position < stream.Length)
             {
                 offset = NextNumBits(8);
                 instr = NextNumBits(4);
+
+                outStream.Flush();
+
+                long pos = outStream.Position;
+                if (pos > 0x59618)
+                {
+                    //Console.WriteLine(">>");
+                    //dumpHistory();
+                }
 
                 if (offset == 2 && instr < 2)
                 {
                     if (instr == 1)
                     {
                         // repeat the next number of literal bytes
-                        offset = Aligned() ? NextNumBits(8) : NextNumBits(4);
 
-                        // if offset is 0, then the actual number is the next byte
-                        if (offset == 0)
+                        if (Aligned())
                         {
                             offset = NextNumBits(8);
                         }
-                        else if (offset == 1)
+                        else
+                        {
+                            offset = NextNumBits(4);
+                            // if offset is 0, then the actual number is the next byte
+                            if (offset == 0)
+                            {
+                                offset = NextNumBits(8);
+                            }
+                        }
+                        // if offset is 0, then the actual number is 0x100
+                        if (offset == 0)
+                        {
+                            offset = 0x100;
+                        }
+
+                        if (offset == 1)
                         {
                             Console.WriteLine("Warning: offset seems wrong?");
                         }

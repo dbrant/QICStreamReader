@@ -58,6 +58,35 @@ namespace txver45
 
         static void Main(string[] args)
         {
+
+            /*
+            
+            using (var inFile = new FileStream("E:\\Desktop\\dos\\DOS\\RIPAINT.EXE", FileMode.Open, FileAccess.Read, FileShare.Read))
+            {
+                using (var outFile = new FileStream("E:\\Desktop\\foo.bin", FileMode.Create, FileAccess.Write))
+                {
+
+
+                    try
+                    {
+                        new TxDecompressor(inFile).DecompressTo(outFile);
+                    }
+                    catch (Exception ex)
+                    {
+                        Console.WriteLine(ex.ToString());
+                    }
+
+
+                    outFile.Flush();
+                }
+            }
+            return;
+            */
+
+
+
+
+
             string inFileName = "";
             string baseDirectory = "out";
 
@@ -107,12 +136,21 @@ namespace txver45
                     }
 
 
-
-                    int firstByte = stream.ReadByte();
-                    bool compressed = firstByte == 0;
-
-                    stream.Seek(-1, SeekOrigin.Current);
-
+                    bool compressed = false;
+                    {
+                        int byte1 = stream.ReadByte();
+                        int byte2 = stream.ReadByte();
+                        if (header.Size > 0x190)
+                        {
+                            compressed = byte1 == 0;
+                        }
+                        else
+                        {
+                            compressed = byte1 == 0 && ((byte2 & 0xf) == 1);
+                        }
+                        stream.Seek(-2, SeekOrigin.Current);
+                    }
+                    
                     string filePath = baseDirectory;
                     string[] dirArray = header.Name.Split("\\");
                     string fileName = Utils.ReplaceInvalidChars(dirArray[^1]);
@@ -143,16 +181,18 @@ namespace txver45
                             + header.Size.ToString() + " bytes - " + header.CreateDate.ToShortDateString());
 
                         long posBeforeRead = stream.Position;
+                        int bytesPerChunk = 0x200;
 
-                        // read the whole file into a memory buffer, so that we can pass it into the decompressor when ready.
-                        using (var memStream = new MemoryStream())
+                        if (compressed)
                         {
-                            int bytesPerChunk = 0x200;
-
+                            // read the whole file into a memory buffer, so that we can pass it into the decompressor when ready.
+                            using var memStream = new MemoryStream();
                             // initialize, subtracting the initial size of the header.
                             int bytesToRead = bytesPerChunk - FileHeader.HEADER_SIZE;
                             int bytesToWrite = 0;
-                            long bytesLeft = header.Size;
+                            // Make the total bytes overshoot by a good amount, because the compression was so poor
+                            // that it often made the compressed file take up more space than the original.
+                            long bytesLeft = header.Size * 4;
                             var bytes = new byte[bytesPerChunk];
 
                             while (bytesLeft > 0)
@@ -172,21 +212,45 @@ namespace txver45
                             memStream.Seek(0, SeekOrigin.Begin);
 
                             using var f = new FileStream(filePath, FileMode.Create, FileAccess.Write);
-                            if (compressed)
+                            try
                             {
                                 new TxDecompressor(memStream).DecompressTo(f);
                             }
-                            else
+                            catch (Exception ex)
                             {
-                                memStream.WriteTo(f);
+                                Console.WriteLine(ex.ToString());
+                            }
+                            f.Flush();
+                        }
+                        else
+                        {
+                            using var f = new FileStream(filePath, FileMode.Create, FileAccess.Write);
+                            // initialize, subtracting the initial size of the header.
+                            int bytesToRead = bytesPerChunk - FileHeader.HEADER_SIZE;
+                            int bytesToWrite = 0;
+                            long bytesLeft = header.Size;
+                            var bytes = new byte[bytesPerChunk];
+
+                            while (bytesLeft > 0)
+                            {
+                                stream.Read(bytes, 0, bytesToRead);
+                                bytesToWrite = bytesToRead - 2;
+                                bytesToRead = bytesPerChunk;
+
+                                if (bytesToWrite > bytesLeft)
+                                {
+                                    bytesToWrite = (int)bytesLeft;
+                                }
+                                f.Write(bytes, 0, bytesToWrite);
+
+                                bytesLeft -= bytesToWrite;
                             }
                             f.Flush();
                         }
 
-                        // Rewind the stream back to the beginning of the current file.
-                        // TODO: remove this when decompression is working.
                         if (compressed)
                         {
+                            // Rewind the stream back to the beginning of the current file.
                             stream.Seek(posBeforeRead, SeekOrigin.Begin);
                         }
 
