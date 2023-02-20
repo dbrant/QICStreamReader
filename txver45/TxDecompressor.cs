@@ -6,8 +6,37 @@ namespace txver45
     /// <summary>
     /// 
     /// Decompressor for tape images saved using the TXPLUS tool.
-    /// 
     /// Copyright Dmitry Brant, 2023.
+    ///
+    /// A few rough notes about the compression algorithm:
+    ///
+    /// * The algorithm is a sequence of "indices" and "instructions", one followed by another:
+    ///   [index][instruction][index][instruction]...
+    /// * Each index is 8 bits, and each instruction is 4 bits. The sequence of indices
+    ///   and instructions is packed into bytes, so the next index and/or instruction does not
+    ///   necessarily start on a byte boundary.
+    /// * Very importantly, the indices and instructions are stored in LSB-order in each byte.
+    ///   For example, take this sequence of bytes: 00 21 10
+    ///   - The first index is 00 (the first byte), and the first instruction is 1, because "1"
+    ///     is the low 4 bits of the second byte.
+    ///   - The second index is 02, because "2" is the next 4 bits of the second byte, and "0"
+    ///     is the low 4 bits of the third byte.
+    ///   - The second instruction is 1, because "1" is the high 4 bits of the third byte.
+    ///
+    /// * Depending on the instruction, the index has a different meaning:
+    ///   - Instruction 0: Take the "index" as a literal byte, to be output to the uncompressed
+    ///     stream. Store this byte in a new dictionary entry.
+    ///   - Instruction 1: Repeat byte(s), as dictated by the index:
+    ///     - Index 0: Indicates the start of a compressed stream. If this occurs in the middle
+    ///       of a compressed stream, indicates that the dictionary should be reset.
+    ///     - Index 1: Indicates the end of the compressed stream.
+    ///     - Index 2: Read the next byte, and then read that many more bytes literally from the
+    ///       compressed to the uncompressed stream. For each of these bytes, store it in a new
+    ///       dictionary entry.
+    ///     - Index >= 3: Subtract 3 from the index, and get the true index into the current
+    ///       dictionary. Repeat bytes from that dictionary entry, plus the first byte from the
+    ///       next dictionary entry. Store this sequence in a new dictionary entry, and output
+    ///       it to the uncompressed stream.
     /// 
     /// </summary>
     internal class TxDecompressor
