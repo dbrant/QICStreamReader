@@ -216,7 +216,7 @@ namespace arcserve
             var tempBytes = new byte[0x100];
             
 
-            using (var inFile = new FileStream("E:\\Desktop\\dos\\DOS\\COUNTRY.TXT", FileMode.Open, FileAccess.Read, FileShare.Read))
+            using (var inFile = new FileStream("E:\\Desktop\\dos\\DOS\\MWBACKUP.EXE", FileMode.Open, FileAccess.Read, FileShare.Read))
             {
                 using (var outFile = new FileStream("E:\\Desktop\\foo.bin", FileMode.Create, FileAccess.Write))
                 {
@@ -265,26 +265,9 @@ namespace arcserve
                             }
                             else
                             {
-                                // unknown
-                                Console.WriteLine(">>>> 2 : 1");
-
-                                //var list = history[histPtr - 4];
-
-                                var list = new List<byte>();
-                                for (int i = 0; i < 10; i++)
-                                {
-                                    list.Add((byte)'-');
-                                }
-                                
-                                
-                                for (int i = 0; i < list.Count; i++)
-                                {
-                                    outFile.WriteByte(list[i]);
-                                }
-                                pushValue(list);
-
-
-                                dumpHistory();
+                                // literal 02 byte
+                                outFile.WriteByte((byte)offset);
+                                pushValue((byte)offset);
                             }
 
                         }
