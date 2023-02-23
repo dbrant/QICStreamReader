@@ -38,6 +38,10 @@ namespace txver45
     ///       dictionary. Repeat bytes from that dictionary entry, plus the first byte from the
     ///       next dictionary entry. Store this sequence in a new dictionary entry, and output
     ///       it to the uncompressed stream.
+    ///   - Instruction >= 2:
+    ///     - Same as Instruction 1, but no special cases for Index, and now the Index is treated
+    ///       like this: take the Index, add (Instruction-1)*0x100 to it, then subtract 3.
+    ///     - Perform the same repetition rule as written for Instruction 1 / Index >= 3.
     /// 
     /// </summary>
     internal class TxDecompressor
