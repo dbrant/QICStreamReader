@@ -11,13 +11,21 @@ namespace QicUtils
             ALDC_1 = 9, ALDC_2 = 10, ALDC_4 = 11
         }
 
+        private readonly ALDCType aldcType;
+
         /// <summary>
-        /// Decompress data from one stream to another.
+        /// Decompress data from a compressed stream.
         /// </summary>
-        /// <param name="stream">Stream containing a single compression frame that's compressed using the QIC-122 algorithm.</param>
-        /// <param name="outStream">Stream to which uncompressed data will be written.</param>
-        public ALDCDecompressor(Stream stream, Stream outStream, ALDCType aldcType = ALDCType.ALDC_1)
-            : base(stream, (1 << (int)aldcType))
+        /// <param name="stream">Stream containing a single compression frame that's compressed using the ALDC algorithm.</param>
+        /// <param name="aldcType">The type of ALDC compression, as defined in QIC-154 A. Can be ALDC_1, ALDC_2, or ALDC_4,
+        /// which is basically just differently-sized history buffers.</param>
+        public ALDCDecompressor(Stream stream, ALDCType aldcType = ALDCType.ALDC_1)
+            : base(stream, 1 << (int)aldcType)
+        {
+            this.aldcType = aldcType;
+        }
+
+        public void DecompressTo(Stream outStream)
         {
             int historySizeMask = historySize - 1;
             int historySizeBits = (int)aldcType;
