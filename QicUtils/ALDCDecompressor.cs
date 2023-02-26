@@ -6,18 +6,21 @@ namespace QicUtils
 {
     public class ALDCDecompressor : Decompressor
     {
-        private const int HISTORY_SIZE_BITS = 9;
-        private const int HISTORY_SIZE = 1 << HISTORY_SIZE_BITS;
+        public enum ALDCType
+        {
+            ALDC_1 = 9, ALDC_2 = 10, ALDC_4 = 11
+        }
 
         /// <summary>
         /// Decompress data from one stream to another.
         /// </summary>
         /// <param name="stream">Stream containing a single compression frame that's compressed using the QIC-122 algorithm.</param>
         /// <param name="outStream">Stream to which uncompressed data will be written.</param>
-        public ALDCDecompressor(Stream stream, Stream outStream)
-            : base(stream, HISTORY_SIZE)
+        public ALDCDecompressor(Stream stream, Stream outStream, ALDCType aldcType = ALDCType.ALDC_1)
+            : base(stream, (1 << (int)aldcType))
         {
-            int historySizeMask = HISTORY_SIZE - 1;
+            int historySizeMask = historySize - 1;
+            int historySizeBits = (int)aldcType;
 
             int type, offset, length;
             byte b;
@@ -32,13 +35,13 @@ namespace QicUtils
                     outStream.WriteByte(b);
                     history[historyPtr] = b;
                     historyPtr++;
-                    historyPtr %= HISTORY_SIZE;
+                    historyPtr %= historySize;
                 }
                 else
                 {
                     // copy ptr
                     length = NextLength();
-                    offset = NextNumBits(HISTORY_SIZE_BITS);
+                    offset = NextNumBits(historySizeBits);
 
                     if (length >= 270)
                     {
@@ -54,7 +57,7 @@ namespace QicUtils
                         outStream.WriteByte(b);
                         history[historyPtr] = b;
                         historyPtr++;
-                        historyPtr %= HISTORY_SIZE;
+                        historyPtr %= historySize;
                     }
                 }
             }
