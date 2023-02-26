@@ -153,7 +153,7 @@ namespace arcadabackup2
                                 {
                                     try
                                     {
-                                        new QicUtils.Qic122Decompressor(new MemoryStream(bytes), outStream);
+                                        new QicUtils.Qic122Decompressor(new MemoryStream(bytes)).DecompressTo(outStream);
                                     }
                                     catch (Exception ex)
                                     {

@@ -14,12 +14,15 @@ namespace QicUtils
         private const int HISTORY_SIZE = 0x800;
 
         /// <summary>
-        /// Decompress data from one stream to another.
+        /// Decompress data from a compressed stream.
         /// </summary>
         /// <param name="stream">Stream containing a single compression frame that's compressed using the QIC-122 algorithm.</param>
-        /// <param name="outStream">Stream to which uncompressed data will be written.</param>
-        public Qic122Decompressor(Stream stream, Stream outStream)
+        public Qic122Decompressor(Stream stream)
             : base(stream, HISTORY_SIZE)
+        {
+        }
+
+        public void DecompressTo(Stream outStream)
         {
             int historySizeMask = HISTORY_SIZE - 1;
 
