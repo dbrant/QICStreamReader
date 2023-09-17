@@ -46,17 +46,17 @@ namespace xenixold
         }
 
 
-        class XenixPartition
+        private class XenixPartition
         {
             public const int BLOCK_SIZE = 0x400;
 
             private Stream stream;
             private long partitionBaseOffset;
             private SuperBlock superBlock;
-            private List<CylinderGroup> cylinderGroups = new List<CylinderGroup>();
+            private List<CylinderGroup> cylinderGroups = new();
             private INode rootNode;
 
-            private Dictionary<int, INode> inodeCache = new Dictionary<int, INode>();
+            private Dictionary<int, INode> inodeCache = new();
 
             public XenixPartition(Stream stream, long baseOffset)
             {
@@ -306,7 +306,7 @@ namespace xenixold
             public int uId;
             public int gId;
             public long Size { get; }
-            public List<int> Blocks = new List<int>();
+            public List<int> Blocks = new();
             public DateTime AccessTime { get; }
             public DateTime ModifyTime { get; }
             public DateTime CreateTime { get; }
@@ -315,7 +315,7 @@ namespace xenixold
 
             // Gets filled in lazily when directories are parsed:
             public string Name = "";
-            public List<INode> Children = new List<INode>();
+            public List<INode> Children = new();
 
             public INode(int id, Stream stream, long partitionBaseOffset)
             {
