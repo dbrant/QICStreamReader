@@ -1,7 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.IO;
-using System.Reflection.PortableExecutable;
 using System.Text;
 
 /// <summary>
@@ -13,22 +12,16 @@ namespace xenixold
 {
     class Program
     {
-
-
-
         static void Main(string[] args)
         {
             string inFileName = "0.bin";
-            string outFileName = "out.bin";
             string baseDirectory = "out";
             long initialOffset = 0;
-            var tempBytes = new byte[0x10000];
 
             for (int i = 0; i < args.Length; i++)
             {
                 if (args[i] == "-f") { inFileName = args[i + 1]; }
                 else if (args[i] == "-d") { baseDirectory = args[i + 1]; }
-                else if (args[i] == "-o") { outFileName = args[i + 1]; }
                 else if (args[i] == "--offset") { initialOffset = Convert.ToInt64(args[i + 1]); }
             }
 
@@ -36,13 +29,7 @@ namespace xenixold
             {
                 using (var stream = new FileStream(inFileName, FileMode.Open, FileAccess.Read))
                 {
-                    if (initialOffset > 0)
-                    {
-                        stream.Seek(initialOffset, SeekOrigin.Begin);
-                    }
-
-                    var partition = new XenixPartition(stream, baseDirectory);
-
+                    var partition = new XenixPartition(stream, initialOffset, baseDirectory);
                 }
             }
             catch (Exception e)
@@ -54,25 +41,37 @@ namespace xenixold
 
         class XenixPartition
         {
-            public const int partitionStart = 0xD04400; // 0x2400; // <-- considered zone 0
+            private long partitionBaseOffset;
             public const int zoneSize = 0x400;
-
-            //public List<int> inodeTableOffsets = new List<int>() { 0x3000, 0x303000, 0x603000 };
-            //public List<int> inodeTableCounts = new List<int>() { 0x5e0, 0x5e0, 0x5e0 };
-
-            public List<int> inodeTableOffsets = new List<int>() { 0xD05000, 0x102E800, 0x1358000, 0x1681800, 0x19AB000, 0x1CD4800, 0x1FFE000 };
-            public List<int> inodeTableCounts = new List<int>() { 0x630, 0x630, 0x630, 0x630, 0x630, 0x630, 0x620 };
 
             public Dictionary<int, INode> inodeCache = new Dictionary<int, INode>();
 
             private Stream stream;
             private string baseDirectory;
 
+            private SuperBlock superBlock;
+            private List<CylinderGroup> cylinderGroups = new List<CylinderGroup>();
 
-            public XenixPartition(Stream stream, string baseDirectory)
+            private byte[] zoneBytes = new byte[zoneSize];
+
+
+            public XenixPartition(Stream stream, long baseOffset, string baseDirectory)
             {
                 this.stream = stream;
+                this.partitionBaseOffset = baseOffset;
                 this.baseDirectory = baseDirectory;
+
+                ReadZone(1, zoneBytes);
+                superBlock = new SuperBlock(zoneBytes);
+
+                for (int i = 0; i < superBlock.numCylingerGroups; i++)
+                {
+                    ReadZone(2 + (i * superBlock.blocksPerCylinderGroup), zoneBytes);
+                    var cg = new CylinderGroup(zoneBytes);
+                    cylinderGroups.Add(cg);
+                }
+
+
 
                 var rootNode = ReadINode(stream, 2);
 
@@ -92,67 +91,57 @@ namespace xenixold
                         continue;
                     }
 
+                    Directory.CreateDirectory(curPath);
 
-                    //c215g.c
+                    string filePath = Path.Combine(curPath, node.Name);
 
-                    //byte[] bytes = ReadContents(stream, node);
-
-                    //if (node.Name == "c215g.c")
+                    while (File.Exists(filePath))
                     {
-                        Directory.CreateDirectory(curPath);
-
-                        string filePath = Path.Combine(curPath, node.Name);
-
-                        while (File.Exists(filePath))
-                        {
-                            Console.WriteLine("Warning: file already exists (amending name): " + filePath);
-                            filePath += "_";
-                        }
-
-                        Console.WriteLine(stream.Position.ToString("X") + ": " + filePath + " - "
-                        + node.Size.ToString() + " bytes - " + node.ModifyTime.ToShortDateString());
-
-                        using (var f = new FileStream(filePath, FileMode.Create, FileAccess.Write))
-                        {
-                            byte[] bytes = ReadContents(stream, node);
-                            f.Write(bytes);
-                            f.Flush();
-                        }
-
-                        File.SetCreationTime(filePath, node.CreateTime);
-                        File.SetLastWriteTime(filePath, node.ModifyTime);
+                        Console.WriteLine("Warning: file already exists (amending name): " + filePath);
+                        filePath += "_";
                     }
+
+                    Console.WriteLine(stream.Position.ToString("X") + ": " + filePath + " - "
+                    + node.Size.ToString() + " bytes - " + node.ModifyTime.ToShortDateString());
+
+                    using (var f = new FileStream(filePath, FileMode.Create, FileAccess.Write))
+                    {
+                        byte[] bytes = ReadContents(stream, node);
+                        f.Write(bytes);
+                        f.Flush();
+                    }
+
+                    File.SetCreationTime(filePath, node.CreateTime);
+                    File.SetLastWriteTime(filePath, node.ModifyTime);
                 }
             }
 
 
+            void ReadZone(int num, byte[] bytes, int bytesOffset = 0, int count = zoneSize)
+            {
+                stream.Seek(partitionBaseOffset + (num * zoneSize), SeekOrigin.Begin);
+                stream.Read(bytes, bytesOffset, count);
+            }
 
             INode ReadINode(Stream stream, int num)
             {
                 if (inodeCache.ContainsKey(num)) return inodeCache[num];
 
-                long offset = 0;
+                int actualNum = num - 1;
 
-                int actualNum = num;
+                // in which cylinder group will this inode be found?
+                int cg = actualNum / superBlock.inodesPerCylinderGroup;
+                int modNum = actualNum % superBlock.inodesPerCylinderGroup;
 
-                for (int i = 0; i < inodeTableCounts.Count; i++)
+                if (cg >= cylinderGroups.Count)
                 {
-                    if (actualNum < inodeTableCounts[i])
-                    {
-                        offset = inodeTableOffsets[i];
-                        break;
-                    }
-                    actualNum -= inodeTableCounts[i];
+                    Console.WriteLine(">> Warning: inode not found within groups.");
                 }
 
-                if (offset == 0)
-                {
-                    Console.WriteLine(">> Warning: inode not found within tables.");
-                }
-
-                offset = offset + ((actualNum - 1) * INode.StructLength);
+                long offset = partitionBaseOffset + (cylinderGroups[cg].firstINodeBlockOffset * zoneSize) + (modNum * INode.StructLength);
                 stream.Seek(offset, SeekOrigin.Begin);
-                var inode = new INode(num, stream, partitionStart);
+
+                var inode = new INode(num, stream, partitionBaseOffset);
                 inodeCache[num] = inode;
                 return inode;
             }
@@ -183,7 +172,7 @@ namespace xenixold
 
                     parentNode.Children.Add(inode);
 
-                    Console.WriteLine(">> " + inode.Mode.ToString("X4") + "\t\t" + inode.Name);
+                    // Console.WriteLine(">> " + inode.Mode.ToString("X4") + "\t\t" + inode.Name);
 
                     if (inode.IsDirectory)
                     {
@@ -204,10 +193,6 @@ namespace xenixold
 
                 for (int z = 0; z < inode.Zones.Count; z++)
                 {
-                    long offset = partitionStart + (inode.Zones[z]) * zoneSize;
-
-                    stream.Seek(offset, SeekOrigin.Begin);
-
                     int bytesToRead = zoneSize;
                     int bytesLeft = (int)inode.Size - bytesRead;
                     if (bytesToRead > bytesLeft)
@@ -215,7 +200,8 @@ namespace xenixold
                         bytesToRead = bytesLeft;
                     }
 
-                    stream.Read(bytes, bytesRead, bytesToRead);
+                    ReadZone(inode.Zones[z], bytes, bytesRead, bytesToRead);
+
                     bytesRead += bytesToRead;
 
                     if (bytesLeft <= 0)
@@ -227,6 +213,86 @@ namespace xenixold
         }
 
 
+        private class SuperBlock
+        {
+            public string Name;
+            public string PackName;
+            public int totalDataBlocks;
+            public int blocksPerCylinderGroup;
+            public int maxBlock;
+            public int inodesPerCylinderGroup;
+            public int maxINumber;
+            public DateTime lastModifiedTime;
+            public int modifiedFlag;
+            public int readOnlyFlag;
+            public int cleanUnmount;
+            public int typeAndVersion;
+            public int containsFNewCg;
+            public int containsSNewCg;
+            public int numFreeDataBlocks;
+            public int numFreeINodes;
+            public int numDirectories;
+            public int nativeExtentSize;
+            public int numCylingerGroups;
+            public int nextCylinderGroupToSearch;
+
+            public SuperBlock(byte[] bytes)
+            {
+                int bytePtr = 0;
+                Name = QicUtils.Utils.CleanString(Encoding.ASCII.GetString(bytes, bytePtr, 6)); bytePtr += 6;
+                PackName = QicUtils.Utils.CleanString(Encoding.ASCII.GetString(bytes, bytePtr, 6)); bytePtr += 6;
+                totalDataBlocks = (int)BitConverter.ToUInt32(bytes, bytePtr); bytePtr += 4;
+                blocksPerCylinderGroup = BitConverter.ToUInt16(bytes, bytePtr); bytePtr += 2;
+                maxBlock = (int)BitConverter.ToUInt32(bytes, bytePtr); bytePtr += 4;
+                inodesPerCylinderGroup = BitConverter.ToUInt16(bytes, bytePtr); bytePtr += 2;
+                maxINumber = BitConverter.ToUInt16(bytes, bytePtr); bytePtr += 2;
+                lastModifiedTime = QicUtils.Utils.DateTimeFromTimeT(BitConverter.ToUInt32(bytes, bytePtr)); bytePtr += 4;
+                modifiedFlag = bytes[bytePtr++];
+                readOnlyFlag = bytes[bytePtr++];
+                cleanUnmount = bytes[bytePtr++];
+                typeAndVersion = bytes[bytePtr++];
+                containsFNewCg = BitConverter.ToUInt16(bytes, bytePtr); bytePtr += 2;
+                containsSNewCg = BitConverter.ToUInt16(bytes, bytePtr); bytePtr += 2;
+                numFreeDataBlocks = (int)BitConverter.ToUInt32(bytes, bytePtr); bytePtr += 4;
+                numFreeINodes = BitConverter.ToUInt16(bytes, bytePtr); bytePtr += 2;
+                numDirectories = BitConverter.ToUInt16(bytes, bytePtr); bytePtr += 2;
+                nativeExtentSize = bytes[bytePtr++];
+                numCylingerGroups = bytes[bytePtr++];
+                nextCylinderGroupToSearch = bytes[bytePtr++];
+                // ignore global policy information
+            }
+        }
+
+        private class CylinderGroup
+        {
+            public int firstDataBlockOffset;
+            public int firstINodeBlockOffset;
+            public int totalDataBlocks;
+            public int nextFreeINode;
+            public int sequenceNum;
+            public int curExtent;
+            public int lowAt;
+            public int highAt;
+            public int nextBlockForAlloc;
+            public int iLock;
+
+            public CylinderGroup(byte[] bytes)
+            {
+                int bytePtr = 0;
+                firstDataBlockOffset = (int)BitConverter.ToUInt32(bytes, bytePtr); bytePtr += 4;
+                firstINodeBlockOffset = (int)BitConverter.ToUInt32(bytes, bytePtr); bytePtr += 4;
+                totalDataBlocks = BitConverter.ToUInt16(bytes, bytePtr); bytePtr += 2;
+                nextFreeINode = BitConverter.ToUInt16(bytes, bytePtr); bytePtr += 2;
+                sequenceNum = bytes[bytePtr++];
+                curExtent = bytes[bytePtr++];
+                lowAt = BitConverter.ToUInt16(bytes, bytePtr); bytePtr += 2;
+                highAt = BitConverter.ToUInt16(bytes, bytePtr); bytePtr += 2;
+                nextBlockForAlloc = BitConverter.ToUInt16(bytes, bytePtr); bytePtr += 2;
+                iLock = bytes[bytePtr++];
+
+                // ignore allocation bitmap
+            }
+        }
 
         private class INode
         {
@@ -249,7 +315,7 @@ namespace xenixold
             public string Name = "";
             public List<INode> Children = new List<INode>();
 
-            public INode(int id, Stream stream, long partitionStart)
+            public INode(int id, Stream stream, long partitionBaseOffset)
             {
                 this.id = id;
                 byte[] bytes = new byte[StructLength];
@@ -284,7 +350,7 @@ namespace xenixold
                 if (zonePtr != 0)
                 {
                     byte[] blockBytes = new byte[XenixPartition.zoneSize];
-                    stream.Seek(partitionStart + (zonePtr * XenixPartition.zoneSize), SeekOrigin.Begin);
+                    stream.Seek(partitionBaseOffset + (zonePtr * XenixPartition.zoneSize), SeekOrigin.Begin);
                     stream.Read(blockBytes, 0, blockBytes.Length);
                     for (int i = 0; i < blockBytes.Length / 4; i++)
                     {
@@ -302,7 +368,6 @@ namespace xenixold
 
                 // align to 16 bits.
                 bytePtr++;
-
 
                 AccessTime = QicUtils.Utils.DateTimeFromTimeT(BitConverter.ToUInt32(bytes, bytePtr)); bytePtr += 4;
                 ModifyTime = QicUtils.Utils.DateTimeFromTimeT(BitConverter.ToUInt32(bytes, bytePtr)); bytePtr += 4;
