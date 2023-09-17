@@ -48,6 +48,10 @@ namespace QicUtils
                     if (offset == 0) { break; }
 
                     length = NextLength();
+                    if (length > 0x100000)
+                    {
+                        throw new ApplicationException("Possibly corrupt data in compressed stream.");
+                    }
 
                     for (int i = 0; i < length; i++)
                     {
@@ -82,6 +86,10 @@ namespace QicUtils
                 chunk = NextNumBits(4);
                 length += chunk;
                 if (chunk < 0xF) { break; }
+                if (length > 0x100000)
+                {
+                    throw new ApplicationException("Possibly corrupt data in compressed stream.");
+                }
             }
             return length;
         }
