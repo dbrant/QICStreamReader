@@ -5,7 +5,13 @@ using System.Text;
 
 /// <summary>
 /// 
-/// Decoder for tape images written using the SAVLIB command on AS/400 systems.
+/// Decoder/extractor of old Xenix filesystems.
+/// 
+/// 
+/// Partition offsets observed so far:
+/// 0x2400
+/// 0xD04400
+/// 
 /// 
 /// </summary>
 namespace xenixold
@@ -29,7 +35,8 @@ namespace xenixold
             {
                 using (var stream = new FileStream(inFileName, FileMode.Open, FileAccess.Read))
                 {
-                    var partition = new XenixPartition(stream, initialOffset, baseDirectory);
+                    var partition = new XenixPartition(stream, initialOffset);
+                    partition.UnpackFiles(baseDirectory);
                 }
             }
             catch (Exception e)
@@ -41,47 +48,42 @@ namespace xenixold
 
         class XenixPartition
         {
-            private long partitionBaseOffset;
-            public const int zoneSize = 0x400;
-
-            public Dictionary<int, INode> inodeCache = new Dictionary<int, INode>();
+            public const int BLOCK_SIZE = 0x400;
 
             private Stream stream;
-            private string baseDirectory;
-
+            private long partitionBaseOffset;
             private SuperBlock superBlock;
             private List<CylinderGroup> cylinderGroups = new List<CylinderGroup>();
+            private INode rootNode;
 
-            private byte[] zoneBytes = new byte[zoneSize];
+            private Dictionary<int, INode> inodeCache = new Dictionary<int, INode>();
 
-
-            public XenixPartition(Stream stream, long baseOffset, string baseDirectory)
+            public XenixPartition(Stream stream, long baseOffset)
             {
                 this.stream = stream;
                 this.partitionBaseOffset = baseOffset;
-                this.baseDirectory = baseDirectory;
 
-                ReadZone(1, zoneBytes);
-                superBlock = new SuperBlock(zoneBytes);
+                byte[] blockBytes = new byte[BLOCK_SIZE];
+                ReadBlock(1, blockBytes);
+                superBlock = new SuperBlock(blockBytes);
 
                 for (int i = 0; i < superBlock.numCylingerGroups; i++)
                 {
-                    ReadZone(2 + (i * superBlock.blocksPerCylinderGroup), zoneBytes);
-                    var cg = new CylinderGroup(zoneBytes);
+                    ReadBlock(2 + (i * superBlock.blocksPerCylinderGroup), blockBytes);
+                    var cg = new CylinderGroup(blockBytes);
                     cylinderGroups.Add(cg);
                 }
 
-
-
-                var rootNode = ReadINode(stream, 2);
-
+                rootNode = ReadINode(stream, 2);
                 FillChildren(stream, rootNode, 0);
-
-                UnpackFiles(rootNode, baseDirectory);
-
             }
 
-            void UnpackFiles(INode parentNode, string curPath)
+            public void UnpackFiles(string basePath)
+            {
+                UnpackFiles(rootNode, basePath);
+            }
+
+            private void UnpackFiles(INode parentNode, string curPath)
             {
                 foreach (var node in parentNode.Children)
                 {
@@ -106,7 +108,7 @@ namespace xenixold
 
                     using (var f = new FileStream(filePath, FileMode.Create, FileAccess.Write))
                     {
-                        byte[] bytes = ReadContents(stream, node);
+                        byte[] bytes = ReadContents(node);
                         f.Write(bytes);
                         f.Flush();
                     }
@@ -117,13 +119,13 @@ namespace xenixold
             }
 
 
-            void ReadZone(int num, byte[] bytes, int bytesOffset = 0, int count = zoneSize)
+            private void ReadBlock(int num, byte[] bytes, int bytesOffset = 0, int count = BLOCK_SIZE)
             {
-                stream.Seek(partitionBaseOffset + (num * zoneSize), SeekOrigin.Begin);
+                stream.Seek(partitionBaseOffset + (num * BLOCK_SIZE), SeekOrigin.Begin);
                 stream.Read(bytes, bytesOffset, count);
             }
 
-            INode ReadINode(Stream stream, int num)
+            private INode ReadINode(Stream stream, int num)
             {
                 if (inodeCache.ContainsKey(num)) return inodeCache[num];
 
@@ -138,7 +140,7 @@ namespace xenixold
                     Console.WriteLine(">> Warning: inode not found within groups.");
                 }
 
-                long offset = partitionBaseOffset + (cylinderGroups[cg].firstINodeBlockOffset * zoneSize) + (modNum * INode.StructLength);
+                long offset = partitionBaseOffset + (cylinderGroups[cg].firstINodeBlockOffset * BLOCK_SIZE) + (modNum * INode.StructLength);
                 stream.Seek(offset, SeekOrigin.Begin);
 
                 var inode = new INode(num, stream, partitionBaseOffset);
@@ -146,13 +148,13 @@ namespace xenixold
                 return inode;
             }
 
-            void FillChildren(Stream stream, INode parentNode, int level)
+            private void FillChildren(Stream stream, INode parentNode, int level)
             {
                 if (level > 64)
                 {
                     throw new ApplicationException("descending too far, possibly circular reference.");
                 }
-                var contents = ReadContents(stream, parentNode);
+                var contents = ReadContents(parentNode);
 
                 int numDirEntries = (int)contents.Length / 0x10;
 
@@ -181,7 +183,7 @@ namespace xenixold
                 }
             }
 
-            byte[] ReadContents(Stream stream, INode inode)
+            private byte[] ReadContents(INode inode)
             {
                 if (inode.Size > 0x10000000)
                 {
@@ -191,16 +193,16 @@ namespace xenixold
                 byte[] bytes = new byte[inode.Size];
                 int bytesRead = 0;
 
-                for (int z = 0; z < inode.Zones.Count; z++)
+                for (int z = 0; z < inode.Blocks.Count; z++)
                 {
-                    int bytesToRead = zoneSize;
+                    int bytesToRead = BLOCK_SIZE;
                     int bytesLeft = (int)inode.Size - bytesRead;
                     if (bytesToRead > bytesLeft)
                     {
                         bytesToRead = bytesLeft;
                     }
 
-                    ReadZone(inode.Zones[z], bytes, bytesRead, bytesToRead);
+                    ReadBlock(inode.Blocks[z], bytes, bytesRead, bytesToRead);
 
                     bytesRead += bytesToRead;
 
@@ -304,7 +306,7 @@ namespace xenixold
             public int uId;
             public int gId;
             public long Size { get; }
-            public List<int> Zones = new List<int>();
+            public List<int> Blocks = new List<int>();
             public DateTime AccessTime { get; }
             public DateTime ModifyTime { get; }
             public DateTime CreateTime { get; }
@@ -331,40 +333,52 @@ namespace xenixold
                 Size = BitConverter.ToUInt32(bytes, bytePtr); bytePtr += 4;
 
                 // direct blocks
-                int zone;
+                int block;
                 for (int i = 0; i < 10; i++)
                 {
-                    zone = bytes[bytePtr++];
-                    zone |= (bytes[bytePtr++] << 8);
-                    zone |= (bytes[bytePtr++] << 16);
-                    if (zone != 0)
+                    block = bytes[bytePtr++];
+                    block |= (bytes[bytePtr++] << 8);
+                    block |= (bytes[bytePtr++] << 16);
+                    if (block != 0)
                     {
-                        Zones.Add(zone);
+                        Blocks.Add(block);
                     }
                 }
 
                 // indirect blocks
-                int zonePtr = bytes[bytePtr++];
-                zonePtr |= (bytes[bytePtr++] << 8);
-                zonePtr |= (bytes[bytePtr++] << 16);
-                if (zonePtr != 0)
+                int blockPtr = bytes[bytePtr++];
+                blockPtr |= (bytes[bytePtr++] << 8);
+                blockPtr |= (bytes[bytePtr++] << 16);
+                if (blockPtr != 0)
                 {
-                    byte[] blockBytes = new byte[XenixPartition.zoneSize];
-                    stream.Seek(partitionBaseOffset + (zonePtr * XenixPartition.zoneSize), SeekOrigin.Begin);
+                    byte[] blockBytes = new byte[XenixPartition.BLOCK_SIZE];
+                    stream.Seek(partitionBaseOffset + (blockPtr * XenixPartition.BLOCK_SIZE), SeekOrigin.Begin);
                     stream.Read(blockBytes, 0, blockBytes.Length);
                     for (int i = 0; i < blockBytes.Length / 4; i++)
                     {
-                        zone = (int)BitConverter.ToUInt32(blockBytes, i * 4);
-                        if (zone <= 0)
+                        block = (int)BitConverter.ToUInt32(blockBytes, i * 4);
+                        if (block <= 0)
                             break;
 
-                        Zones.Add(zone);
+                        Blocks.Add(block);
                     }
                 }
 
-                //TODO: handle double and triple indirect blocks?
-                bytePtr += 3;
-                bytePtr += 3;
+                blockPtr = bytes[bytePtr++];
+                blockPtr |= (bytes[bytePtr++] << 8);
+                blockPtr |= (bytes[bytePtr++] << 16);
+                if (blockPtr != 0)
+                {
+                    Console.WriteLine("FIXME: Add support for double indirect blocks.");
+                }
+
+                blockPtr = bytes[bytePtr++];
+                blockPtr |= (bytes[bytePtr++] << 8);
+                blockPtr |= (bytes[bytePtr++] << 16);
+                if (blockPtr != 0)
+                {
+                    Console.WriteLine("FIXME: Add support for triple indirect blocks.");
+                }
 
                 // align to 16 bits.
                 bytePtr++;
