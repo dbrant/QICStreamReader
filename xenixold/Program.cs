@@ -369,7 +369,27 @@ namespace xenixold
                 blockPtr |= (bytes[bytePtr++] << 16);
                 if (blockPtr != 0)
                 {
-                    Console.WriteLine("FIXME: Add support for double indirect blocks.");
+                    byte[] iBlockBytes = new byte[XenixPartition.BLOCK_SIZE];
+                    stream.Seek(partitionBaseOffset + (blockPtr * XenixPartition.BLOCK_SIZE), SeekOrigin.Begin);
+                    stream.Read(iBlockBytes, 0, iBlockBytes.Length);
+                    for (int b = 0; b < iBlockBytes.Length / 4; b++)
+                    {
+                        var iblock = (int)BitConverter.ToUInt32(iBlockBytes, b * 4);
+                        if (iblock <= 0)
+                            break;
+
+                        byte[] blockBytes = new byte[XenixPartition.BLOCK_SIZE];
+                        stream.Seek(partitionBaseOffset + (iblock * XenixPartition.BLOCK_SIZE), SeekOrigin.Begin);
+                        stream.Read(blockBytes, 0, blockBytes.Length);
+                        for (int i = 0; i < blockBytes.Length / 4; i++)
+                        {
+                            block = (int)BitConverter.ToUInt32(blockBytes, i * 4);
+                            if (block <= 0)
+                                break;
+
+                            Blocks.Add(block);
+                        }
+                    }
                 }
 
                 blockPtr = bytes[bytePtr++];
