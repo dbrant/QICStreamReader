@@ -156,5 +156,14 @@ namespace QicUtils
         {
             return BitConverter.IsLittleEndian ? ConvEndian(val) : val;
         }
+
+        public static uint XenixLong(byte[] bytes, int offset)
+        {
+            uint temp = (uint)bytes[offset] << 16;
+            temp |= (uint)bytes[offset + 1] << 24;
+            temp |= (uint)bytes[offset + 2];
+            temp |= (uint)bytes[offset + 3] << 8;
+            return temp;
+        }
     }
 }
