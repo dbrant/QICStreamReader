@@ -39,7 +39,9 @@ Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "qicstreamv4", "qicstreamv4\
 EndProject
 Project("{D954291E-2A0B-460D-934E-DC6B0785DB48}") = "QicUtils", "QicUtils\QicUtils.shproj", "{A4FD7512-D2FB-4FEB-9F09-C1998694CAAC}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "xenixold", "xenixold\xenixold.csproj", "{EE252405-106E-41B6-B054-43D5D765191C}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "xenixold", "xenixold\xenixold.csproj", "{EE252405-106E-41B6-B054-43D5D765191C}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "xenixv3", "xenixv3\xenixv3.csproj", "{FCB76AFC-D7A5-4AFC-B412-DD7C37D010E8}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
@@ -267,6 +269,18 @@ Global
 		{EE252405-106E-41B6-B054-43D5D765191C}.Release|x64.Build.0 = Release|Any CPU
 		{EE252405-106E-41B6-B054-43D5D765191C}.Release|x86.ActiveCfg = Release|Any CPU
 		{EE252405-106E-41B6-B054-43D5D765191C}.Release|x86.Build.0 = Release|Any CPU
+		{FCB76AFC-D7A5-4AFC-B412-DD7C37D010E8}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{FCB76AFC-D7A5-4AFC-B412-DD7C37D010E8}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{FCB76AFC-D7A5-4AFC-B412-DD7C37D010E8}.Debug|x64.ActiveCfg = Debug|Any CPU
+		{FCB76AFC-D7A5-4AFC-B412-DD7C37D010E8}.Debug|x64.Build.0 = Debug|Any CPU
+		{FCB76AFC-D7A5-4AFC-B412-DD7C37D010E8}.Debug|x86.ActiveCfg = Debug|Any CPU
+		{FCB76AFC-D7A5-4AFC-B412-DD7C37D010E8}.Debug|x86.Build.0 = Debug|Any CPU
+		{FCB76AFC-D7A5-4AFC-B412-DD7C37D010E8}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{FCB76AFC-D7A5-4AFC-B412-DD7C37D010E8}.Release|Any CPU.Build.0 = Release|Any CPU
+		{FCB76AFC-D7A5-4AFC-B412-DD7C37D010E8}.Release|x64.ActiveCfg = Release|Any CPU
+		{FCB76AFC-D7A5-4AFC-B412-DD7C37D010E8}.Release|x64.Build.0 = Release|Any CPU
+		{FCB76AFC-D7A5-4AFC-B412-DD7C37D010E8}.Release|x86.ActiveCfg = Release|Any CPU
+		{FCB76AFC-D7A5-4AFC-B412-DD7C37D010E8}.Release|x86.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
@@ -294,5 +308,6 @@ Global
 		QicUtils\QicUtils.projitems*{cf664fcf-fd1d-4a7d-8454-5671a575ed40}*SharedItemsImports = 5
 		QicUtils\QicUtils.projitems*{ee252405-106e-41b6-b054-43d5d765191c}*SharedItemsImports = 5
 		QicUtils\QicUtils.projitems*{ef3d9d1f-c8cd-416c-8de4-a9f0de94297b}*SharedItemsImports = 5
+		QicUtils\QicUtils.projitems*{fcb76afc-d7a5-4afc-b412-dd7c37d010e8}*SharedItemsImports = 5
 	EndGlobalSection
 EndGlobal
