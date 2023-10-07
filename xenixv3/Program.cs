@@ -20,7 +20,7 @@ using System.Text;
 /// 
 /// 
 /// </summary>
-namespace xenixold
+namespace xenixv3
 {
     class Program
     {
@@ -211,49 +211,39 @@ namespace xenixold
         {
             public string Name;
             public string PackName;
-            public int totalDataBlocks;
-            public int blocksPerCylinderGroup;
-            public int maxBlock;
-            public int inodesPerCylinderGroup;
-            public int maxINumber;
+
+            public int totalINodeBlocks;
+            public int totalVolumeBlocks;
             public DateTime lastModifiedTime;
-            public int modifiedFlag;
-            public int readOnlyFlag;
-            public int cleanUnmount;
-            public int typeAndVersion;
-            public int containsFNewCg;
-            public int containsSNewCg;
             public int numFreeDataBlocks;
             public int numFreeINodes;
-            public int numDirectories;
-            public int nativeExtentSize;
-            public int numCylingerGroups;
-            public int nextCylinderGroupToSearch;
+            public int magic;
+            public int fsType;
 
             public SuperBlock(byte[] bytes)
             {
                 int bytePtr = 0;
-                Name = QicUtils.Utils.CleanString(Encoding.ASCII.GetString(bytes, bytePtr, 6)); bytePtr += 6;
-                PackName = QicUtils.Utils.CleanString(Encoding.ASCII.GetString(bytes, bytePtr, 6)); bytePtr += 6;
-                totalDataBlocks = (int)Utils.XenixLong(bytes, bytePtr); bytePtr += 4;
-                blocksPerCylinderGroup = BitConverter.ToUInt16(bytes, bytePtr); bytePtr += 2;
-                maxBlock = (int)Utils.XenixLong(bytes, bytePtr); bytePtr += 4;
-                inodesPerCylinderGroup = BitConverter.ToUInt16(bytes, bytePtr); bytePtr += 2;
-                maxINumber = BitConverter.ToUInt16(bytes, bytePtr); bytePtr += 2;
+
+                totalINodeBlocks = BitConverter.ToUInt16(bytes, bytePtr); bytePtr += 2;
+                totalVolumeBlocks = (int)Utils.XenixLong(bytes, bytePtr); bytePtr += 4;
+
+                // ...free block list...
+                // ...free inode list...
+
+                bytePtr = 0x19E;
                 lastModifiedTime = QicUtils.Utils.DateTimeFromTimeT(Utils.XenixLong(bytes, bytePtr)); bytePtr += 4;
-                modifiedFlag = bytes[bytePtr++];
-                readOnlyFlag = bytes[bytePtr++];
-                cleanUnmount = bytes[bytePtr++];
-                typeAndVersion = bytes[bytePtr++];
-                containsFNewCg = BitConverter.ToUInt16(bytes, bytePtr); bytePtr += 2;
-                containsSNewCg = BitConverter.ToUInt16(bytes, bytePtr); bytePtr += 2;
                 numFreeDataBlocks = (int)Utils.XenixLong(bytes, bytePtr); bytePtr += 4;
                 numFreeINodes = BitConverter.ToUInt16(bytes, bytePtr); bytePtr += 2;
-                numDirectories = BitConverter.ToUInt16(bytes, bytePtr); bytePtr += 2;
-                nativeExtentSize = bytes[bytePtr++];
-                numCylingerGroups = bytes[bytePtr++];
-                nextCylinderGroupToSearch = bytes[bytePtr++];
-                // ignore global policy information
+
+                // ...device information...
+
+                bytePtr = 0x1B0;
+                Name = QicUtils.Utils.CleanString(Encoding.ASCII.GetString(bytes, bytePtr, 6)); bytePtr += 6;
+                PackName = QicUtils.Utils.CleanString(Encoding.ASCII.GetString(bytes, bytePtr, 6)); bytePtr += 6;
+
+                bytePtr = 0x1F8;
+                magic = (int)Utils.XenixLong(bytes, bytePtr); bytePtr += 4;
+                fsType = (int)Utils.XenixLong(bytes, bytePtr); bytePtr += 4;
             }
         }
 
