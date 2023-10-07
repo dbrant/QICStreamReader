@@ -54,13 +54,13 @@ namespace xenixv3
 
         private class XenixPartition
         {
-            public const int BLOCK_SIZE = 0x200;
+            public const int BLOCK_SIZE_DEFAULT = 0x200;
             public const int SUPERBLOCK_BLOCK = 1;
             public const int INODES_BLOCK = 2;
 
             private Stream stream;
-            private long partitionBaseOffset;
-            private SuperBlock superBlock;
+            public long partitionBaseOffset;
+            public SuperBlock superBlock;
             private INode rootNode;
 
             private Dictionary<int, INode> inodeCache = new();
@@ -70,9 +70,9 @@ namespace xenixv3
                 this.stream = stream;
                 this.partitionBaseOffset = baseOffset;
 
-                byte[] blockBytes = new byte[BLOCK_SIZE];
+                byte[] blockBytes = new byte[BLOCK_SIZE_DEFAULT];
 
-                ReadBlock(SUPERBLOCK_BLOCK, blockBytes);
+                ReadBlock(SUPERBLOCK_BLOCK, blockBytes, 0, blockBytes.Length);
                 superBlock = new SuperBlock(blockBytes);
 
                 rootNode = ReadINode(stream, 2);
@@ -120,9 +120,10 @@ namespace xenixv3
             }
 
 
-            private void ReadBlock(int num, byte[] bytes, int bytesOffset = 0, int count = BLOCK_SIZE)
+            private void ReadBlock(int num, byte[] bytes, int bytesOffset, int count)
             {
-                stream.Seek(partitionBaseOffset + (num * BLOCK_SIZE), SeekOrigin.Begin);
+                int blockSize = superBlock != null ? superBlock.BlockSize : BLOCK_SIZE_DEFAULT;
+                stream.Seek(partitionBaseOffset + (num * blockSize), SeekOrigin.Begin);
                 stream.Read(bytes, bytesOffset, count);
             }
 
@@ -132,10 +133,10 @@ namespace xenixv3
 
                 int actualNum = num - 1;
 
-                long offset = partitionBaseOffset + (INODES_BLOCK * BLOCK_SIZE) + (actualNum * INode.StructLength);
+                long offset = partitionBaseOffset + (INODES_BLOCK * superBlock.BlockSize) + (actualNum * INode.StructLength);
                 stream.Seek(offset, SeekOrigin.Begin);
 
-                var inode = new INode(num, stream, partitionBaseOffset);
+                var inode = new INode(num, stream, this);
                 inodeCache[num] = inode;
                 return inode;
             }
@@ -187,7 +188,7 @@ namespace xenixv3
 
                 for (int z = 0; z < inode.Blocks.Count; z++)
                 {
-                    int bytesToRead = BLOCK_SIZE;
+                    int bytesToRead = superBlock.BlockSize;
                     int bytesLeft = (int)inode.Size - bytesRead;
                     if (bytesToRead > bytesLeft)
                     {
@@ -209,6 +210,8 @@ namespace xenixv3
 
         private class SuperBlock
         {
+            public int BlockSize = XenixPartition.BLOCK_SIZE_DEFAULT;
+
             public string Name;
             public string PackName;
 
@@ -217,6 +220,8 @@ namespace xenixv3
             public DateTime lastModifiedTime;
             public int numFreeDataBlocks;
             public int numFreeINodes;
+
+            public int clean;
             public int magic;
             public int fsType;
 
@@ -231,19 +236,29 @@ namespace xenixv3
                 // ...free inode list...
 
                 bytePtr = 0x19E;
-                lastModifiedTime = QicUtils.Utils.DateTimeFromTimeT(Utils.XenixLong(bytes, bytePtr)); bytePtr += 4;
+                lastModifiedTime = Utils.DateTimeFromTimeT(Utils.XenixLong(bytes, bytePtr)); bytePtr += 4;
                 numFreeDataBlocks = (int)Utils.XenixLong(bytes, bytePtr); bytePtr += 4;
                 numFreeINodes = BitConverter.ToUInt16(bytes, bytePtr); bytePtr += 2;
 
                 // ...device information...
 
                 bytePtr = 0x1B0;
-                Name = QicUtils.Utils.CleanString(Encoding.ASCII.GetString(bytes, bytePtr, 6)); bytePtr += 6;
-                PackName = QicUtils.Utils.CleanString(Encoding.ASCII.GetString(bytes, bytePtr, 6)); bytePtr += 6;
+                Name = Utils.CleanString(Encoding.ASCII.GetString(bytes, bytePtr, 6)); bytePtr += 6;
+                PackName = Utils.CleanString(Encoding.ASCII.GetString(bytes, bytePtr, 6)); bytePtr += 6;
+                clean = bytes[bytePtr++];
 
                 bytePtr = 0x1F8;
                 magic = (int)Utils.XenixLong(bytes, bytePtr); bytePtr += 4;
                 fsType = (int)Utils.XenixLong(bytes, bytePtr); bytePtr += 4;
+
+                if (fsType == 1)
+                    BlockSize = 0x200;
+                else if (fsType == 2)
+                    BlockSize = 0x400;
+                else
+                {
+                    Console.WriteLine("Warning: Unrecognized s_type. Using default block size.");
+                }
             }
         }
 
@@ -268,11 +283,10 @@ namespace xenixv3
             public string Name = "";
             public List<INode> Children = new();
 
-            public INode(int id, Stream stream, long partitionBaseOffset)
+            public INode(int id, Stream stream, XenixPartition partition)
             {
                 this.id = id;
                 byte[] bytes = new byte[StructLength];
-                long initialPos = stream.Position;
 
                 stream.Read(bytes, 0, bytes.Length);
 
@@ -303,8 +317,8 @@ namespace xenixv3
                 blockPtr |= (bytes[bytePtr++] << 8);
                 if (blockPtr != 0)
                 {
-                    byte[] blockBytes = new byte[XenixPartition.BLOCK_SIZE];
-                    stream.Seek(partitionBaseOffset + (blockPtr * XenixPartition.BLOCK_SIZE), SeekOrigin.Begin);
+                    byte[] blockBytes = new byte[partition.superBlock.BlockSize];
+                    stream.Seek(partition.partitionBaseOffset + (blockPtr * partition.superBlock.BlockSize), SeekOrigin.Begin);
                     stream.Read(blockBytes, 0, blockBytes.Length);
                     for (int i = 0; i < blockBytes.Length / 4; i++)
                     {
@@ -321,8 +335,8 @@ namespace xenixv3
                 blockPtr |= (bytes[bytePtr++] << 8);
                 if (blockPtr != 0)
                 {
-                    byte[] iBlockBytes = new byte[XenixPartition.BLOCK_SIZE];
-                    stream.Seek(partitionBaseOffset + (blockPtr * XenixPartition.BLOCK_SIZE), SeekOrigin.Begin);
+                    byte[] iBlockBytes = new byte[partition.superBlock.BlockSize];
+                    stream.Seek(partition.partitionBaseOffset + (blockPtr * partition.superBlock.BlockSize), SeekOrigin.Begin);
                     stream.Read(iBlockBytes, 0, iBlockBytes.Length);
                     for (int b = 0; b < iBlockBytes.Length / 4; b++)
                     {
@@ -330,8 +344,8 @@ namespace xenixv3
                         if (iblock <= 0)
                             break;
 
-                        byte[] blockBytes = new byte[XenixPartition.BLOCK_SIZE];
-                        stream.Seek(partitionBaseOffset + (iblock * XenixPartition.BLOCK_SIZE), SeekOrigin.Begin);
+                        byte[] blockBytes = new byte[partition.superBlock.BlockSize];
+                        stream.Seek(partition.partitionBaseOffset + (iblock * partition.superBlock.BlockSize), SeekOrigin.Begin);
                         stream.Read(blockBytes, 0, blockBytes.Length);
                         for (int i = 0; i < blockBytes.Length / 4; i++)
                         {
@@ -352,8 +366,8 @@ namespace xenixv3
                     Console.WriteLine("FIXME: Add support for triple indirect blocks.");
                 }
 
-                int sizeBasedOnBlocks = Blocks.Count * XenixPartition.BLOCK_SIZE;
-                if (sizeBasedOnBlocks > (Size + XenixPartition.BLOCK_SIZE))
+                int sizeBasedOnBlocks = Blocks.Count * partition.superBlock.BlockSize;
+                if (sizeBasedOnBlocks > (Size + partition.superBlock.BlockSize))
                 {
                     Console.WriteLine("Warning: Total size of blocks seems very different from inode file size.");
                 }
@@ -361,9 +375,9 @@ namespace xenixv3
                 // align to 16 bits.
                 if (bytePtr % 2 != 0) bytePtr++;
 
-                AccessTime = QicUtils.Utils.DateTimeFromTimeT(Utils.XenixLong(bytes, bytePtr)); bytePtr += 4;
-                ModifyTime = QicUtils.Utils.DateTimeFromTimeT(Utils.XenixLong(bytes, bytePtr)); bytePtr += 4;
-                CreateTime = QicUtils.Utils.DateTimeFromTimeT(Utils.XenixLong(bytes, bytePtr)); bytePtr += 4;
+                AccessTime = Utils.DateTimeFromTimeT(Utils.XenixLong(bytes, bytePtr)); bytePtr += 4;
+                ModifyTime = Utils.DateTimeFromTimeT(Utils.XenixLong(bytes, bytePtr)); bytePtr += 4;
+                CreateTime = Utils.DateTimeFromTimeT(Utils.XenixLong(bytes, bytePtr)); bytePtr += 4;
 
             }
         }

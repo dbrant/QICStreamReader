@@ -321,7 +321,6 @@ namespace xenixold
             {
                 this.id = id;
                 byte[] bytes = new byte[StructLength];
-                long initialPos = stream.Position;
 
                 stream.Read(bytes, 0, bytes.Length);
 
@@ -401,7 +400,7 @@ namespace xenixold
                 }
 
                 // align to 16 bits.
-                bytePtr++;
+                if (bytePtr % 2 != 0) bytePtr++;
 
                 AccessTime = QicUtils.Utils.DateTimeFromTimeT(BitConverter.ToUInt32(bytes, bytePtr)); bytePtr += 4;
                 ModifyTime = QicUtils.Utils.DateTimeFromTimeT(BitConverter.ToUInt32(bytes, bytePtr)); bytePtr += 4;
