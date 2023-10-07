@@ -363,6 +363,7 @@ namespace xenixold
                     }
                 }
 
+                // double-indirect blocks
                 blockPtr = bytes[bytePtr++];
                 blockPtr |= (bytes[bytePtr++] << 8);
                 blockPtr |= (bytes[bytePtr++] << 16);

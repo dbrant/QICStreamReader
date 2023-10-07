@@ -330,6 +330,7 @@ namespace xenixv3
                     }
                 }
 
+                // double-indirect blocks
                 blockPtr = (bytes[bytePtr++] << 16);
                 blockPtr |= bytes[bytePtr++];
                 blockPtr |= (bytes[bytePtr++] << 8);
