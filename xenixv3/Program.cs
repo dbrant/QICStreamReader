@@ -230,14 +230,14 @@ namespace xenixv3
                 int bytePtr = 0;
 
                 totalINodeBlocks = BitConverter.ToUInt16(bytes, bytePtr); bytePtr += 2;
-                totalVolumeBlocks = (int)Utils.XenixLong(bytes, bytePtr); bytePtr += 4;
+                totalVolumeBlocks = (int)Utils.Pdp11EndianInt(bytes, bytePtr); bytePtr += 4;
 
                 // ...free block list...
                 // ...free inode list...
 
                 bytePtr = 0x19E;
-                lastModifiedTime = Utils.DateTimeFromTimeT(Utils.XenixLong(bytes, bytePtr)); bytePtr += 4;
-                numFreeDataBlocks = (int)Utils.XenixLong(bytes, bytePtr); bytePtr += 4;
+                lastModifiedTime = Utils.DateTimeFromTimeT(Utils.Pdp11EndianInt(bytes, bytePtr)); bytePtr += 4;
+                numFreeDataBlocks = (int)Utils.Pdp11EndianInt(bytes, bytePtr); bytePtr += 4;
                 numFreeINodes = BitConverter.ToUInt16(bytes, bytePtr); bytePtr += 2;
 
                 // ...device information...
@@ -248,8 +248,8 @@ namespace xenixv3
                 clean = bytes[bytePtr++];
 
                 bytePtr = 0x1F8;
-                magic = (int)Utils.XenixLong(bytes, bytePtr); bytePtr += 4;
-                fsType = (int)Utils.XenixLong(bytes, bytePtr); bytePtr += 4;
+                magic = (int)Utils.Pdp11EndianInt(bytes, bytePtr); bytePtr += 4;
+                fsType = (int)Utils.Pdp11EndianInt(bytes, bytePtr); bytePtr += 4;
 
                 if (fsType == 1)
                     BlockSize = 0x200;
@@ -296,7 +296,7 @@ namespace xenixv3
                 uId = BitConverter.ToUInt16(bytes, bytePtr); bytePtr += 2;
                 gId = BitConverter.ToUInt16(bytes, bytePtr); bytePtr += 2;
 
-                Size = Utils.XenixLong(bytes, bytePtr); bytePtr += 4;
+                Size = Utils.Pdp11EndianInt(bytes, bytePtr); bytePtr += 4;
 
                 // direct blocks
                 int block;
@@ -322,7 +322,7 @@ namespace xenixv3
                     stream.Read(blockBytes, 0, blockBytes.Length);
                     for (int i = 0; i < blockBytes.Length / 4; i++)
                     {
-                        block = (int)Utils.XenixLong(blockBytes, i * 4);
+                        block = (int)Utils.Pdp11EndianInt(blockBytes, i * 4);
                         if (block <= 0)
                             break;
 
@@ -341,7 +341,7 @@ namespace xenixv3
                     stream.Read(iBlockBytes, 0, iBlockBytes.Length);
                     for (int b = 0; b < iBlockBytes.Length / 4; b++)
                     {
-                        var iblock = (int)Utils.XenixLong(iBlockBytes, b * 4);
+                        var iblock = (int)Utils.Pdp11EndianInt(iBlockBytes, b * 4);
                         if (iblock <= 0)
                             break;
 
@@ -350,7 +350,7 @@ namespace xenixv3
                         stream.Read(blockBytes, 0, blockBytes.Length);
                         for (int i = 0; i < blockBytes.Length / 4; i++)
                         {
-                            block = (int)Utils.XenixLong(blockBytes, i * 4);
+                            block = (int)Utils.Pdp11EndianInt(blockBytes, i * 4);
                             if (block <= 0)
                                 break;
 
@@ -376,9 +376,9 @@ namespace xenixv3
                 // align to 16 bits.
                 if (bytePtr % 2 != 0) bytePtr++;
 
-                AccessTime = Utils.DateTimeFromTimeT(Utils.XenixLong(bytes, bytePtr)); bytePtr += 4;
-                ModifyTime = Utils.DateTimeFromTimeT(Utils.XenixLong(bytes, bytePtr)); bytePtr += 4;
-                CreateTime = Utils.DateTimeFromTimeT(Utils.XenixLong(bytes, bytePtr)); bytePtr += 4;
+                AccessTime = Utils.DateTimeFromTimeT(Utils.Pdp11EndianInt(bytes, bytePtr)); bytePtr += 4;
+                ModifyTime = Utils.DateTimeFromTimeT(Utils.Pdp11EndianInt(bytes, bytePtr)); bytePtr += 4;
+                CreateTime = Utils.DateTimeFromTimeT(Utils.Pdp11EndianInt(bytes, bytePtr)); bytePtr += 4;
 
             }
         }
