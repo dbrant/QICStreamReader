@@ -41,7 +41,7 @@ namespace xenixv3
             {
                 using (var stream = new FileStream(inFileName, FileMode.Open, FileAccess.Read))
                 {
-                    var partition = new XenixPartition(stream, initialOffset);
+                    var partition = new XenixPartition(stream, initialOffset, PartitionEndianness.Little);
                     partition.UnpackFiles(baseDirectory);
                 }
             }
@@ -52,12 +52,64 @@ namespace xenixv3
         }
 
 
+        private enum PartitionEndianness
+        {
+            Little, Big, Pdp11
+        }
+
+        private static ushort GetUInt16(byte[] bytes, int offset, PartitionEndianness endianness)
+        {
+            if (endianness == PartitionEndianness.Big)
+            {
+                return Utils.BigEndian(BitConverter.ToUInt16(bytes, offset));
+            }
+            return Utils.LittleEndian(BitConverter.ToUInt16(bytes, offset));
+        }
+
+        private static uint GetUInt32(byte[] bytes, int offset, PartitionEndianness endianness)
+        {
+            if (endianness == PartitionEndianness.Big)
+            {
+                return Utils.BigEndian(BitConverter.ToUInt32(bytes, offset));
+            }
+            else if (endianness == PartitionEndianness.Pdp11)
+            {
+                return Utils.Pdp11EndianInt(bytes, offset);
+            }
+            return Utils.LittleEndian(BitConverter.ToUInt32(bytes, offset));
+        }
+
+        private static int Get3ByteInt(byte[] bytes, int offset, PartitionEndianness endianness)
+        {
+            int n;
+            if (endianness == PartitionEndianness.Big)
+            {
+                n = (bytes[offset++] << 16);
+                n |= (bytes[offset++] << 8);
+                n |= bytes[offset++];
+            }
+            else if (endianness == PartitionEndianness.Pdp11)
+            {
+                n = (bytes[offset++] << 16);
+                n |= bytes[offset++];
+                n |= (bytes[offset++] << 8);
+            }
+            else
+            {
+                n = bytes[offset++];
+                n |= (bytes[offset++] << 8);
+                n |= (bytes[offset++] << 16);
+            }
+            return n;
+        }
+
         private class XenixPartition
         {
-            public const int BLOCK_SIZE_DEFAULT = 0x200;
+            public const int BLOCK_SIZE_DEFAULT = 0x400;
             public const int SUPERBLOCK_BLOCK = 1;
             public const int INODES_BLOCK = 2;
-
+            
+            public PartitionEndianness endianness;
             private Stream stream;
             public long partitionBaseOffset;
             public SuperBlock superBlock;
@@ -65,15 +117,16 @@ namespace xenixv3
 
             private Dictionary<int, INode> inodeCache = new();
 
-            public XenixPartition(Stream stream, long baseOffset)
+            public XenixPartition(Stream stream, long baseOffset, PartitionEndianness endianness)
             {
                 this.stream = stream;
                 this.partitionBaseOffset = baseOffset;
+                this.endianness = endianness;
 
                 byte[] blockBytes = new byte[BLOCK_SIZE_DEFAULT];
 
                 ReadBlock(SUPERBLOCK_BLOCK, blockBytes, 0, blockBytes.Length);
-                superBlock = new SuperBlock(blockBytes);
+                superBlock = new SuperBlock(blockBytes, this);
 
                 rootNode = ReadINode(stream, 2);
                 FillChildren(stream, rootNode, 0);
@@ -153,12 +206,12 @@ namespace xenixv3
 
                 for (int i = 0; i < numDirEntries; i++)
                 {
-                    var iNodeNum = BitConverter.ToUInt16(contents, i * 0x10);
+                    var iNodeNum = GetUInt16(contents, i * 0x10, endianness);
 
                     if (iNodeNum == 0)
                         continue; // free inode.
 
-                    var name = Utils.ReplaceInvalidChars(QicUtils.Utils.CleanString(Encoding.ASCII.GetString(contents, i * 0x10 + 2, 0x10 - 2)));
+                    var name = Utils.ReplaceInvalidChars(Utils.CleanString(Encoding.ASCII.GetString(contents, i * 0x10 + 2, 0x10 - 2)));
                     if (name == "." || name == "..")
                         continue;
 
@@ -225,20 +278,20 @@ namespace xenixv3
             public int magic;
             public int fsType;
 
-            public SuperBlock(byte[] bytes)
+            public SuperBlock(byte[] bytes, XenixPartition partition)
             {
                 int bytePtr = 0;
 
-                totalINodeBlocks = BitConverter.ToUInt16(bytes, bytePtr); bytePtr += 2;
-                totalVolumeBlocks = (int)Utils.Pdp11EndianInt(bytes, bytePtr); bytePtr += 4;
+                totalINodeBlocks = GetUInt16(bytes, bytePtr, partition.endianness); bytePtr += 2;
+                totalVolumeBlocks = (int)GetUInt32(bytes, bytePtr, partition.endianness); bytePtr += 4;
 
                 // ...free block list...
                 // ...free inode list...
 
                 bytePtr = 0x19E;
-                lastModifiedTime = Utils.DateTimeFromTimeT(Utils.Pdp11EndianInt(bytes, bytePtr)); bytePtr += 4;
-                numFreeDataBlocks = (int)Utils.Pdp11EndianInt(bytes, bytePtr); bytePtr += 4;
-                numFreeINodes = BitConverter.ToUInt16(bytes, bytePtr); bytePtr += 2;
+                lastModifiedTime = Utils.DateTimeFromTimeT(GetUInt32(bytes, bytePtr, partition.endianness)); bytePtr += 4;
+                numFreeDataBlocks = (int)GetUInt32(bytes, bytePtr, partition.endianness); bytePtr += 4;
+                numFreeINodes = GetUInt16(bytes, bytePtr, partition.endianness); bytePtr += 2;
 
                 // ...device information...
 
@@ -247,9 +300,9 @@ namespace xenixv3
                 PackName = Utils.CleanString(Encoding.ASCII.GetString(bytes, bytePtr, 6)); bytePtr += 6;
                 clean = bytes[bytePtr++];
 
-                bytePtr = 0x1F8;
-                magic = (int)Utils.Pdp11EndianInt(bytes, bytePtr); bytePtr += 4;
-                fsType = (int)Utils.Pdp11EndianInt(bytes, bytePtr); bytePtr += 4;
+                bytePtr = bytes.Length - 8;
+                magic = (int)GetUInt32(bytes, bytePtr, partition.endianness); bytePtr += 4;
+                fsType = (int)GetUInt32(bytes, bytePtr, partition.endianness); bytePtr += 4;
 
                 if (fsType == 1)
                     BlockSize = 0x200;
@@ -291,20 +344,18 @@ namespace xenixv3
                 stream.Read(bytes, 0, bytes.Length);
 
                 int bytePtr = 0;
-                Mode = BitConverter.ToUInt16(bytes, bytePtr); bytePtr += 2;
-                nLink = BitConverter.ToUInt16(bytes, bytePtr); bytePtr += 2;
-                uId = BitConverter.ToUInt16(bytes, bytePtr); bytePtr += 2;
-                gId = BitConverter.ToUInt16(bytes, bytePtr); bytePtr += 2;
+                Mode = GetUInt16(bytes, bytePtr, partition.endianness); bytePtr += 2;
+                nLink = GetUInt16(bytes, bytePtr, partition.endianness); bytePtr += 2;
+                uId = GetUInt16(bytes, bytePtr, partition.endianness); bytePtr += 2;
+                gId = GetUInt16(bytes, bytePtr, partition.endianness); bytePtr += 2;
 
-                Size = Utils.Pdp11EndianInt(bytes, bytePtr); bytePtr += 4;
+                Size = GetUInt32(bytes, bytePtr, partition.endianness); bytePtr += 4;
 
                 // direct blocks
                 int block;
                 for (int i = 0; i < 10; i++)
                 {
-                    block = (bytes[bytePtr++] << 16);
-                    block |= bytes[bytePtr++];
-                    block |= (bytes[bytePtr++] << 8);
+                    block = Get3ByteInt(bytes, bytePtr, partition.endianness); bytePtr += 3;
                     if (block != 0)
                     {
                         Blocks.Add(block);
@@ -312,9 +363,7 @@ namespace xenixv3
                 }
 
                 // indirect blocks
-                int blockPtr = (bytes[bytePtr++] << 16);
-                blockPtr |= bytes[bytePtr++];
-                blockPtr |= (bytes[bytePtr++] << 8);
+                int blockPtr = Get3ByteInt(bytes, bytePtr, partition.endianness); bytePtr += 3;
                 if (blockPtr != 0)
                 {
                     byte[] blockBytes = new byte[partition.superBlock.BlockSize];
@@ -322,7 +371,7 @@ namespace xenixv3
                     stream.Read(blockBytes, 0, blockBytes.Length);
                     for (int i = 0; i < blockBytes.Length / 4; i++)
                     {
-                        block = (int)Utils.Pdp11EndianInt(blockBytes, i * 4);
+                        block = (int)GetUInt32(blockBytes, i * 4, partition.endianness);
                         if (block <= 0)
                             break;
 
@@ -331,9 +380,7 @@ namespace xenixv3
                 }
 
                 // double-indirect blocks
-                blockPtr = (bytes[bytePtr++] << 16);
-                blockPtr |= bytes[bytePtr++];
-                blockPtr |= (bytes[bytePtr++] << 8);
+                blockPtr = Get3ByteInt(bytes, bytePtr, partition.endianness); bytePtr += 3;
                 if (blockPtr != 0)
                 {
                     byte[] iBlockBytes = new byte[partition.superBlock.BlockSize];
@@ -341,7 +388,7 @@ namespace xenixv3
                     stream.Read(iBlockBytes, 0, iBlockBytes.Length);
                     for (int b = 0; b < iBlockBytes.Length / 4; b++)
                     {
-                        var iblock = (int)Utils.Pdp11EndianInt(iBlockBytes, b * 4);
+                        var iblock = (int)GetUInt32(iBlockBytes, b * 4, partition.endianness);
                         if (iblock <= 0)
                             break;
 
@@ -350,7 +397,7 @@ namespace xenixv3
                         stream.Read(blockBytes, 0, blockBytes.Length);
                         for (int i = 0; i < blockBytes.Length / 4; i++)
                         {
-                            block = (int)Utils.Pdp11EndianInt(blockBytes, i * 4);
+                            block = (int)GetUInt32(blockBytes, i * 4, partition.endianness);
                             if (block <= 0)
                                 break;
 
@@ -359,9 +406,7 @@ namespace xenixv3
                     }
                 }
 
-                blockPtr = (bytes[bytePtr++] << 16);
-                blockPtr |= bytes[bytePtr++];
-                blockPtr |= (bytes[bytePtr++] << 8);
+                blockPtr = Get3ByteInt(bytes, bytePtr, partition.endianness); bytePtr += 3;
                 if (blockPtr != 0)
                 {
                     Console.WriteLine("FIXME: Add support for triple indirect blocks.");
@@ -376,9 +421,9 @@ namespace xenixv3
                 // align to 16 bits.
                 if (bytePtr % 2 != 0) bytePtr++;
 
-                AccessTime = Utils.DateTimeFromTimeT(Utils.Pdp11EndianInt(bytes, bytePtr)); bytePtr += 4;
-                ModifyTime = Utils.DateTimeFromTimeT(Utils.Pdp11EndianInt(bytes, bytePtr)); bytePtr += 4;
-                CreateTime = Utils.DateTimeFromTimeT(Utils.Pdp11EndianInt(bytes, bytePtr)); bytePtr += 4;
+                AccessTime = Utils.DateTimeFromTimeT(GetUInt32(bytes, bytePtr, partition.endianness)); bytePtr += 4;
+                ModifyTime = Utils.DateTimeFromTimeT(GetUInt32(bytes, bytePtr, partition.endianness)); bytePtr += 4;
+                CreateTime = Utils.DateTimeFromTimeT(GetUInt32(bytes, bytePtr, partition.endianness)); bytePtr += 4;
 
             }
         }
