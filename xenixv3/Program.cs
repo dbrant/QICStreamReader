@@ -35,7 +35,7 @@ namespace xenixv3
             {
                 if (args[i] == "-f") { inFileName = args[i + 1]; }
                 else if (args[i] == "-d") { baseDirectory = args[i + 1]; }
-                else if (args[i] == "--offset") { initialOffset = Convert.ToInt64(args[i + 1]); }
+                else if (args[i] == "--offset") { initialOffset = Utils.StringOrHexToLong(args[i + 1]); }
                 else if (args[i] == "--endianness") {
                     if (args[i + 1] == "little") endianness = Endianness.Little;
                     else if (args[i + 1] == "big") endianness = Endianness.Big;

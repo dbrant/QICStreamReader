@@ -40,6 +40,17 @@ namespace QicUtils
             return i >= 0 ? str.Substring(0, i) : str;
         }
 
+        public static long StringOrHexToLong(string _str)
+		{
+            string str = _str.ToLower().Trim();
+            if (str.StartsWith("0x") || str.StartsWith("&h") || str.EndsWith("h"))
+            {
+                str = str.Replace("0x", "").Replace("h", "").Replace("&", "");
+                return Convert.ToInt64(str, 16);
+            }
+            return Convert.ToInt64(str);
+        }
+
         public static DateTime GetQicDateTime(uint date)
 		{
 			DateTime d = new();

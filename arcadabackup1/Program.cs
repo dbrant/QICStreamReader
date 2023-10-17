@@ -39,7 +39,7 @@ namespace arcadabackup1
                 else if (args[i] == "-d") { baseDirectory = args[i + 1]; }
                 else if (args[i] == "-ecc") { removeEcc = true; }
                 else if (args[i] == "-x") { decompress = true; }
-                else if (args[i] == "--offset") { initialOffset = Convert.ToInt64(args[i + 1]); }
+                else if (args[i] == "--offset") { initialOffset = QicUtils.Utils.StringOrHexToLong(args[i + 1]); }
                 else if (args[i] == "--abspos") { absPos = true; }
                 else if (args[i] == "--catdump") { catDump = true; }
             }
