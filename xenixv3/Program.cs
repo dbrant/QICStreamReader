@@ -29,19 +29,26 @@ namespace xenixv3
             string inFileName = "0.bin";
             string baseDirectory = "out";
             long initialOffset = 0;
+            PartitionEndianness endianness = PartitionEndianness.Little;
 
             for (int i = 0; i < args.Length; i++)
             {
                 if (args[i] == "-f") { inFileName = args[i + 1]; }
                 else if (args[i] == "-d") { baseDirectory = args[i + 1]; }
                 else if (args[i] == "--offset") { initialOffset = Convert.ToInt64(args[i + 1]); }
+                else if (args[i] == "--endianness") {
+                    if (args[i + 1] == "little") endianness = PartitionEndianness.Little;
+                    else if (args[i + 1] == "big") endianness = PartitionEndianness.Big;
+                    else if (args[i + 1] == "pdp11") endianness = PartitionEndianness.Pdp11;
+                    else throw new ApplicationException("Unrecognized endianness: " + args[i + 1]);
+                }
             }
 
             try
             {
                 using (var stream = new FileStream(inFileName, FileMode.Open, FileAccess.Read))
                 {
-                    var partition = new XenixPartition(stream, initialOffset, PartitionEndianness.Little);
+                    var partition = new XenixPartition(stream, initialOffset, endianness);
                     partition.UnpackFiles(baseDirectory);
                 }
             }
@@ -105,7 +112,7 @@ namespace xenixv3
 
         private class XenixPartition
         {
-            public const int BLOCK_SIZE_DEFAULT = 0x400;
+            public const int BLOCK_SIZE_DEFAULT = 0x200;
             public const int SUPERBLOCK_BLOCK = 1;
             public const int INODES_BLOCK = 2;
             
