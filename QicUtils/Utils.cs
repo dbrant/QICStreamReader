@@ -4,6 +4,11 @@ using System.Text;
 
 namespace QicUtils
 {
+    public enum Endianness
+    {
+        Little, Big, Pdp11
+    }
+
     public class Utils
     {
 		public static bool VerifyFileFormat(string fileName, byte[] bytes)
@@ -164,6 +169,52 @@ namespace QicUtils
             temp |= (uint)bytes[offset + 2];
             temp |= (uint)bytes[offset + 3] << 8;
             return temp;
+        }
+
+        public static ushort GetUInt16(byte[] bytes, int offset, Endianness endianness)
+        {
+            if (endianness == Endianness.Big)
+            {
+                return BigEndian(BitConverter.ToUInt16(bytes, offset));
+            }
+            return LittleEndian(BitConverter.ToUInt16(bytes, offset));
+        }
+
+        public static uint GetUInt32(byte[] bytes, int offset, Endianness endianness)
+        {
+            if (endianness == Endianness.Big)
+            {
+                return BigEndian(BitConverter.ToUInt32(bytes, offset));
+            }
+            else if (endianness == Endianness.Pdp11)
+            {
+                return Pdp11EndianInt(bytes, offset);
+            }
+            return LittleEndian(BitConverter.ToUInt32(bytes, offset));
+        }
+
+        public static int Get3ByteInt(byte[] bytes, int offset, Endianness endianness)
+        {
+            int n;
+            if (endianness == Endianness.Big)
+            {
+                n = (bytes[offset++] << 16);
+                n |= (bytes[offset++] << 8);
+                n |= bytes[offset++];
+            }
+            else if (endianness == Endianness.Pdp11)
+            {
+                n = (bytes[offset++] << 16);
+                n |= bytes[offset++];
+                n |= (bytes[offset++] << 8);
+            }
+            else
+            {
+                n = bytes[offset++];
+                n |= (bytes[offset++] << 8);
+                n |= (bytes[offset++] << 16);
+            }
+            return n;
         }
     }
 }
