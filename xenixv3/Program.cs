@@ -26,34 +26,22 @@ namespace xenixv3
     {
         static void Main(string[] args)
         {
-            string inFileName = "0.bin";
-            string baseDirectory = "out";
-            long initialOffset = 0;
-            Endianness endianness = Endianness.Little;
+            var argMap = new ArgMap(args);
 
-            for (int i = 0; i < args.Length; i++)
+            var inFileName = argMap.Get("-f");
+            var baseDirectory = argMap.Get("-d", "out");
+            long initialOffset = Utils.StringOrHexToLong(argMap.Get("--offset", "0"));
+            Endianness endianness = argMap.Get("--endianness", "little") switch
             {
-                if (args[i] == "-f") { inFileName = args[i + 1]; }
-                else if (args[i] == "-d") { baseDirectory = args[i + 1]; }
-                else if (args[i] == "--offset") { initialOffset = Utils.StringOrHexToLong(args[i + 1]); }
-                else if (args[i] == "--endianness") {
-                    if (args[i + 1] == "little") endianness = Endianness.Little;
-                    else if (args[i + 1] == "big") endianness = Endianness.Big;
-                    else if (args[i + 1] == "pdp11") endianness = Endianness.Pdp11;
-                    else throw new ApplicationException("Unrecognized endianness: " + args[i + 1]);
-                }
-            }
+                "little" => Endianness.Little,
+                "big" => Endianness.Big,
+                "pdp11" => Endianness.Pdp11,
+                _ => throw new ApplicationException("Unrecognized endianness."),
+            };
 
-            try
-            {
-                using var stream = new FileStream(inFileName, FileMode.Open, FileAccess.Read);
-                var partition = new XenixPartition(stream, initialOffset, endianness);
-                partition.UnpackFiles(baseDirectory);
-            }
-            catch (Exception e)
-            {
-                Console.WriteLine(e.ToString());
-            }
+            using var stream = new FileStream(inFileName!, FileMode.Open, FileAccess.Read);
+            var partition = new XenixPartition(stream, initialOffset, endianness);
+            partition.UnpackFiles(baseDirectory);
         }
 
         private class XenixPartition
