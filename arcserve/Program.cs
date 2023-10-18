@@ -165,7 +165,6 @@ namespace arcserve
             public FileHeader(Stream stream)
             {
                 byte[] bytes = new byte[0x20000];
-                long initialPos = stream.Position;
 
                 stream.Read(bytes, 0, 4);
                 if (Utils.LittleEndian(BitConverter.ToUInt32(bytes, 0)) != FileHeaderBlock) { return; }

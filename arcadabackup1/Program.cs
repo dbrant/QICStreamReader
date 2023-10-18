@@ -300,7 +300,6 @@ namespace arcadabackup1
             {
                 Subdirectory = "";
                 byte[] bytes = new byte[1024];
-                long initialPos = stream.Position;
 
                 if (!isCatalog)
                 {

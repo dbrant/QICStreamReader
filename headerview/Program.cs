@@ -97,7 +97,6 @@ namespace headerview
 		public FormatParamRecord(Stream stream)
 		{
 			byte[] bytes = new byte[255];
-			long initialPos = stream.Position;
 			int ptr = 0;
 			stream.Read(bytes, 0, 255);
 			uint magic = BitConverter.ToUInt32(bytes, ptr); ptr += 4;
@@ -185,7 +184,6 @@ namespace headerview
 		public Vtbl1Record(Stream stream)
 		{
 			byte[] bytes = new byte[0x80];
-			long initialPos = stream.Position;
 			int ptr = 0;
 			stream.Read(bytes, 0, bytes.Length);
 			if (Encoding.ASCII.GetString(bytes, ptr, 4) != "VTBL")
@@ -257,7 +255,6 @@ namespace headerview
 		public Vtbl2Record(Stream stream)
 		{
 			byte[] bytes = new byte[255];
-			long initialPos = stream.Position;
 			int ptr = 0;
 			stream.Read(bytes, 0, 255);
 
@@ -308,7 +305,6 @@ namespace headerview
 		public Qic113Record(Stream stream)
 		{
 			byte[] bytes = new byte[512];
-			long initialPos = stream.Position;
 			int ptr = 0;
 			stream.Read(bytes, 0, 255);
 
