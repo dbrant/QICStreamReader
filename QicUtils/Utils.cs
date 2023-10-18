@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Collections.Generic;
 using System.IO;
 using System.Text;
 
@@ -9,8 +10,38 @@ namespace QicUtils
         Little, Big, Pdp11
     }
 
+    public class ArgMap
+    {
+        private readonly List<string> args = new();
+        private readonly Dictionary<string, string> map = new();
+
+        public ArgMap(string[] args)
+        {
+            this.args.AddRange(args);
+            for (int i = 0; i < args.Length; i++)
+            {
+                if (args[i].StartsWith('-') && i < (args.Length - 1))
+                {
+                    map.Add(args[i], args[i + 1]);
+                }
+            }
+        }
+
+        public string Get(string key, string defVal = "")
+        {
+            map.TryGetValue(key, out string val);
+            return val ?? defVal;
+        }
+
+        public bool Has(string key)
+        {
+            return args.Contains(key);
+        }
+    }
+
     public class Utils
     {
+
 		public static bool VerifyFileFormat(string fileName, byte[] bytes)
 		{
 			string nameLower = fileName.ToLower();
