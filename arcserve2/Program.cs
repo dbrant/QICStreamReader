@@ -43,87 +43,85 @@ namespace arcserve
 
             try
             {
-                using (var stream = new FileStream(inFileName, FileMode.Open, FileAccess.Read))
+                using var stream = new FileStream(inFileName, FileMode.Open, FileAccess.Read);
+                while (stream.Position < stream.Length)
                 {
-                    while (stream.Position < stream.Length)
+                    // Make sure we're aligned properly.
+                    if ((stream.Position % 0x100) > 0)
                     {
-                        // Make sure we're aligned properly.
-                        if ((stream.Position % 0x100) > 0)
+                        stream.Seek(0x100 - (stream.Position % 0x100), SeekOrigin.Current);
+                    }
+
+
+                    var header = new FileHeader(stream);
+                    if (!header.Valid)
+                    {
+                        continue;
+                    }
+
+
+                    Console.WriteLine(stream.Position.ToString("X") + ": " + header.Name + " - " + header.Size.ToString() + " bytes");
+
+                    if (header.IsDirectory || header.Name.Trim() == "")
+                    {
+                        continue;
+                    }
+
+                    if (header.Size == 0)
+                    {
+                        Console.WriteLine("Warning: skipping zero-length file.");
+                        continue;
+                    }
+
+                    string filePath = baseDirectory;
+                    string[] dirArray = header.Name.Split("\\");
+                    string fileName = dirArray[^1];
+                    for (int i = 0; i < dirArray.Length - 1; i++)
+                    {
+                        filePath = Path.Combine(filePath, dirArray[i]);
+                    }
+
+                    if (!dryRun)
+                    {
+                        Directory.CreateDirectory(filePath);
+
+                        filePath = Path.Combine(filePath, fileName);
+
+                        // Make sure the fully qualified name does not exceed 260 chars
+                        if (filePath.Length >= 260)
                         {
-                            stream.Seek(0x100 - (stream.Position % 0x100), SeekOrigin.Current);
+                            filePath = filePath[..259];
                         }
 
-
-                        var header = new FileHeader(stream);
-                        if (!header.Valid)
+                        while (File.Exists(filePath))
                         {
-                            continue;
+                            Console.WriteLine("Warning: file already exists (amending name): " + filePath);
+                            filePath += "_";
                         }
 
+                        Console.WriteLine(stream.Position.ToString("X") + ": " + filePath + " - " + header.Size.ToString() + " bytes - " + header.CreateDate.ToShortDateString());
 
-                        Console.WriteLine(stream.Position.ToString("X") + ": " + header.Name + " - " + header.Size.ToString() + " bytes");
-
-                        if (header.IsDirectory || header.Name.Trim() == "")
+                        using (var f = new FileStream(filePath, FileMode.Create, FileAccess.Write))
                         {
-                            continue;
+                            var bytes = new byte[header.Size];
+                            stream.Read(bytes, 0, bytes.Length);
+                            f.Write(bytes);
+                            f.Flush();
                         }
 
-                        if (header.Size == 0)
+                        try
                         {
-                            Console.WriteLine("Warning: skipping zero-length file.");
-                            continue;
+                            //File.SetCreationTime(filePath, header.CreateDate);
+                            //File.SetLastWriteTime(filePath, header.ModifyDate);
+                            //File.SetAttributes(filePath, header.Attributes);
                         }
-
-                        string filePath = baseDirectory;
-                        string[] dirArray = header.Name.Split("\\");
-                        string fileName = dirArray[^1];
-                        for (int i = 0; i < dirArray.Length - 1; i++)
-                        {
-                            filePath = Path.Combine(filePath, dirArray[i]);
-                        }
-
-                        if (!dryRun)
-                        {
-                            Directory.CreateDirectory(filePath);
-
-                            filePath = Path.Combine(filePath, fileName);
-
-                            // Make sure the fully qualified name does not exceed 260 chars
-                            if (filePath.Length >= 260)
-                            {
-                                filePath = filePath[..259];
-                            }
-
-                            while (File.Exists(filePath))
-                            {
-                                Console.WriteLine("Warning: file already exists (amending name): " + filePath);
-                                filePath += "_";
-                            }
-
-                            Console.WriteLine(stream.Position.ToString("X") + ": " + filePath + " - " + header.Size.ToString() + " bytes - " + header.CreateDate.ToShortDateString());
-
-                            using (var f = new FileStream(filePath, FileMode.Create, FileAccess.Write))
-                            {
-                                var bytes = new byte[header.Size];
-                                stream.Read(bytes, 0, bytes.Length);
-                                f.Write(bytes);
-                                f.Flush();
-                            }
-
-                            try
-                            {
-                                //File.SetCreationTime(filePath, header.CreateDate);
-                                //File.SetLastWriteTime(filePath, header.ModifyDate);
-                                //File.SetAttributes(filePath, header.Attributes);
-                            }
-                            catch { }
-                        }
-                        else
-                        {
-                            stream.Seek(header.Size, SeekOrigin.Current);
-                            filePath = Path.Combine(filePath, fileName);
-                            Console.WriteLine(stream.Position.ToString("X") + ": " + filePath + " - " + header.Size.ToString() + " bytes - " + header.CreateDate.ToShortDateString());
-                        }
+                        catch { }
+                    }
+                    else
+                    {
+                        stream.Seek(header.Size, SeekOrigin.Current);
+                        filePath = Path.Combine(filePath, fileName);
+                        Console.WriteLine(stream.Position.ToString("X") + ": " + filePath + " - " + header.Size.ToString() + " bytes - " + header.CreateDate.ToShortDateString());
                     }
                 }
             }

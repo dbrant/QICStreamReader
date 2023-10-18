@@ -62,19 +62,15 @@ namespace arcadabackup1
             {
                 try
                 {
-                    using (var stream = new FileStream(inFileName, FileMode.Open, FileAccess.Read))
+                    using var stream = new FileStream(inFileName, FileMode.Open, FileAccess.Read);
+                    using var outStream = new FileStream(outFileName, FileMode.Create, FileAccess.Write);
+                    while (stream.Position < stream.Length)
                     {
-                        using (var outStream = new FileStream(outFileName, FileMode.Create, FileAccess.Write))
-                        {
-                            while (stream.Position < stream.Length)
-                            {
-                                stream.Read(bytes, 0, 0x8000);
+                        stream.Read(bytes, 0, 0x8000);
 
-                                // Each block of 0x8000 bytes ends with 0xC00 bytes of ECC and/or parity data.
-                                // TODO: actually use the ECC to verify and correct the data itself.
-                                outStream.Write(bytes, 0, 0x8000 - 0xC00);
-                            }
-                        }
+                        // Each block of 0x8000 bytes ends with 0xC00 bytes of ECC and/or parity data.
+                        // TODO: actually use the ECC to verify and correct the data itself.
+                        outStream.Write(bytes, 0, 0x8000 - 0xC00);
                     }
                 }
                 catch (Exception e)
@@ -87,61 +83,57 @@ namespace arcadabackup1
             {
                 try
                 {
-                    using (var stream = new FileStream(inFileName, FileMode.Open, FileAccess.Read))
+                    using var stream = new FileStream(inFileName, FileMode.Open, FileAccess.Read);
+                    using var outStream = new FileStream(outFileName, FileMode.Create, FileAccess.Write);
+                    bool firstCompressedFrame = true;
+
+                    while (stream.Position < stream.Length)
                     {
-                        using (var outStream = new FileStream(outFileName, FileMode.Create, FileAccess.Write))
+                        stream.Read(bytes, 0, 10);
+                        long absolutePos = BitConverter.ToInt64(bytes, 0);
+                        int frameSize = BitConverter.ToUInt16(bytes, 8);
+
+                        bool compressed = (frameSize & 0x8000) == 0;
+                        frameSize &= 0x7FFF;
+
+                        if (compressed && firstCompressedFrame)
                         {
-                            bool firstCompressedFrame = true;
-
-                            while (stream.Position < stream.Length)
+                            firstCompressedFrame = false;
+                            // pad to 0x200
+                            if ((outStream.Position % 0x200) > 0)
                             {
-                                stream.Read(bytes, 0, 10);
-                                long absolutePos = BitConverter.ToInt64(bytes, 0);
-                                int frameSize = BitConverter.ToUInt16(bytes, 8);
-
-                                bool compressed = (frameSize & 0x8000) == 0;
-                                frameSize &= 0x7FFF;
-
-                                if (compressed && firstCompressedFrame)
-                                {
-                                    firstCompressedFrame = false;
-                                    // pad to 0x200
-                                    if ((outStream.Position % 0x200) > 0)
-                                    {
-                                        //Array.Clear(bytes, 0, bytes.Length);
-                                        //outStream.Write(bytes, 0, 0x200 - (int)(outStream.Position % 0x200));
-                                    }
-                                }
-
-                                stream.Read(bytes, 0, frameSize);
-
-                                if ((stream.Position % 0x200) > 0)
-                                {
-                                    stream.Seek(0x200 - (stream.Position % 0x200), SeekOrigin.Current);
-                                }
-
-
-                                if (absPos && (absolutePos != outStream.Position))
-                                {
-                                    outStream.Position = absolutePos;
-                                }
-
-                                if (compressed)
-                                {
-                                    try
-                                    {
-                                        new QicUtils.Qic122Decompressor(new MemoryStream(bytes)).DecompressTo(outStream);
-                                    }
-                                    catch (Exception ex)
-                                    {
-                                        Console.WriteLine("Warning: failed to decompress frame: " + ex.Message);
-                                    }
-                                }
-                                else
-                                {
-                                    outStream.Write(bytes, 0, frameSize);
-                                }
+                                //Array.Clear(bytes, 0, bytes.Length);
+                                //outStream.Write(bytes, 0, 0x200 - (int)(outStream.Position % 0x200));
                             }
+                        }
+
+                        stream.Read(bytes, 0, frameSize);
+
+                        if ((stream.Position % 0x200) > 0)
+                        {
+                            stream.Seek(0x200 - (stream.Position % 0x200), SeekOrigin.Current);
+                        }
+
+
+                        if (absPos && (absolutePos != outStream.Position))
+                        {
+                            outStream.Position = absolutePos;
+                        }
+
+                        if (compressed)
+                        {
+                            try
+                            {
+                                new QicUtils.Qic122Decompressor(new MemoryStream(bytes)).DecompressTo(outStream);
+                            }
+                            catch (Exception ex)
+                            {
+                                Console.WriteLine("Warning: failed to decompress frame: " + ex.Message);
+                            }
+                        }
+                        else
+                        {
+                            outStream.Write(bytes, 0, frameSize);
                         }
                     }
                 }
@@ -154,135 +146,133 @@ namespace arcadabackup1
 
             try
             {
-                using (var stream = new FileStream(inFileName, FileMode.Open, FileAccess.Read))
+                using var stream = new FileStream(inFileName, FileMode.Open, FileAccess.Read);
+                while (stream.Position < (stream.Length - 16))
                 {
+                    long headerPos = -1;
+                    long dataPos = -1;
+
                     while (stream.Position < (stream.Length - 16))
                     {
-                        long headerPos = -1;
-                        long dataPos = -1;
-
-                        while (stream.Position < (stream.Length - 16))
+                        stream.Read(bytes, 0, 4);
+                        if (BitConverter.ToUInt32(bytes, 0) == FileHeaderMagic)
                         {
-                            stream.Read(bytes, 0, 4);
-                            if (BitConverter.ToUInt32(bytes, 0) == FileHeaderMagic)
-                            {
-                                headerPos = stream.Position - 4;
-                            }
-                            else if (BitConverter.ToUInt32(bytes, 0) == DataHeaderMagic)
-                            {
-                                dataPos = stream.Position - 4;
-                            }
-                            if (headerPos >= 0 && dataPos > headerPos)
-                            {
-                                break;
-                            }
-                            stream.Seek(-3, SeekOrigin.Current);
+                            headerPos = stream.Position - 4;
                         }
-
-                        if (stream.Position >= (stream.Length - 16))
+                        else if (BitConverter.ToUInt32(bytes, 0) == DataHeaderMagic)
+                        {
+                            dataPos = stream.Position - 4;
+                        }
+                        if (headerPos >= 0 && dataPos > headerPos)
                         {
                             break;
                         }
-
-                        long nextHeaderPos = stream.Length;
-
-                        while (stream.Position < (stream.Length - 16))
-                        {
-                            stream.Read(bytes, 0, 4);
-                            if (BitConverter.ToUInt32(bytes, 0) == FileHeaderMagic)
-                            {
-                                nextHeaderPos = stream.Position - 4;
-                                break;
-                            }
-                            stream.Seek(-3, SeekOrigin.Current);
-                        }
-
-                        if (nextHeaderPos < headerPos)
-                        {
-                            nextHeaderPos = stream.Length;
-                        }
-
-                        stream.Position = headerPos;
-
-                        var header = new FileHeader(stream, false, dataPos, nextHeaderPos);
-                        if (!header.Valid)
-                        {
-                            stream.Position = headerPos + 1;
-                            continue;
-                        }
-
-                        stream.Position = dataPos + 6;
-
-
-
-                        if (header.IsDirectory || header.Name.Trim() == "")
-                        {
-                            if (header.Size > 0)
-                            {
-                                //stream.Seek(header.Size, SeekOrigin.Current);
-                            }
-                            continue;
-                        }
-
-                        string filePath = baseDirectory;
-                        if (header.Subdirectory.Length > 0)
-                        {
-                            string[] dirArray = header.Subdirectory.Split('\0');
-                            for (int i = 0; i < dirArray.Length; i++)
-                            {
-                                filePath = Path.Combine(filePath, dirArray[i]);
-                            }
-                        }
-
-                        Directory.CreateDirectory(filePath);
-                        filePath = Path.Combine(filePath, header.Name);
-
-                        // Make sure the fully qualified name does not exceed 260 chars
-                        if (filePath.Length >= 260)
-                        {
-                            filePath = filePath.Substring(0, 259);
-                        }
-
-                        if (File.Exists(filePath))
-                        {
-                            Console.WriteLine("Warning: file already exists (skipping): " + filePath);
-                            //filePath += "_";
-                            continue;
-                        }
-
-                        Console.WriteLine(stream.Position.ToString("X") + ": " + filePath + " - " + header.Size.ToString() + " bytes - " + header.CreateDate.ToShortDateString());
-
-                        using (var f = new FileStream(filePath, FileMode.Create, FileAccess.Write))
-                        {
-                            long bytesLeft = header.Size;
-                            while (bytesLeft > 0)
-                            {
-                                int bytesToRead = bytes.Length;
-                                if (bytesToRead > bytesLeft) { bytesToRead = (int)bytesLeft; }
-                                stream.Read(bytes, 0, bytesToRead);
-                                f.Write(bytes, 0, bytesToRead);
-
-                                if (bytesLeft == header.Size)
-                                {
-                                    if (!QicUtils.Utils.VerifyFileFormat(header.Name, bytes))
-                                    {
-                                        Console.WriteLine(stream.Position.ToString("X") + " -- Warning: file format doesn't match: " + filePath);
-                                        //Console.ReadKey();
-                                    }
-                                }
-
-                                bytesLeft -= bytesToRead;
-                            }
-                        }
-
-                        try
-                        {
-                            File.SetCreationTime(filePath, header.CreateDate);
-                            File.SetLastWriteTime(filePath, header.ModifyDate);
-                            File.SetAttributes(filePath, header.Attributes);
-                        }
-                        catch { }
+                        stream.Seek(-3, SeekOrigin.Current);
                     }
+
+                    if (stream.Position >= (stream.Length - 16))
+                    {
+                        break;
+                    }
+
+                    long nextHeaderPos = stream.Length;
+
+                    while (stream.Position < (stream.Length - 16))
+                    {
+                        stream.Read(bytes, 0, 4);
+                        if (BitConverter.ToUInt32(bytes, 0) == FileHeaderMagic)
+                        {
+                            nextHeaderPos = stream.Position - 4;
+                            break;
+                        }
+                        stream.Seek(-3, SeekOrigin.Current);
+                    }
+
+                    if (nextHeaderPos < headerPos)
+                    {
+                        nextHeaderPos = stream.Length;
+                    }
+
+                    stream.Position = headerPos;
+
+                    var header = new FileHeader(stream, false, dataPos, nextHeaderPos);
+                    if (!header.Valid)
+                    {
+                        stream.Position = headerPos + 1;
+                        continue;
+                    }
+
+                    stream.Position = dataPos + 6;
+
+
+
+                    if (header.IsDirectory || header.Name.Trim() == "")
+                    {
+                        if (header.Size > 0)
+                        {
+                            //stream.Seek(header.Size, SeekOrigin.Current);
+                        }
+                        continue;
+                    }
+
+                    string filePath = baseDirectory;
+                    if (header.Subdirectory.Length > 0)
+                    {
+                        string[] dirArray = header.Subdirectory.Split('\0');
+                        for (int i = 0; i < dirArray.Length; i++)
+                        {
+                            filePath = Path.Combine(filePath, dirArray[i]);
+                        }
+                    }
+
+                    Directory.CreateDirectory(filePath);
+                    filePath = Path.Combine(filePath, header.Name);
+
+                    // Make sure the fully qualified name does not exceed 260 chars
+                    if (filePath.Length >= 260)
+                    {
+                        filePath = filePath.Substring(0, 259);
+                    }
+
+                    if (File.Exists(filePath))
+                    {
+                        Console.WriteLine("Warning: file already exists (skipping): " + filePath);
+                        //filePath += "_";
+                        continue;
+                    }
+
+                    Console.WriteLine(stream.Position.ToString("X") + ": " + filePath + " - " + header.Size.ToString() + " bytes - " + header.CreateDate.ToShortDateString());
+
+                    using (var f = new FileStream(filePath, FileMode.Create, FileAccess.Write))
+                    {
+                        long bytesLeft = header.Size;
+                        while (bytesLeft > 0)
+                        {
+                            int bytesToRead = bytes.Length;
+                            if (bytesToRead > bytesLeft) { bytesToRead = (int)bytesLeft; }
+                            stream.Read(bytes, 0, bytesToRead);
+                            f.Write(bytes, 0, bytesToRead);
+
+                            if (bytesLeft == header.Size)
+                            {
+                                if (!QicUtils.Utils.VerifyFileFormat(header.Name, bytes))
+                                {
+                                    Console.WriteLine(stream.Position.ToString("X") + " -- Warning: file format doesn't match: " + filePath);
+                                    //Console.ReadKey();
+                                }
+                            }
+
+                            bytesLeft -= bytesToRead;
+                        }
+                    }
+
+                    try
+                    {
+                        File.SetCreationTime(filePath, header.CreateDate);
+                        File.SetLastWriteTime(filePath, header.ModifyDate);
+                        File.SetAttributes(filePath, header.Attributes);
+                    }
+                    catch { }
                 }
             }
             catch (Exception e)
