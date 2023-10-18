@@ -31,18 +31,9 @@ namespace xenixold
                 else if (args[i] == "--offset") { initialOffset = QicUtils.Utils.StringOrHexToLong(args[i + 1]); }
             }
 
-            try
-            {
-                using (var stream = new FileStream(inFileName, FileMode.Open, FileAccess.Read))
-                {
-                    var partition = new XenixPartition(stream, initialOffset);
-                    partition.UnpackFiles(baseDirectory);
-                }
-            }
-            catch (Exception e)
-            {
-                Console.WriteLine(e.ToString());
-            }
+            using var stream = new FileStream(inFileName, FileMode.Open, FileAccess.Read);
+            var partition = new XenixPartition(stream, initialOffset);
+            partition.UnpackFiles(baseDirectory);
         }
 
 

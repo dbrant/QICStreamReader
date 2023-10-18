@@ -16,53 +16,51 @@ namespace headerview
 
 			try
 			{
-				using (var f = new FileStream(args[0], FileMode.Open, FileAccess.Read))
-				{
-					FormatParamRecord record = new FormatParamRecord(f);
-					if (record.Valid)
-					{
-						Console.Write(record.ToString());
-						return;
-					}
+                using var f = new FileStream(args[0], FileMode.Open, FileAccess.Read);
+                FormatParamRecord record = new FormatParamRecord(f);
+                if (record.Valid)
+                {
+                    Console.Write(record.ToString());
+                    return;
+                }
 
-					f.Seek(0, SeekOrigin.Begin);
-					Vtbl1Record vtbl1 = new Vtbl1Record(f);
-					if (vtbl1.Valid)
-					{
-						while (vtbl1.Valid)
-						{
-							Console.Write(vtbl1.ToString());
-							Console.WriteLine("----------------");
-							vtbl1 = new Vtbl1Record(f);
-						}
-						return;
-					}
+                f.Seek(0, SeekOrigin.Begin);
+                Vtbl1Record vtbl1 = new Vtbl1Record(f);
+                if (vtbl1.Valid)
+                {
+                    while (vtbl1.Valid)
+                    {
+                        Console.Write(vtbl1.ToString());
+                        Console.WriteLine("----------------");
+                        vtbl1 = new Vtbl1Record(f);
+                    }
+                    return;
+                }
 
-					f.Seek(0, SeekOrigin.Begin);
-					Vtbl2Record vtbl2 = new Vtbl2Record(f);
-					if (vtbl2.Valid)
-					{
-						Console.Write(vtbl2.ToString());
-						return;
-					}
+                f.Seek(0, SeekOrigin.Begin);
+                Vtbl2Record vtbl2 = new Vtbl2Record(f);
+                if (vtbl2.Valid)
+                {
+                    Console.Write(vtbl2.ToString());
+                    return;
+                }
 
-					f.Seek(0, SeekOrigin.Begin);
-					Qic113Record qicRec = new Qic113Record(f);
-					if (qicRec.Valid)
-					{
-						Console.Write(qicRec.ToString());
-						return;
-					}
+                f.Seek(0, SeekOrigin.Begin);
+                Qic113Record qicRec = new Qic113Record(f);
+                if (qicRec.Valid)
+                {
+                    Console.Write(qicRec.ToString());
+                    return;
+                }
 
-					f.Seek(0, SeekOrigin.Begin);
-					QicUtils.Mtf.TapeHeaderBlock mtfRec = new QicUtils.Mtf.TapeHeaderBlock(f);
-					if (mtfRec.Valid)
-					{
-						Console.Write(mtfRec.ToString());
-						return;
-					}
-				}
-			}
+                f.Seek(0, SeekOrigin.Begin);
+                QicUtils.Mtf.TapeHeaderBlock mtfRec = new QicUtils.Mtf.TapeHeaderBlock(f);
+                if (mtfRec.Valid)
+                {
+                    Console.Write(mtfRec.ToString());
+                    return;
+                }
+            }
 			catch (Exception e)
 			{
 				Console.WriteLine("Error: " + e.Message);

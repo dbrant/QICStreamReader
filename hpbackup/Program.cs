@@ -96,21 +96,19 @@ namespace hpbackup
             var catalog = new List<FileHeader>();
             try
             {
-                using (var stream = new FileStream(catFileName, FileMode.Open, FileAccess.Read))
+                using var stream = new FileStream(catFileName, FileMode.Open, FileAccess.Read);
+                while (stream.Position < stream.Length)
                 {
-                    while (stream.Position < stream.Length)
+                    var header = new FileHeader(stream);
+
+                    if (!header.Valid)
                     {
-                        var header = new FileHeader(stream);
-
-                        if (!header.Valid)
-                        {
-                            AlignToNextBlock(stream);
-                            continue;
-                        }
-
-                        catalog.Add(header);
-                        Console.WriteLine(stream.Position.ToString("X") + ":  " + header.Size.ToString("X") + " -- " + header.DateTime.ToString() + " -- " + header.Name);
+                        AlignToNextBlock(stream);
+                        continue;
                     }
+
+                    catalog.Add(header);
+                    Console.WriteLine(stream.Position.ToString("X") + ":  " + header.Size.ToString("X") + " -- " + header.DateTime.ToString() + " -- " + header.Name);
                 }
             }
             catch (Exception e)
@@ -122,76 +120,74 @@ namespace hpbackup
             // ...And read the contents, hoping that the data perfectly lines up with the contents.
             try
             {
-                using (var stream = new FileStream(inFileName, FileMode.Open, FileAccess.Read))
+                using var stream = new FileStream(inFileName, FileMode.Open, FileAccess.Read);
+                while (stream.Position < stream.Length && catalog.Count > 0)
                 {
-                    while (stream.Position < stream.Length && catalog.Count > 0)
+                    FileHeader currentFile = null;
+                    while (catalog.Count > 0)
                     {
-                        FileHeader currentFile = null;
-                        while (catalog.Count > 0)
-                        {
-                            currentFile = catalog[0];
-                            catalog.RemoveAt(0);
-                            if (currentFile.Size > 0) { break; }
-                            else { currentFile = null; }
-                        }
-                        if (currentFile == null)
-                        {
-                            Console.WriteLine("Warning: Reached end of catalog with file data remaining.");
-                            break;
-                        }
+                        currentFile = catalog[0];
+                        catalog.RemoveAt(0);
+                        if (currentFile.Size > 0) { break; }
+                        else { currentFile = null; }
+                    }
+                    if (currentFile == null)
+                    {
+                        Console.WriteLine("Warning: Reached end of catalog with file data remaining.");
+                        break;
+                    }
 
-                        string filePath = baseDirectory;
-                        if (currentFile.Subdirectory.Length > 0)
+                    string filePath = baseDirectory;
+                    if (currentFile.Subdirectory.Length > 0)
+                    {
+                        string[] dirArray = currentFile.Subdirectory.Split('\\');
+                        for (int i = 0; i < dirArray.Length; i++)
                         {
-                            string[] dirArray = currentFile.Subdirectory.Split('\\');
-                            for (int i = 0; i < dirArray.Length; i++)
+                            filePath = Path.Combine(filePath, dirArray[i]);
+                        }
+                    }
+                    if (!dryRun)
+                    {
+                        Directory.CreateDirectory(filePath);
+                    }
+                    filePath = Path.Combine(filePath, currentFile.Name);
+
+                    Console.WriteLine("Restoring: " + filePath);
+
+                    using (var f = dryRun ? (Stream)new MemoryStream() : (Stream)new FileStream(filePath, FileMode.Create, FileAccess.Write))
+                    {
+                        long bytesLeft = currentFile.Size;
+                        while (bytesLeft > 0)
+                        {
+                            int bytesToRead = bytes.Length;
+                            if (bytesToRead > bytesLeft) { bytesToRead = (int)bytesLeft; }
+                            stream.Read(bytes, 0, bytesToRead);
+                            f.Write(bytes, 0, bytesToRead);
+
+                            if (bytesLeft == currentFile.Size)
                             {
-                                filePath = Path.Combine(filePath, dirArray[i]);
-                            }
-                        }
-                        if (!dryRun)
-                        {
-                            Directory.CreateDirectory(filePath);
-                        }
-                        filePath = Path.Combine(filePath, currentFile.Name);
-
-                        Console.WriteLine("Restoring: " + filePath);
-
-                        using (var f = dryRun ? (Stream)new MemoryStream() : (Stream)new FileStream(filePath, FileMode.Create, FileAccess.Write))
-                        {
-                            long bytesLeft = currentFile.Size;
-                            while (bytesLeft > 0)
-                            {
-                                int bytesToRead = bytes.Length;
-                                if (bytesToRead > bytesLeft) { bytesToRead = (int)bytesLeft; }
-                                stream.Read(bytes, 0, bytesToRead);
-                                f.Write(bytes, 0, bytesToRead);
-
-                                if (bytesLeft == currentFile.Size)
+                                if (!QicUtils.Utils.VerifyFileFormat(currentFile.Name, bytes))
                                 {
-                                    if (!QicUtils.Utils.VerifyFileFormat(currentFile.Name, bytes))
-                                    {
-                                        Console.WriteLine(stream.Position.ToString("X") + " -- Warning: file format doesn't match: " + filePath);
-                                        Console.ReadKey();
-                                    }
+                                    Console.WriteLine(stream.Position.ToString("X") + " -- Warning: file format doesn't match: " + filePath);
+                                    Console.ReadKey();
                                 }
-
-                                bytesLeft -= bytesToRead;
                             }
-                        }
 
-                        if (!dryRun)
-                        {
-                            File.SetCreationTime(filePath, currentFile.DateTime);
-                            File.SetLastWriteTime(filePath, currentFile.DateTime);
-                            //File.SetAttributes(filePath, header.Attributes);
+                            bytesLeft -= bytesToRead;
                         }
                     }
 
-                    if (catalog.Count > 0)
+                    if (!dryRun)
                     {
-                        Console.WriteLine("Warning: Reached end of file data with catalog items remaining.");
+                        File.SetCreationTime(filePath, currentFile.DateTime);
+                        File.SetLastWriteTime(filePath, currentFile.DateTime);
+                        //File.SetAttributes(filePath, header.Attributes);
                     }
+                }
+
+                if (catalog.Count > 0)
+                {
+                    Console.WriteLine("Warning: Reached end of file data with catalog items remaining.");
                 }
             }
             catch (Exception e)
