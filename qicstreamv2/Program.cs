@@ -145,16 +145,14 @@ namespace QicStreamV2
 
             using (var stream = new FileStream(inFileName, FileMode.Open, FileAccess.Read))
             {
-                using (var outStream = new FileStream(tempFileName, FileMode.Create, FileAccess.Write))
+                using var outStream = new FileStream(tempFileName, FileMode.Create, FileAccess.Write);
+                while (stream.Position < stream.Length)
                 {
-                    while (stream.Position < stream.Length)
-                    {
-                        stream.Read(bytes, 0, 0x8000);
+                    stream.Read(bytes, 0, 0x8000);
 
-                        // Each block of 0x8000 bytes ends with 0x402 bytes of something (perhaps for parity checking)
-                        // We'll just remove it and write the good bytes to the temporary file.
-                        outStream.Write(bytes, 0, 0x8000 - 0x402);
-                    }
+                    // Each block of 0x8000 bytes ends with 0x402 bytes of something (perhaps for parity checking)
+                    // We'll just remove it and write the good bytes to the temporary file.
+                    outStream.Write(bytes, 0, 0x8000 - 0x402);
                 }
             }
 
@@ -162,149 +160,147 @@ namespace QicStreamV2
 
             try
             {
-                using (var stream = new FileStream(tempFileName, FileMode.Open, FileAccess.Read))
+                using var stream = new FileStream(tempFileName, FileMode.Open, FileAccess.Read);
+                if (customOffset == 0)
                 {
-                    if (customOffset == 0)
+                    // Read the volume header, which doesn't really contain much vital information.
+                    stream.Read(bytes, 0, 0x3e);
+
+                    string magic = Encoding.ASCII.GetString(bytes, 4, 4);
+                    if (magic != "FSET")
                     {
-                        // Read the volume header, which doesn't really contain much vital information.
-                        stream.Read(bytes, 0, 0x3e);
-
-                        string magic = Encoding.ASCII.GetString(bytes, 4, 4);
-                        if (magic != "FSET")
-                        {
-                            throw new ApplicationException("Incorrect magic value.");
-                        }
-
-                        // The volume header continues with a dynamically-sized volume label:
-                        int volNameLen = BitConverter.ToUInt16(bytes, 0x3C);
-                        stream.Read(bytes, 0, volNameLen);
-
-                        string volName = Encoding.ASCII.GetString(bytes, 0, volNameLen);
-                        Console.WriteLine("Backup label: " + volName);
-
-                        // ...followed by a dynamically-sized drive name:
-                        // (which must be aligned on a 2-byte boundary)
-                        if (stream.Position % 2 == 1)
-                        {
-                            stream.ReadByte();
-                        }
-                        stream.Read(bytes, 0, 2);
-                        int driveNameLen = BitConverter.ToUInt16(bytes, 0);
-                        stream.Read(bytes, 0, driveNameLen);
-
-                        string driveName = Encoding.ASCII.GetString(bytes, 0, driveNameLen);
-                        Console.WriteLine("Drive name: " + driveName);
-                    }
-                    else
-                    {
-                        // adjust offset to account for removed bytes
-                        customOffset -= ((customOffset / 0x8000) * 0x402);
-
-                        stream.Seek(customOffset, SeekOrigin.Begin);
+                        throw new ApplicationException("Incorrect magic value.");
                     }
 
-                    // Maintain a list of subdirectories into which we'll descend and un-descend.
-                    List<string> currentDirList = new List<string>();
-                    Directory.CreateDirectory(baseDirectory);
-                    string currentDirectory = baseDirectory;
+                    // The volume header continues with a dynamically-sized volume label:
+                    int volNameLen = BitConverter.ToUInt16(bytes, 0x3C);
+                    stream.Read(bytes, 0, volNameLen);
 
-                    bool isCatalogRegion = false;
+                    string volName = Encoding.ASCII.GetString(bytes, 0, volNameLen);
+                    Console.WriteLine("Backup label: " + volName);
 
-                    // And now begins the main sequence of the backup, which consists of a control code,
-                    // followed by the data (if any) that the control code represents.
-
-                    while (stream.Position < stream.Length)
+                    // ...followed by a dynamically-sized drive name:
+                    // (which must be aligned on a 2-byte boundary)
+                    if (stream.Position % 2 == 1)
                     {
-                        ControlCode code = (ControlCode)stream.ReadByte();
+                        stream.ReadByte();
+                    }
+                    stream.Read(bytes, 0, 2);
+                    int driveNameLen = BitConverter.ToUInt16(bytes, 0);
+                    stream.Read(bytes, 0, driveNameLen);
 
-                        if (code == ControlCode.CatalogStart)
-                        {
-                            isCatalogRegion = true;
-                        }
-                        else if (code == ControlCode.ContentsStart)
-                        {
-                            isCatalogRegion = false;
-                        }
-                        else if (code == ControlCode.ParentDirectory && !isCatalogRegion)
-                        {
-                            // Go "up" to the parent directory
-                            if (currentDirList.Count > 0) { currentDirList.RemoveAt(currentDirList.Count - 1); }
-                        }
-                        else if (code == ControlCode.Directory)
-                        {
-                            // This control code is followed by a directory header which tells us the name
-                            // of the directory that we're descending into.
-                            var header = new DirectoryHeader(stream);
+                    string driveName = Encoding.ASCII.GetString(bytes, 0, driveNameLen);
+                    Console.WriteLine("Drive name: " + driveName);
+                }
+                else
+                {
+                    // adjust offset to account for removed bytes
+                    customOffset -= ((customOffset / 0x8000) * 0x402);
 
-                            if (!isCatalogRegion)
+                    stream.Seek(customOffset, SeekOrigin.Begin);
+                }
+
+                // Maintain a list of subdirectories into which we'll descend and un-descend.
+                List<string> currentDirList = new List<string>();
+                Directory.CreateDirectory(baseDirectory);
+                string currentDirectory = baseDirectory;
+
+                bool isCatalogRegion = false;
+
+                // And now begins the main sequence of the backup, which consists of a control code,
+                // followed by the data (if any) that the control code represents.
+
+                while (stream.Position < stream.Length)
+                {
+                    ControlCode code = (ControlCode)stream.ReadByte();
+
+                    if (code == ControlCode.CatalogStart)
+                    {
+                        isCatalogRegion = true;
+                    }
+                    else if (code == ControlCode.ContentsStart)
+                    {
+                        isCatalogRegion = false;
+                    }
+                    else if (code == ControlCode.ParentDirectory && !isCatalogRegion)
+                    {
+                        // Go "up" to the parent directory
+                        if (currentDirList.Count > 0) { currentDirList.RemoveAt(currentDirList.Count - 1); }
+                    }
+                    else if (code == ControlCode.Directory)
+                    {
+                        // This control code is followed by a directory header which tells us the name
+                        // of the directory that we're descending into.
+                        var header = new DirectoryHeader(stream);
+
+                        if (!isCatalogRegion)
+                        {
+                            currentDirList.Add(header.Name);
+
+                            currentDirectory = baseDirectory;
+                            for (int i = 0; i < currentDirList.Count; i++)
                             {
-                                currentDirList.Add(header.Name);
-
-                                currentDirectory = baseDirectory;
-                                for (int i = 0; i < currentDirList.Count; i++)
-                                {
-                                    currentDirectory = Path.Combine(currentDirectory, currentDirList[i]);
-                                }
-
-                                Directory.CreateDirectory(currentDirectory);
-                                Directory.SetCreationTime(currentDirectory, header.DateTime);
-                                Directory.SetLastWriteTime(currentDirectory, header.DateTime);
-
-                                Console.WriteLine(stream.Position.ToString("X") + ": New directory - " + currentDirectory + " - " + header.DateTime.ToShortDateString());
+                                currentDirectory = Path.Combine(currentDirectory, currentDirList[i]);
                             }
+
+                            Directory.CreateDirectory(currentDirectory);
+                            Directory.SetCreationTime(currentDirectory, header.DateTime);
+                            Directory.SetLastWriteTime(currentDirectory, header.DateTime);
+
+                            Console.WriteLine(stream.Position.ToString("X") + ": New directory - " + currentDirectory + " - " + header.DateTime.ToShortDateString());
                         }
-                        else if (code == ControlCode.File)
+                    }
+                    else if (code == ControlCode.File)
+                    {
+                        // This control code is followed by a file header which tells us all the details
+                        // about the file, followed by the actual file contents.
+                        var header = new FileHeader(stream);
+
+                        if (!header.Valid)
                         {
-                            // This control code is followed by a file header which tells us all the details
-                            // about the file, followed by the actual file contents.
-                            var header = new FileHeader(stream);
+                            Console.WriteLine("Invalid file header, probably end of archive.");
+                            break;
+                        }
 
-                            if (!header.Valid)
+                        if (!isCatalogRegion)
+                        {
+                            string fileName = Path.Combine(currentDirectory, header.Name);
+                            using (var f = new FileStream(Path.Combine(currentDirectory, header.Name), FileMode.Create, FileAccess.Write))
                             {
-                                Console.WriteLine("Invalid file header, probably end of archive.");
-                                break;
-                            }
+                                int bytesLeft = header.Size;
 
-                            if (!isCatalogRegion)
-                            {
-                                string fileName = Path.Combine(currentDirectory, header.Name);
-                                using (var f = new FileStream(Path.Combine(currentDirectory, header.Name), FileMode.Create, FileAccess.Write))
+                                while (bytesLeft > 0)
                                 {
-                                    int bytesLeft = header.Size;
-
-                                    while (bytesLeft > 0)
+                                    do
                                     {
-                                        do
-                                        {
-                                            if (stream.Position >= stream.Length) { return; }
-                                            code = (ControlCode)stream.ReadByte();
-                                        }
-                                        while (code != ControlCode.DataChunk);
-
-                                        stream.Read(bytes, 0, 3);
-                                        int chunkSize = BitConverter.ToUInt16(bytes, 1);
-
-                                        stream.Read(bytes, 0, chunkSize);
-                                        f.Write(bytes, 0, chunkSize);
-
-                                        if (bytesLeft == header.Size)
-                                        {
-                                            if (!QicUtils.Utils.VerifyFileFormat(header.Name, bytes))
-                                            {
-                                                Console.WriteLine(stream.Position.ToString("X") + " -- Warning: file format doesn't match: " + fileName);
-                                                Console.ReadKey();
-                                            }
-                                        }
-
-                                        bytesLeft -= chunkSize;
+                                        if (stream.Position >= stream.Length) { return; }
+                                        code = (ControlCode)stream.ReadByte();
                                     }
-                                }
-                                File.SetCreationTime(fileName, header.DateTime);
-                                File.SetLastWriteTime(fileName, header.DateTime);
-                                File.SetAttributes(fileName, header.Attributes);
+                                    while (code != ControlCode.DataChunk);
 
-                                Console.WriteLine(stream.Position.ToString("X") + ": " + fileName + " - " + header.Size.ToString() + " bytes - " + header.DateTime.ToShortDateString());
+                                    stream.Read(bytes, 0, 3);
+                                    int chunkSize = BitConverter.ToUInt16(bytes, 1);
+
+                                    stream.Read(bytes, 0, chunkSize);
+                                    f.Write(bytes, 0, chunkSize);
+
+                                    if (bytesLeft == header.Size)
+                                    {
+                                        if (!QicUtils.Utils.VerifyFileFormat(header.Name, bytes))
+                                        {
+                                            Console.WriteLine(stream.Position.ToString("X") + " -- Warning: file format doesn't match: " + fileName);
+                                            Console.ReadKey();
+                                        }
+                                    }
+
+                                    bytesLeft -= chunkSize;
+                                }
                             }
+                            File.SetCreationTime(fileName, header.DateTime);
+                            File.SetLastWriteTime(fileName, header.DateTime);
+                            File.SetAttributes(fileName, header.Attributes);
+
+                            Console.WriteLine(stream.Position.ToString("X") + ": " + fileName + " - " + header.Size.ToString() + " bytes - " + header.DateTime.ToShortDateString());
                         }
                     }
                 }

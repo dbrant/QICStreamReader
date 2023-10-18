@@ -63,19 +63,15 @@ namespace qicstream1a
             {
                 try
                 {
-                    using (var stream = new FileStream(inFileName, FileMode.Open, FileAccess.Read))
+                    using var stream = new FileStream(inFileName, FileMode.Open, FileAccess.Read);
+                    using var outStream = new FileStream(outFileName, FileMode.Create, FileAccess.Write);
+                    while (stream.Position < stream.Length)
                     {
-                        using (var outStream = new FileStream(outFileName, FileMode.Create, FileAccess.Write))
-                        {
-                            while (stream.Position < stream.Length)
-                            {
-                                stream.Read(bytes, 0, 0x8000);
+                        stream.Read(bytes, 0, 0x8000);
 
-                                // Each block of 0x8000 bytes ends with 0x400 bytes of ECC and/or parity data.
-                                // TODO: actually use the ECC to verify and correct the data itself.
-                                outStream.Write(bytes, 0, 0x8000 - 0x400);
-                            }
-                        }
+                        // Each block of 0x8000 bytes ends with 0x400 bytes of ECC and/or parity data.
+                        // TODO: actually use the ECC to verify and correct the data itself.
+                        outStream.Write(bytes, 0, 0x8000 - 0x400);
                     }
                 }
                 catch (Exception e)
