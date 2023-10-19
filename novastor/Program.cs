@@ -16,7 +16,8 @@ using System.Text;
 /// * Files and directories are stored one after another, aligned on sectors (512 bytes).
 /// 
 /// * Each file or directory starts with a 0x80 byte header. If it's a file, the contents
-///   follow directly after the header. And if it's a directly, there is no data.
+///   follow directly after the header. And if it's a directory, there is no data.
+///   After the end of the data, the next file header begins on the next sector boundary.
 /// 
 /// * Byte order is little-endian.
 /// 
@@ -68,105 +69,82 @@ namespace novastor
                 else if (args[i] == "--dry") { dryRun = true; }
             }
 
-            try
+            using var stream = new FileStream(inFileName, FileMode.Open, FileAccess.Read);
+            while (stream.Position < stream.Length)
             {
-                using var stream = new FileStream(inFileName, FileMode.Open, FileAccess.Read);
-                while (stream.Position < stream.Length)
+                // Make sure we're aligned to a sector boundary.
+                if ((stream.Position % BlockSize) > 0)
                 {
-                    // Make sure we're aligned properly.
-                    if ((stream.Position % BlockSize) > 0)
-                    {
-                        stream.Seek(BlockSize - (stream.Position % BlockSize), SeekOrigin.Current);
-                    }
-
-
-                    var header = new FileHeader(stream);
-                    if (!header.Valid)
-                    {
-                        continue;
-                    }
-
-                    // file contents follow immediately after the header.
-
-                    Console.WriteLine(stream.Position.ToString("X") + ": " + header.Name + " - " + header.Size.ToString() + " bytes");
-
-                    if (header.IsDirectory || header.Name.Trim() == "")
-                    {
-                        continue;
-                    }
-
-                    if (header.Size == 0)
-                    {
-                        Console.WriteLine("Warning: skipping zero-length file.");
-                        continue;
-                    }
-
-                    string filePath = baseDirectory;
-                    string[] dirArray = header.Name.Split("\\");
-                    string fileName = dirArray[^1];
-                    for (int i = 0; i < dirArray.Length - 1; i++)
-                    {
-                        filePath = Path.Combine(filePath, dirArray[i].Replace(":", ""));
-                    }
-
-                    if (!dryRun)
-                    {
-                        Directory.CreateDirectory(filePath);
-
-                        filePath = Path.Combine(filePath, fileName);
-
-
-                        while (File.Exists(filePath))
-                        {
-                            Console.WriteLine("Warning: file already exists (amending name): " + filePath);
-                            filePath += "_";
-                        }
-
-                        Console.WriteLine(stream.Position.ToString("X") + ": " + filePath + " - " + header.Size.ToString() + " bytes - " + header.CreateDate.ToShortDateString());
-
-                        using (var f = new FileStream(filePath, FileMode.Create, FileAccess.Write))
-                        {
-                            long bytesLeft = header.Size;
-                            while (bytesLeft > 0)
-                            {
-                                int bytesToRead = bytes.Length;
-                                if (bytesToRead > bytesLeft) { bytesToRead = (int)bytesLeft; }
-                                stream.Read(bytes, 0, bytesToRead);
-                                f.Write(bytes, 0, bytesToRead);
-
-                                if (bytesLeft == header.Size)
-                                {
-                                    if (!Utils.VerifyFileFormat(header.Name, bytes))
-                                    {
-                                        Console.WriteLine(stream.Position.ToString("X") + " -- Warning: file format doesn't match: " + filePath);
-                                    }
-                                }
-
-                                bytesLeft -= bytesToRead;
-                            }
-
-                            f.Flush();
-                        }
-
-                        try
-                        {
-                            File.SetCreationTime(filePath, header.CreateDate);
-                            File.SetLastWriteTime(filePath, header.ModifyDate);
-                            File.SetAttributes(filePath, header.Attributes);
-                        }
-                        catch { }
-                    }
-                    else
-                    {
-                        filePath = Path.Combine(filePath, fileName);
-                        Console.WriteLine(stream.Position.ToString("X") + ": " + filePath + " - " + header.Size.ToString() + " bytes - " + header.CreateDate.ToShortDateString());
-                    }
+                    stream.Seek(BlockSize - (stream.Position % BlockSize), SeekOrigin.Current);
                 }
-            }
-            catch (Exception e)
-            {
-                Console.WriteLine("Error: " + e.Message);
-                Console.Write(e.StackTrace);
+
+                var header = new FileHeader(stream);
+                if (!header.Valid)
+                    continue;
+
+                // file contents follow immediately after the header.
+
+                Console.WriteLine(stream.Position.ToString("X") + ": " + header.Name + " - " + header.Size.ToString() + " bytes");
+
+                if (header.IsDirectory || header.Name.Trim() == "")
+                    continue;
+
+                if (header.Size == 0)
+                {
+                    Console.WriteLine("Warning: skipping zero-length file.");
+                    continue;
+                }
+
+                string filePath = baseDirectory;
+                string[] dirArray = header.Name.Split("\\");
+                string fileName = dirArray[^1];
+                for (int i = 0; i < dirArray.Length - 1; i++)
+                {
+                    filePath = Path.Combine(filePath, dirArray[i].Replace(":", ""));
+                }
+
+                if (!dryRun)
+                {
+                    Directory.CreateDirectory(filePath);
+
+                    filePath = Path.Combine(filePath, fileName);
+
+
+                    while (File.Exists(filePath))
+                    {
+                        Console.WriteLine("Warning: file already exists (amending name): " + filePath);
+                        filePath += "_";
+                    }
+
+                    Console.WriteLine(stream.Position.ToString("X") + ": " + filePath + " - " + header.Size.ToString() + " bytes - " + header.CreateDate.ToShortDateString());
+
+                    using (var f = new FileStream(filePath, FileMode.Create, FileAccess.Write))
+                    {
+                        long bytesLeft = header.Size;
+                        while (bytesLeft > 0)
+                        {
+                            int bytesToRead = bytes.Length;
+                            if (bytesToRead > bytesLeft) { bytesToRead = (int)bytesLeft; }
+                            stream.Read(bytes, 0, bytesToRead);
+                            f.Write(bytes, 0, bytesToRead);
+                            bytesLeft -= bytesToRead;
+                        }
+                        f.Flush();
+                    }
+
+                    try
+                    {
+                        File.SetCreationTime(filePath, header.CreateDate);
+                        File.SetLastWriteTime(filePath, header.ModifyDate);
+                        File.SetAttributes(filePath, header.Attributes);
+                    }
+                    catch { }
+                }
+                else
+                {
+                    filePath = Path.Combine(filePath, fileName);
+                    Console.WriteLine(stream.Position.ToString("X") + ": " + filePath + " - " + header.Size.ToString() + " bytes - " + header.CreateDate.ToShortDateString());
+                }
             }
         }
 
