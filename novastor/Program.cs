@@ -11,6 +11,40 @@ using System.Text;
 /// 
 /// Copyright Dmitry Brant, 2023.
 /// 
+/// Rough outline of the format:
+/// 
+/// * Files and directories are stored one after another, aligned on sectors (512 bytes).
+/// 
+/// * Each file or directory starts with a 0x80 byte header. If it's a file, the contents
+///   follow directly after the header. And if it's a directly, there is no data.
+/// 
+/// * Byte order is little-endian.
+/// 
+/// 
+/// Header structure:
+/// 
+/// Byte offset (hex)     Meaning
+/// ----------------------------------------
+/// 0                     32-bit size of the file. (0 if it's a directory)
+/// 
+/// 4                     Creation date, in DOS date format.
+/// 
+/// 8                     Modification date, in DOS date format.
+/// 
+/// D                     File attributes.
+/// 
+/// E - 63                File name, padded with zeros. (see NOTE below)
+/// 
+/// 64                    Backup date (?), in DOS date format.
+/// 
+/// 74                    Magic string "<<NoVaStOr>>"
+/// -------------------------------------------------------------------------
+/// 
+/// NOTE: If the file name is too long to fit in the header, then the first byte
+/// of the file name is set to 0xFF, and the full file name comes after the header,
+/// in a block of 0x100 bytes (this becomes the null-padded name).
+/// 
+/// 
 /// </summary>
 namespace novastor
 {
@@ -32,12 +66,6 @@ namespace novastor
                 if (args[i] == "-f") { inFileName = args[i + 1]; }
                 else if (args[i] == "-d") { baseDirectory = args[i + 1]; }
                 else if (args[i] == "--dry") { dryRun = true; }
-            }
-
-            if (inFileName.Length == 0 || !File.Exists(inFileName))
-            {
-                Console.WriteLine("Usage:");
-                return;
             }
 
             try
