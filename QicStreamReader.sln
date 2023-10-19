@@ -45,6 +45,8 @@ Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "xenixv3", "xenixv3\xenixv3.
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "novastor", "novastor\novastor.csproj", "{F3065E77-28D5-44E1-B50E-836032B16966}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "qic113expand", "qic113expand\qic113expand.csproj", "{B5710262-62E8-492F-99B9-ED4D60368F2E}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -295,6 +297,18 @@ Global
 		{F3065E77-28D5-44E1-B50E-836032B16966}.Release|x64.Build.0 = Release|Any CPU
 		{F3065E77-28D5-44E1-B50E-836032B16966}.Release|x86.ActiveCfg = Release|Any CPU
 		{F3065E77-28D5-44E1-B50E-836032B16966}.Release|x86.Build.0 = Release|Any CPU
+		{B5710262-62E8-492F-99B9-ED4D60368F2E}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{B5710262-62E8-492F-99B9-ED4D60368F2E}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{B5710262-62E8-492F-99B9-ED4D60368F2E}.Debug|x64.ActiveCfg = Debug|Any CPU
+		{B5710262-62E8-492F-99B9-ED4D60368F2E}.Debug|x64.Build.0 = Debug|Any CPU
+		{B5710262-62E8-492F-99B9-ED4D60368F2E}.Debug|x86.ActiveCfg = Debug|Any CPU
+		{B5710262-62E8-492F-99B9-ED4D60368F2E}.Debug|x86.Build.0 = Debug|Any CPU
+		{B5710262-62E8-492F-99B9-ED4D60368F2E}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{B5710262-62E8-492F-99B9-ED4D60368F2E}.Release|Any CPU.Build.0 = Release|Any CPU
+		{B5710262-62E8-492F-99B9-ED4D60368F2E}.Release|x64.ActiveCfg = Release|Any CPU
+		{B5710262-62E8-492F-99B9-ED4D60368F2E}.Release|x64.Build.0 = Release|Any CPU
+		{B5710262-62E8-492F-99B9-ED4D60368F2E}.Release|x86.ActiveCfg = Release|Any CPU
+		{B5710262-62E8-492F-99B9-ED4D60368F2E}.Release|x86.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
@@ -316,6 +330,7 @@ Global
 		QicUtils\QicUtils.projitems*{89dd4a55-4506-498d-8619-a52beb06bf47}*SharedItemsImports = 5
 		QicUtils\QicUtils.projitems*{a4fd7512-d2fb-4feb-9f09-c1998694caac}*SharedItemsImports = 13
 		QicUtils\QicUtils.projitems*{b562c774-6604-4e5f-ad12-3e25daa28b4c}*SharedItemsImports = 5
+		QicUtils\QicUtils.projitems*{b5710262-62e8-492f-99b9-ed4d60368f2e}*SharedItemsImports = 5
 		QicUtils\QicUtils.projitems*{bdec241d-90bc-4b6e-9100-d3878021d22c}*SharedItemsImports = 5
 		QicUtils\QicUtils.projitems*{c060fbe7-e320-458c-940e-60681d0fd307}*SharedItemsImports = 5
 		QicUtils\QicUtils.projitems*{c47cead8-c7b0-445e-b52a-eaf6577d11c0}*SharedItemsImports = 5
