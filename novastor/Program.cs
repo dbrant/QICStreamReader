@@ -179,7 +179,7 @@ namespace novastor
                 bool veryLongName = false;
                 if (bytes[bytePtr] != 0xFF)
                 {
-                    Name = Utils.GetNullTerminatedString(Encoding.ASCII.GetString(bytes, bytePtr, 0x52)).Trim();
+                    Name = Utils.GetNullTerminatedString(Encoding.Latin1.GetString(bytes, bytePtr, 0x52)).Trim();
                 }
                 else
                 {
@@ -196,7 +196,7 @@ namespace novastor
                 if (veryLongName)
                 {
                     stream.Read(bytes, 0, 0x100);
-                    Name = Utils.GetNullTerminatedString(Encoding.ASCII.GetString(bytes, 0, 0x100)).Trim();
+                    Name = Utils.GetNullTerminatedString(Encoding.Latin1.GetString(bytes, 0, 0x100)).Trim();
                 }
 
                 if (Name.Length == 0) { return; }
