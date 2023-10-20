@@ -1,19 +1,22 @@
 # QICStreamReader
-Decoder for ancient QICStream tape images.
 
-In the very old days of tape backups, one of the tools that were used to record backups was QICStream,
-which was a DOS utility that wrote the backup to a tape drive connected to the PC's floppy controller
-or parallel port.
+This is a series of C# projects for decoding and extracting backups from various ancient media formats,
+made by legacy backup software that is no longer supported. Note that these tools are only for decoding
+*images* of the backup media (i.e. binary dumps), and don't actually read from physical devices.
 
-Unfortunately no documentation exists for the format of these backups, and no modern software
-seems to support it natively any longer.
-This is an attempt to reverse-engineer that format, which thankfully turns out to be
-relatively simple. You can use this tool to extract the original files and directory
-structure from a binary image that you took from an old QICStream tape.
+For many of these formats there doesn't seem to be any existing documentation, so I've had to reverse-engineer
+them to the best of my ability.
+
+The name QICStreamReader comes from the original format that I reverse-engineered, which was from the
+QICStream software for MS-DOS, but there are now many more formats that are supported.
+
+I'll emphasize that these are just my stream-of-consciousness code scraps, and may not work for decoding
+your particular backup image. (If you have one that you can't decode, let me know!) Also, don't judge me by
+the code quality throughout these scraps. Thanks!
 
 ## License
 
-Copyright 2019 Dmitry Brant
+Copyright 2019+ Dmitry Brant
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
