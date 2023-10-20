@@ -125,7 +125,6 @@ namespace novastor
 
                     filePath = Path.Combine(filePath, fileName);
 
-
                     while (File.Exists(filePath))
                     {
                         Console.WriteLine("Warning: file already exists (amending name): " + filePath);
@@ -160,6 +159,8 @@ namespace novastor
                 {
                     filePath = Path.Combine(filePath, fileName);
                     Console.WriteLine(stream.Position.ToString("X") + ": " + filePath + " - " + header.Size.ToString() + " bytes - " + header.CreateDate.ToShortDateString());
+
+                    stream.Seek(header.Size, SeekOrigin.Current);
                 }
             }
         }
