@@ -23,105 +23,29 @@ namespace arcadabackup1
         static void Main(string[] args)
         {
             string inFileName = "";
-            string outFileName = "out.bin";
             string baseDirectory = "out";
-
             long initialOffset = 0;
-            bool decompress = false;
-            bool absPos = false;
-            bool catDump = false;
 
             for (int i = 0; i < args.Length; i++)
             {
                 if (args[i] == "-f") { inFileName = args[i + 1]; }
-                else if (args[i] == "-o") { outFileName = args[i + 1]; }
                 else if (args[i] == "-d") { baseDirectory = args[i + 1]; }
-                else if (args[i] == "-x") { decompress = true; }
                 else if (args[i] == "--offset") { initialOffset = QicUtils.Utils.StringOrHexToLong(args[i + 1]); }
-                else if (args[i] == "--abspos") { absPos = true; }
-                else if (args[i] == "--catdump") { catDump = true; }
             }
 
             if (inFileName.Length == 0 || !File.Exists(inFileName))
             {
-                Console.WriteLine("Usage:");
-                Console.WriteLine("arcadabackup1 -x -f <file name> -o <out file name>");
-                Console.WriteLine("arcadabackup1 -f <file name> [-d <output directory>]");
+                Console.WriteLine("Usage: arcadabackup1 -f <file name> [-d <output directory>]");
                 return;
             }
 
             byte[] bytes = new byte[0x10000];
 
-            if (decompress)
-            {
-                try
-                {
-                    using var stream = new FileStream(inFileName, FileMode.Open, FileAccess.Read);
-                    stream.Position = initialOffset;
-
-                    using var outStream = new FileStream(outFileName, FileMode.Create, FileAccess.Write);
-                    bool firstCompressedFrame = true;
-
-                    while (stream.Position < stream.Length)
-                    {
-                        stream.Read(bytes, 0, 10);
-                        long absolutePos = BitConverter.ToInt64(bytes, 0);
-                        int frameSize = BitConverter.ToUInt16(bytes, 8);
-
-                        bool compressed = (frameSize & 0x8000) == 0;
-                        frameSize &= 0x7FFF;
-
-                        if (compressed && firstCompressedFrame)
-                        {
-                            firstCompressedFrame = false;
-                            // pad to 0x200
-                            if ((outStream.Position % 0x200) > 0)
-                            {
-                                //Array.Clear(bytes, 0, bytes.Length);
-                                //outStream.Write(bytes, 0, 0x200 - (int)(outStream.Position % 0x200));
-                            }
-                        }
-
-                        stream.Read(bytes, 0, frameSize);
-
-                        if ((stream.Position % 0x200) > 0)
-                        {
-                            stream.Seek(0x200 - (stream.Position % 0x200), SeekOrigin.Current);
-                        }
-
-
-                        if (absPos && (absolutePos != outStream.Position))
-                        {
-                            outStream.Position = absolutePos;
-                        }
-
-                        if (compressed)
-                        {
-                            try
-                            {
-                                new QicUtils.Qic122Decompressor(new MemoryStream(bytes)).DecompressTo(outStream);
-                            }
-                            catch (Exception ex)
-                            {
-                                Console.WriteLine("Warning: failed to decompress frame: " + ex.Message);
-                            }
-                        }
-                        else
-                        {
-                            outStream.Write(bytes, 0, frameSize);
-                        }
-                    }
-                }
-                catch (Exception e)
-                {
-                    Console.WriteLine("Error: " + e.Message);
-                }
-                return;
-            }
-
             try
             {
                 using var stream = new FileStream(inFileName, FileMode.Open, FileAccess.Read);
+                stream.Position = initialOffset;
+
                 while (stream.Position < (stream.Length - 16))
                 {
                     long headerPos = -1;

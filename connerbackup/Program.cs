@@ -28,8 +28,6 @@ namespace ConnerBackup
             string baseDirectory = "out";
 
             long initialOffset = 0;
-            bool decompress = false;
-            bool absPos = false;
             bool catDump = false;
 
             for (int i = 0; i < args.Length; i++)
@@ -37,99 +35,17 @@ namespace ConnerBackup
                 if (args[i] == "-f") { inFileName = args[i + 1]; }
                 else if (args[i] == "-o") { outFileName = args[i + 1]; }
                 else if (args[i] == "-d") { baseDirectory = args[i + 1]; }
-                else if (args[i] == "-x") { decompress = true; }
                 else if (args[i] == "--offset") { initialOffset = QicUtils.Utils.StringOrHexToLong(args[i + 1]); }
-                else if (args[i] == "--abspos") { absPos = true; }
                 else if (args[i] == "--catdump") { catDump = true; }
             }
 
             if (inFileName.Length == 0 || !File.Exists(inFileName))
             {
-                Console.WriteLine("Usage:");
-                Console.WriteLine("connerbackup -x -f <file name> -o <out file name>");
-                Console.WriteLine("connerbackup -f <file name> [-d <output directory>]");
+                Console.WriteLine("Usage: connerbackup -f <file name> [-d <output directory>]");
                 return;
             }
 
             byte[] bytes = new byte[0x10000];
-
-            if (decompress)
-            {
-                try
-                {
-                    using var stream = new FileStream(inFileName, FileMode.Open, FileAccess.Read);
-                    stream.Position = initialOffset;
-
-                    using var outStream = new FileStream(outFileName, FileMode.Create, FileAccess.Write);
-                    while (stream.Position < stream.Length)
-                    {
-                        Console.Write(stream.Position.ToString("X8") + ": ");
-
-                        if (stream.Position % 0x7400 == 0)
-                        {
-                            stream.Read(bytes, 0, 4);
-                            uint absolutePos = BitConverter.ToUInt32(bytes, 0);
-
-                            Console.Write("abs: " + absolutePos.ToString("X8"));
-
-                            if (absPos && (absolutePos != outStream.Position))
-                            {
-                                outStream.Position = absolutePos;
-                            }
-                        }
-
-                        stream.Read(bytes, 0, 2);
-                        int frameSize = BitConverter.ToUInt16(bytes, 0);
-
-                        if (frameSize == 0)
-                        {
-                            Console.WriteLine("Warning: empty frame size; bailing.");
-                            break;
-                        }
-
-                        bool compressed = (frameSize & 0x8000) == 0;
-                        frameSize &= 0x7FFF;
-
-                        if (frameSize > 0x7F00)
-                        {
-                            Console.WriteLine("Warning: suspicious frame size; bailing.");
-                            frameSize = BitConverter.ToUInt16(bytes, 0);
-                            break;
-                        }
-
-                        Console.Write("\tframeSize: " + frameSize.ToString("X4") + (compressed ? " (c)" : ""));
-                        Console.Write("\n");
-
-                        stream.Read(bytes, 0, frameSize);
-
-                        //if (stream.Position % 0x7400 != 0)
-                        //{
-                        //    stream.Seek(0x7400 - (stream.Position % 0x7400), SeekOrigin.Current);
-                        //}
-
-                        if (compressed)
-                        {
-                            try
-                            {
-                                new QicUtils.Qic122Decompressor(new MemoryStream(bytes)).DecompressTo(outStream);
-                            }
-                            catch (Exception ex)
-                            {
-                                Console.WriteLine("Warning: failed to decompress frame: " + ex.Message);
-                            }
-                        }
-                        else
-                        {
-                            outStream.Write(bytes, 0, frameSize);
-                        }
-                    }
-                }
-                catch (Exception e)
-                {
-                    Console.WriteLine("Error: " + e.Message);
-                }
-                return;
-            }
 
             try
             {
