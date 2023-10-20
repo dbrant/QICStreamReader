@@ -51,7 +51,7 @@ namespace txver45
         private int curByte;
         private int curBitMask = 0x100;
 
-        private readonly List<byte>[] history = new List<byte>[0x10000];
+        private readonly List<byte>?[] history = new List<byte>?[0x10000];
         private int histPtr = 0;
 
         public TxDecompressor(Stream stream)
@@ -123,14 +123,14 @@ namespace txver45
                     }
                     else
                     {
-                        var list = history[offset];
+                        var list = history[offset]!;
                         var newList = new List<byte>();
 
                         newList.AddRange(list);
 
                         offset++;
                         if (offset < history.Length && (history[offset] != null))
-                            newList.Add(history[offset].First());
+                            newList.Add(history[offset]!.First());
                         else
                             newList.Add(list.First());
 
