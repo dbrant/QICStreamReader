@@ -1,9 +1,0 @@
-﻿<Project Sdk="Microsoft.NET.Sdk">
-  <PropertyGroup>
-    <TargetFramework>net6.0</TargetFramework>
-    <OutputType>Exe</OutputType>
-    <GenerateAssemblyInfo>false</GenerateAssemblyInfo>
-    <Copyright>Copyright 2020- Dmitry Brant</Copyright>
-  </PropertyGroup>
-  <Import Project="..\QicUtils\QicUtils.projitems" Label="Shared" />
-</Project>
