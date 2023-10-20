@@ -11,13 +11,29 @@ using System.Text;
 /// 
 /// Copyright Dmitry Brant, 2023.
 /// 
-/// Rough outline of the format:
 /// 
-/// * Files and directories are stored one after another, aligned on sectors (512 bytes).
+/// Before unpacking the tape contents, they must be uncompressed. Fortunately these
+/// tapes use the same QIC 113 encoding/compression that is used in other QIC formats.
+/// The unique thing seems to be a nonstandard frame encoding, which uses 64-bit absolute 
+/// offsets, and 32-bit frame sizes.
+/// 
+/// To uncompress the tape image, use the qic113expand tool, with these parameters:
+/// 
+/// --segsize 0x8000 --offset 0x400 --absposwidth 8 --framesizewidth 4
+/// 
+/// We need an --offset parameter because the first block (0x400 bytes) is a header that
+/// contains some metadata. Some strings observed in the header include "HDR1", "<<NoVaStOr>>",
+/// and "AnsiToOem".
+/// 
+/// -----------------------------------
+/// 
+/// Once the tape image is uncompressed, here's a rough outline of the backup format:
+/// 
+/// * Files and directories are stored one after another, aligned on blocks (0x400 bytes).
 /// 
 /// * Each file or directory starts with a 0x80 byte header. If it's a file, the contents
 ///   follow directly after the header. And if it's a directory, there is no data.
-///   After the end of the data, the next file header begins on the next sector boundary.
+///   After the end of the data, the next file header begins on the next block boundary.
 /// 
 /// * Byte order is little-endian.
 /// 
@@ -72,7 +88,7 @@ namespace novastor
             using var stream = new FileStream(inFileName, FileMode.Open, FileAccess.Read);
             while (stream.Position < stream.Length)
             {
-                // Make sure we're aligned to a sector boundary.
+                // Make sure we're aligned to a block boundary.
                 if ((stream.Position % BlockSize) > 0)
                 {
                     stream.Seek(BlockSize - (stream.Position % BlockSize), SeekOrigin.Current);
