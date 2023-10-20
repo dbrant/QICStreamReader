@@ -31,6 +31,7 @@ namespace qic113expand
             int segSize = 0x7400;
             int absPosWidth = 8;
             int frameSizeWidth = 2;
+            bool haveExtentOffset = false;
 
             for (int i = 0; i < args.Length; i++)
             {
@@ -40,6 +41,7 @@ namespace qic113expand
                 else if (args[i] == "--segsize") { segSize = (int)QicUtils.Utils.StringOrHexToLong(args[i + 1]); }
                 else if (args[i] == "--absposwidth") { absPosWidth = (int)QicUtils.Utils.StringOrHexToLong(args[i + 1]); }
                 else if (args[i] == "--framesizewidth") { frameSizeWidth = (int)QicUtils.Utils.StringOrHexToLong(args[i + 1]); }
+                else if (args[i] == "--haveextentoffset") { haveExtentOffset = true; }
             }
 
             if (inFileName.Length == 0 || !File.Exists(inFileName))
@@ -64,6 +66,14 @@ namespace qic113expand
                 }
 
                 int segBytesLeft = segSize;
+
+                if (haveExtentOffset)
+                {
+                    stream.Read(bytes, 0, 2);
+                    segBytesLeft -= 2;
+                    int extentOffset = BitConverter.ToUInt16(bytes, 0);
+                    // TODO: correctly handle extent offsets (used in segment spanning compression extents)
+                }
 
                 long absolutePos;
                 if (absPosWidth == 8) {
@@ -132,7 +142,7 @@ namespace qic113expand
 
                     if (absolutePos != outStream.Position)
                     {
-                        Console.WriteLine("Warning: absolute position according to frame is out of sync with output.");
+                        Console.WriteLine("Warning: absolute position according to frame is greater than output. Possibly missing data.");
                         outStream.Position = absolutePos;
                     }
 
@@ -153,7 +163,7 @@ namespace qic113expand
                     }
                     absolutePos = outStream.Position;
                     
-                    if ((segBytesLeft - 0x400) >= 0 && (segBytesLeft - 0x400) < 18)
+                    //if ((segBytesLeft - 0x400) >= 0 && (segBytesLeft - 0x400) < 18)
                     {
                         break;
                     }
