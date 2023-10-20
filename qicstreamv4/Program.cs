@@ -5,9 +5,9 @@ using System.Text;
 
 /// <summary>
 /// 
-/// Decoder for QICStream (V4?) format.
+/// Decoder for tape images made by old versions of MaynStream backup software, from Maynard Electronics.
 /// 
-/// Copyright Dmitry Brant, 2019
+/// Copyright Dmitry Brant, 2019-
 /// 
 /// 
 /// Brief outline of the format, to the best of my reverse-engineering ability:
@@ -107,7 +107,7 @@ using System.Text;
 /// 
 /// 
 /// </summary>
-namespace QicStreamV4
+namespace maynstream
 {
     class Program
     {
@@ -126,7 +126,7 @@ namespace QicStreamV4
 
             if (inFileName.Length == 0 || !File.Exists(inFileName))
             {
-                Console.WriteLine("Usage: qicstreamv4 -f <file name> [-d <output directory>]");
+                Console.WriteLine("Usage: maynstream -f <file name> [-d <output directory>]");
                 return;
             }
 
