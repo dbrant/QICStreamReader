@@ -30,8 +30,6 @@ namespace qic113expand
             string outFileName = "out.bin";
 
             long initialOffset = 0;
-            bool removeEcc = false;
-
             int absPosWidth = 8;
             int frameSizeWidth = 2;
 
@@ -39,7 +37,6 @@ namespace qic113expand
             {
                 if (args[i] == "-f") { inFileName = args[i + 1]; }
                 else if (args[i] == "-o") { outFileName = args[i + 1]; }
-                else if (args[i] == "-ecc") { removeEcc = true; }
                 else if (args[i] == "--offset") { initialOffset = QicUtils.Utils.StringOrHexToLong(args[i + 1]); }
                 else if (args[i] == "--absposwidth") { absPosWidth = (int)QicUtils.Utils.StringOrHexToLong(args[i + 1]); }
                 else if (args[i] == "--framesizewidth") { frameSizeWidth = (int)QicUtils.Utils.StringOrHexToLong(args[i + 1]); }
@@ -47,10 +44,6 @@ namespace qic113expand
 
             if (inFileName.Length == 0 || !File.Exists(inFileName))
             {
-                Console.WriteLine("Usage:");
-                Console.WriteLine("Phase 1 - remove/apply ECC data (if present):");
-                Console.WriteLine("Usage: qic113expand -ecc -f <file name> -o <out file name>");
-                Console.WriteLine("Phase 2 - uncompress the archive (if compression is used):");
                 Console.WriteLine("Usage: qic113expand -f <file name> -o <out file name>");
                 return;
             }
@@ -58,24 +51,9 @@ namespace qic113expand
             byte[] bytes = new byte[0x10000];
 
             using var stream = new FileStream(inFileName, FileMode.Open, FileAccess.Read);
-
-            if (removeEcc)
-            {
-                using var oStream = new FileStream(outFileName, FileMode.Create, FileAccess.Write);
-                while (stream.Position < stream.Length)
-                {
-                    stream.Read(bytes, 0, 0x8000);
-
-                    // Each block of 0x8000 bytes ends with 0x400 bytes of ECC and/or parity data.
-                    // TODO: actually use the ECC to verify and correct the data itself.
-                    oStream.Write(bytes, 0, 0x8000 - 0x400);
-                }
-                return;
-            }
+            stream.Position = initialOffset;
 
             Stream outStream = new FileStream(outFileName, FileMode.OpenOrCreate, FileAccess.ReadWrite);
-
-            stream.Position = initialOffset;
 
             while (stream.Position < stream.Length)
             {

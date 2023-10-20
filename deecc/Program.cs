@@ -10,7 +10,7 @@ using System.Text;
 /// Copyright Dmitry Brant, 2020-.
 /// 
 /// </summary>
-namespace qic113expand
+namespace deecc
 {
     class Program
     {

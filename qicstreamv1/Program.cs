@@ -99,7 +99,6 @@ namespace QicStreamV1
             string baseDirectory = "out";
 
             long initialOffset = 0;
-            bool removeEcc = false;
             bool decompress = false;
             bool absPos = false;
             bool catDump = false;
@@ -109,7 +108,6 @@ namespace QicStreamV1
                 if (args[i] == "-f") { inFileName = args[i + 1]; }
                 else if (args[i] == "-o") { outFileName = args[i + 1]; }
                 else if (args[i] == "-d") { baseDirectory = args[i + 1]; }
-                else if (args[i] == "-ecc") { removeEcc = true; }
                 else if (args[i] == "-x") { decompress = true; }
                 else if (args[i] == "--offset") { initialOffset = QicUtils.Utils.StringOrHexToLong(args[i + 1]); }
                 else if (args[i] == "--abspos") { absPos = true; }
@@ -119,43 +117,14 @@ namespace QicStreamV1
             if (inFileName.Length == 0 || !File.Exists(inFileName))
             {
                 Console.WriteLine("Usage:");
-                Console.WriteLine("Phase 1 - remove/apply ECC data (if present):");
-                Console.WriteLine("Usage: qicstreamv1 -ecc -f <file name> -o <out file name>");
-                Console.WriteLine("Phase 2 - uncompress the archive (if compression is used):");
-                Console.WriteLine("Usage: qicstreamv1 -x -f <file name> -o <out file name>");
-                Console.WriteLine("Phase 3 - extract files/folders from archive:");
-                Console.WriteLine("Usage: qicstreamv1 -f <file name> [-d <output directory>]");
+                Console.WriteLine("qicstreamv1 -x -f <file name> -o <out file name>");
+                Console.WriteLine("qicstreamv1 -f <file name> [-d <output directory>]");
                 return;
             }
 
             byte[] bytes = new byte[0x10000];
 
-            if (removeEcc)
-            {
-                try
-                {
-                    using (var stream = new FileStream(inFileName, FileMode.Open, FileAccess.Read))
-                    {
-                        using (var outStream = new FileStream(outFileName, FileMode.Create, FileAccess.Write))
-                        {
-                            while (stream.Position < stream.Length)
-                            {
-                                stream.Read(bytes, 0, 0x8000);
-
-                                // Each block of 0x8000 bytes ends with 0x400 bytes of ECC and/or parity data.
-                                // TODO: actually use the ECC to verify and correct the data itself.
-                                outStream.Write(bytes, 0, 0x8000 - 0x400);
-                            }
-                        }
-                    }
-                }
-                catch (Exception e)
-                {
-                    Console.WriteLine("Error: " + e.Message);
-                }
-                return;
-            }
-            else if (decompress)
+            if (decompress)
             {
                 try
                 {
