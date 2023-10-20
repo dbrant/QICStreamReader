@@ -156,111 +156,103 @@ namespace sgibackup
                 return;
             }
 
-            try
+            using var stream = new FileStream(inFileName, FileMode.Open, FileAccess.Read);
+            int RemainingSize = 0;
+            FileHeader currentHeader = null;
+            int currentSequence = -1;
+
+            while (stream.Position < stream.Length)
             {
-                using var stream = new FileStream(inFileName, FileMode.Open, FileAccess.Read);
-                int RemainingSize = 0;
-                FileHeader currentHeader = null;
-                int currentSequence = -1;
+                var header = new FileHeader(stream);
 
-                while (stream.Position < stream.Length)
+                if (!header.Valid)
                 {
-                    var header = new FileHeader(stream);
+                    Console.WriteLine("Invalid file header, skipping...");
+                    continue;
+                }
 
-                    if (!header.Valid)
+                if (header.Sequence - currentSequence != 1)
+                {
+                    Console.WriteLine("Warning: sequence number (" + header.Sequence + ") inconsistent with current (" + currentSequence + ")");
+                    //continue;
+                }
+                currentSequence = header.Sequence;
+
+                if (header.HeaderType == HeaderType.Volume || header.HeaderType == HeaderType.Unknown)
+                {
+                    continue;
+                }
+
+                if (header.HeaderType == HeaderType.Metadata)
+                {
+                    currentHeader = header;
+                    RemainingSize = header.Size;
+
+                    Console.WriteLine(stream.Position.ToString("X") + ": " + header.Name + " - "
+                        + header.Size.ToString() + " bytes - " + header.CreateDate.ToShortDateString());
+                }
+
+                var pathArr = header.Name.Split(new char[] { '/' });
+                string path = "";
+
+                for (int i = 0; i < (header.IsDirectory ? pathArr.Length : pathArr.Length - 1); i++)
+                {
+                    if (i > 0) path += Path.DirectorySeparatorChar;
+                    path += QicUtils.Utils.ReplaceInvalidChars(pathArr[i]);
+                }
+
+                path = baseDirectory + (path.StartsWith(Path.DirectorySeparatorChar.ToString()) ? "" : Path.DirectorySeparatorChar.ToString()) + path;
+                if (header.HeaderType == HeaderType.Metadata && !dryRun)
+                {
+                    Directory.CreateDirectory(path);
+                }
+
+                if (header.IsDirectory)
+                {
+                    continue;
+                }
+
+                if (dryRun)
+                {
+                    continue;
+                }
+
+                string fileName = Path.Combine(path, QicUtils.Utils.ReplaceInvalidChars(pathArr[pathArr.Length - 1]));
+
+                using (var f = new FileStream(fileName, FileMode.Append, FileAccess.Write))
+                {
+                    if (header.HeaderType == HeaderType.Data)
                     {
-                        Console.WriteLine("Invalid file header, skipping...");
-                        continue;
-                    }
-
-                    if (header.Sequence - currentSequence != 1)
-                    {
-                        Console.WriteLine("Warning: sequence number (" + header.Sequence + ") inconsistent with current (" + currentSequence + ")");
-                        //continue;
-                    }
-                    currentSequence = header.Sequence;
-
-                    if (header.HeaderType == HeaderType.Volume || header.HeaderType == HeaderType.Unknown)
-                    {
-                        continue;
-                    }
-
-                    if (header.HeaderType == HeaderType.Metadata)
-                    {
-                        currentHeader = header;
-                        RemainingSize = header.Size;
-
-                        Console.WriteLine(stream.Position.ToString("X") + ": " + header.Name + " - "
-                            + header.Size.ToString() + " bytes - " + header.CreateDate.ToShortDateString());
-                    }
-
-                    var pathArr = header.Name.Split(new char[] { '/' });
-                    string path = "";
-
-                    for (int i = 0; i < (header.IsDirectory ? pathArr.Length : pathArr.Length - 1); i++)
-                    {
-                        if (i > 0) path += Path.DirectorySeparatorChar;
-                        path += QicUtils.Utils.ReplaceInvalidChars(pathArr[i]);
-                    }
-
-                    path = baseDirectory + (path.StartsWith(Path.DirectorySeparatorChar.ToString()) ? "" : Path.DirectorySeparatorChar.ToString()) + path;
-                    if (header.HeaderType == HeaderType.Metadata && !dryRun)
-                    {
-                        Directory.CreateDirectory(path);
-                    }
-
-                    if (header.IsDirectory)
-                    {
-                        continue;
-                    }
-
-                    if (dryRun)
-                    {
-                        continue;
-                    }
-
-                    string fileName = Path.Combine(path, QicUtils.Utils.ReplaceInvalidChars(pathArr[pathArr.Length - 1]));
-
-                    using (var f = new FileStream(fileName, FileMode.Append, FileAccess.Write))
-                    {
-                        if (header.HeaderType == HeaderType.Data)
+                        int bytesToWrite = header.BytesInBlock;
+                        if (bytesToWrite > RemainingSize)
                         {
-                            int bytesToWrite = header.BytesInBlock;
-                            if (bytesToWrite > RemainingSize)
-                            {
-                                bytesToWrite = RemainingSize;
-                            }
-
-                            f.Write(header.bytes, 0x100, bytesToWrite);
-
-                            RemainingSize -= bytesToWrite;
+                            bytesToWrite = RemainingSize;
                         }
-                        else if (header.HeaderType == HeaderType.Metadata)
-                        {
-                            int bytesToWrite = header.BytesInBlock;
-                            if (bytesToWrite > RemainingSize)
-                            {
-                                bytesToWrite = RemainingSize;
-                            }
 
-                            f.Write(header.bytes, 0x400, bytesToWrite);
+                        f.Write(header.bytes, 0x100, bytesToWrite);
 
-                            RemainingSize -= bytesToWrite;
-                        }
+                        RemainingSize -= bytesToWrite;
                     }
-
-                    if (RemainingSize == 0)
+                    else if (header.HeaderType == HeaderType.Metadata)
                     {
-                        File.SetCreationTime(fileName, currentHeader.CreateDate);
-                        File.SetLastWriteTime(fileName, currentHeader.ModifyDate);
-                        //File.SetAttributes(fileName, header.Attributes);
+                        int bytesToWrite = header.BytesInBlock;
+                        if (bytesToWrite > RemainingSize)
+                        {
+                            bytesToWrite = RemainingSize;
+                        }
+
+                        f.Write(header.bytes, 0x400, bytesToWrite);
+
+                        RemainingSize -= bytesToWrite;
                     }
                 }
-            }
-            catch (Exception e)
-            {
-                Console.WriteLine(e.StackTrace);
-                Console.WriteLine("Error: " + e.Message);
+
+                if (RemainingSize == 0)
+                {
+                    File.SetCreationTime(fileName, currentHeader.CreateDate);
+                    File.SetLastWriteTime(fileName, currentHeader.ModifyDate);
+                    //File.SetAttributes(fileName, header.Attributes);
+                }
             }
         }
 

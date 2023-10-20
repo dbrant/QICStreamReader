@@ -76,175 +76,167 @@ namespace txver45
                 return;
             }
 
-            try
+            using var stream = new FileStream(inFileName, FileMode.Open, FileAccess.Read);
+            while (stream.Position < stream.Length)
             {
-                using var stream = new FileStream(inFileName, FileMode.Open, FileAccess.Read);
-                while (stream.Position < stream.Length)
+                // Make sure we're aligned properly.
+                if ((stream.Position % 0x100) > 0)
                 {
-                    // Make sure we're aligned properly.
-                    if ((stream.Position % 0x100) > 0)
+                    stream.Seek(0x100 - (stream.Position % 0x100), SeekOrigin.Current);
+                }
+
+                var header = new FileHeader(stream);
+                if (!header.Valid)
+                {
+                    continue;
+                }
+
+                if (header.IsDirectory || header.Name.Trim() == "")
+                {
+                    Console.WriteLine(stream.Position.ToString("X") + ": " + header.Name + " - " + header.Size.ToString() + " bytes");
+                    continue;
+                }
+
+                if (header.Size == 0)
+                {
+                    Console.WriteLine(stream.Position.ToString("X") + ": " + header.Name);
+                    Console.WriteLine("Warning: skipping zero-length file.");
+                    continue;
+                }
+
+
+                bool compressed = false;
+                {
+                    int byte1 = stream.ReadByte();
+                    int byte2 = stream.ReadByte();
+                    if (header.Size > 0x190)
                     {
-                        stream.Seek(0x100 - (stream.Position % 0x100), SeekOrigin.Current);
-                    }
-
-                    var header = new FileHeader(stream);
-                    if (!header.Valid)
-                    {
-                        continue;
-                    }
-
-                    if (header.IsDirectory || header.Name.Trim() == "")
-                    {
-                        Console.WriteLine(stream.Position.ToString("X") + ": " + header.Name + " - " + header.Size.ToString() + " bytes");
-                        continue;
-                    }
-
-                    if (header.Size == 0)
-                    {
-                        Console.WriteLine(stream.Position.ToString("X") + ": " + header.Name);
-                        Console.WriteLine("Warning: skipping zero-length file.");
-                        continue;
-                    }
-
-
-                    bool compressed = false;
-                    {
-                        int byte1 = stream.ReadByte();
-                        int byte2 = stream.ReadByte();
-                        if (header.Size > 0x190)
-                        {
-                            compressed = byte1 == 0;
-                        }
-                        else
-                        {
-                            compressed = byte1 == 0 && ((byte2 & 0xf) == 1);
-                        }
-                        stream.Seek(-2, SeekOrigin.Current);
-                    }
-                    
-                    string filePath = baseDirectory;
-                    string[] dirArray = header.Name.Split("\\");
-                    string fileName = Utils.ReplaceInvalidChars(dirArray[^1]);
-                    for (int i = 0; i < dirArray.Length - 1; i++)
-                    {
-                        filePath = Path.Combine(filePath, Utils.ReplaceInvalidChars(dirArray[i]));
-                    }
-
-                    if (!dryRun)
-                    {
-                        Directory.CreateDirectory(filePath);
-
-                        filePath = Path.Combine(filePath, fileName);
-
-                        // Make sure the fully qualified name does not exceed 260 chars
-                        if (filePath.Length >= 260)
-                        {
-                            filePath = filePath[..259];
-                        }
-
-                        while (File.Exists(filePath))
-                        {
-                            Console.WriteLine("Warning: file already exists (amending name): " + filePath);
-                            filePath += "_";
-                        }
-
-                        Console.WriteLine("(" + (compressed ? "c" : " ") + ")" + stream.Position.ToString("X") + ": " + filePath + " - "
-                            + header.Size.ToString() + " bytes - " + header.CreateDate.ToShortDateString());
-
-                        long posBeforeRead = stream.Position;
-                        int bytesPerChunk = 0x200;
-
-                        if (compressed)
-                        {
-                            // read the whole file into a memory buffer, so that we can pass it into the decompressor when ready.
-                            using var memStream = new MemoryStream();
-                            // initialize, subtracting the initial size of the header.
-                            int bytesToRead = bytesPerChunk - FileHeader.HEADER_SIZE;
-                            int bytesToWrite = 0;
-                            // Make the total bytes overshoot by a good amount, because the compression was so poor
-                            // that it often made the compressed file take up more space than the original.
-                            long bytesLeft = header.Size * 4;
-                            var bytes = new byte[bytesPerChunk];
-
-                            while (bytesLeft > 0)
-                            {
-                                stream.Read(bytes, 0, bytesToRead);
-                                bytesToWrite = bytesToRead - 2;
-                                bytesToRead = bytesPerChunk;
-
-                                if (bytesToWrite > bytesLeft)
-                                {
-                                    bytesToWrite = (int)bytesLeft;
-                                }
-                                memStream.Write(bytes, 0, bytesToWrite);
-
-                                bytesLeft -= bytesToWrite;
-                            }
-                            memStream.Seek(0, SeekOrigin.Begin);
-
-                            using var f = new FileStream(filePath, FileMode.Create, FileAccess.Write);
-                            try
-                            {
-                                new TxDecompressor(memStream).DecompressTo(f);
-                            }
-                            catch (Exception ex)
-                            {
-                                Console.WriteLine(ex.ToString());
-                            }
-                            f.Flush();
-                        }
-                        else
-                        {
-                            using var f = new FileStream(filePath, FileMode.Create, FileAccess.Write);
-                            // initialize, subtracting the initial size of the header.
-                            int bytesToRead = bytesPerChunk - FileHeader.HEADER_SIZE;
-                            int bytesToWrite = 0;
-                            long bytesLeft = header.Size;
-                            var bytes = new byte[bytesPerChunk];
-
-                            while (bytesLeft > 0)
-                            {
-                                stream.Read(bytes, 0, bytesToRead);
-                                bytesToWrite = bytesToRead - 2;
-                                bytesToRead = bytesPerChunk;
-
-                                if (bytesToWrite > bytesLeft)
-                                {
-                                    bytesToWrite = (int)bytesLeft;
-                                }
-                                f.Write(bytes, 0, bytesToWrite);
-
-                                bytesLeft -= bytesToWrite;
-                            }
-                            f.Flush();
-                        }
-
-                        if (compressed)
-                        {
-                            // Rewind the stream back to the beginning of the current file.
-                            stream.Seek(posBeforeRead, SeekOrigin.Begin);
-                        }
-
-                        try
-                        {
-                            File.SetCreationTime(filePath, header.CreateDate);
-                            File.SetLastWriteTime(filePath, header.ModifyDate);
-                            File.SetAttributes(filePath, header.Attributes);
-                        }
-                        catch { }
+                        compressed = byte1 == 0;
                     }
                     else
                     {
-                        filePath = Path.Combine(filePath, fileName);
-                        Console.WriteLine("(" + (compressed ? "c" : " ") + ")" + stream.Position.ToString("X") + ": " + filePath + " - "
-                            + header.Size.ToString() + " bytes - " + header.CreateDate.ToShortDateString());
+                        compressed = byte1 == 0 && ((byte2 & 0xf) == 1);
                     }
+                    stream.Seek(-2, SeekOrigin.Current);
                 }
-            }
-            catch (Exception e)
-            {
-                Console.WriteLine("Error: " + e.Message);
-                Console.Write(e.StackTrace);
+                    
+                string filePath = baseDirectory;
+                string[] dirArray = header.Name.Split("\\");
+                string fileName = Utils.ReplaceInvalidChars(dirArray[^1]);
+                for (int i = 0; i < dirArray.Length - 1; i++)
+                {
+                    filePath = Path.Combine(filePath, Utils.ReplaceInvalidChars(dirArray[i]));
+                }
+
+                if (!dryRun)
+                {
+                    Directory.CreateDirectory(filePath);
+
+                    filePath = Path.Combine(filePath, fileName);
+
+                    // Make sure the fully qualified name does not exceed 260 chars
+                    if (filePath.Length >= 260)
+                    {
+                        filePath = filePath[..259];
+                    }
+
+                    while (File.Exists(filePath))
+                    {
+                        Console.WriteLine("Warning: file already exists (amending name): " + filePath);
+                        filePath += "_";
+                    }
+
+                    Console.WriteLine("(" + (compressed ? "c" : " ") + ")" + stream.Position.ToString("X") + ": " + filePath + " - "
+                        + header.Size.ToString() + " bytes - " + header.CreateDate.ToShortDateString());
+
+                    long posBeforeRead = stream.Position;
+                    int bytesPerChunk = 0x200;
+
+                    if (compressed)
+                    {
+                        // read the whole file into a memory buffer, so that we can pass it into the decompressor when ready.
+                        using var memStream = new MemoryStream();
+                        // initialize, subtracting the initial size of the header.
+                        int bytesToRead = bytesPerChunk - FileHeader.HEADER_SIZE;
+                        int bytesToWrite = 0;
+                        // Make the total bytes overshoot by a good amount, because the compression was so poor
+                        // that it often made the compressed file take up more space than the original.
+                        long bytesLeft = header.Size * 4;
+                        var bytes = new byte[bytesPerChunk];
+
+                        while (bytesLeft > 0)
+                        {
+                            stream.Read(bytes, 0, bytesToRead);
+                            bytesToWrite = bytesToRead - 2;
+                            bytesToRead = bytesPerChunk;
+
+                            if (bytesToWrite > bytesLeft)
+                            {
+                                bytesToWrite = (int)bytesLeft;
+                            }
+                            memStream.Write(bytes, 0, bytesToWrite);
+
+                            bytesLeft -= bytesToWrite;
+                        }
+                        memStream.Seek(0, SeekOrigin.Begin);
+
+                        using var f = new FileStream(filePath, FileMode.Create, FileAccess.Write);
+                        try
+                        {
+                            new TxDecompressor(memStream).DecompressTo(f);
+                        }
+                        catch (Exception ex)
+                        {
+                            Console.WriteLine(ex.ToString());
+                        }
+                        f.Flush();
+                    }
+                    else
+                    {
+                        using var f = new FileStream(filePath, FileMode.Create, FileAccess.Write);
+                        // initialize, subtracting the initial size of the header.
+                        int bytesToRead = bytesPerChunk - FileHeader.HEADER_SIZE;
+                        int bytesToWrite = 0;
+                        long bytesLeft = header.Size;
+                        var bytes = new byte[bytesPerChunk];
+
+                        while (bytesLeft > 0)
+                        {
+                            stream.Read(bytes, 0, bytesToRead);
+                            bytesToWrite = bytesToRead - 2;
+                            bytesToRead = bytesPerChunk;
+
+                            if (bytesToWrite > bytesLeft)
+                            {
+                                bytesToWrite = (int)bytesLeft;
+                            }
+                            f.Write(bytes, 0, bytesToWrite);
+
+                            bytesLeft -= bytesToWrite;
+                        }
+                        f.Flush();
+                    }
+
+                    if (compressed)
+                    {
+                        // Rewind the stream back to the beginning of the current file.
+                        stream.Seek(posBeforeRead, SeekOrigin.Begin);
+                    }
+
+                    try
+                    {
+                        File.SetCreationTime(filePath, header.CreateDate);
+                        File.SetLastWriteTime(filePath, header.ModifyDate);
+                        File.SetAttributes(filePath, header.Attributes);
+                    }
+                    catch { }
+                }
+                else
+                {
+                    filePath = Path.Combine(filePath, fileName);
+                    Console.WriteLine("(" + (compressed ? "c" : " ") + ")" + stream.Position.ToString("X") + ": " + filePath + " - "
+                        + header.Size.ToString() + " bytes - " + header.CreateDate.ToShortDateString());
+                }
             }
         }
 

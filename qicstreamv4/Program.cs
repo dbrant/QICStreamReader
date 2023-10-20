@@ -132,107 +132,100 @@ namespace QicStreamV4
 
             byte[] bytes = new byte[65536];
 
-            try
+            using var stream = new FileStream(inFileName, FileMode.Open, FileAccess.Read);
+            // Read the volume header
+            stream.Read(bytes, 0, BLOCK_SIZE);
+
+            string volName = QicUtils.Utils.GetNullTerminatedString(Encoding.ASCII.GetString(bytes, 0xAC, 0x80));
+            Console.WriteLine("Backup label: " + volName);
+
+            Directory.CreateDirectory(baseDirectory);
+            string currentDirectory = baseDirectory;
+
+            // And now begins the main sequence of the backup, which consists of a file or directory header,
+            // and the contents of the file.
+            // Each new file/directory header is aligned on a block boundary (512 bytes).
+
+            while (stream.Position < stream.Length)
             {
-                using var stream = new FileStream(inFileName, FileMode.Open, FileAccess.Read);
-                // Read the volume header
-                stream.Read(bytes, 0, BLOCK_SIZE);
+                AlignToNextBlock(stream);
 
-                string volName = QicUtils.Utils.GetNullTerminatedString(Encoding.ASCII.GetString(bytes, 0xAC, 0x80));
-                Console.WriteLine("Backup label: " + volName);
+                FileHeader header = new(stream);
 
-                Directory.CreateDirectory(baseDirectory);
-                string currentDirectory = baseDirectory;
-
-                // And now begins the main sequence of the backup, which consists of a file or directory header,
-                // and the contents of the file.
-                // Each new file/directory header is aligned on a block boundary (512 bytes).
-
-                while (stream.Position < stream.Length)
+                if (!header.Valid)
                 {
-                    AlignToNextBlock(stream);
+                    continue;
+                }
 
-                    FileHeader header = new(stream);
-
-                    if (!header.Valid)
+                if (header.IsDirectory)
+                {
+                    if (header.Name.Length > 0)
                     {
-                        continue;
-                    }
-
-                    if (header.IsDirectory)
-                    {
-                        if (header.Name.Length > 0)
+                        string[] dirArray = header.Name.Split('\0');
+                        currentDirectory = baseDirectory;
+                        for (int i = 0; i < dirArray.Length; i++)
                         {
-                            string[] dirArray = header.Name.Split('\0');
-                            currentDirectory = baseDirectory;
-                            for (int i = 0; i < dirArray.Length; i++)
-                            {
-                                currentDirectory = Path.Combine(currentDirectory, dirArray[i]);
-                            }
-                            Directory.CreateDirectory(currentDirectory);
-                            Directory.SetCreationTime(currentDirectory, header.DateTime);
-                            Directory.SetLastWriteTime(currentDirectory, header.DateTime);
-
-                            Console.WriteLine(stream.Position.ToString("X") + ": New directory - " + currentDirectory + ", " + header.DateTime.ToShortDateString());
+                            currentDirectory = Path.Combine(currentDirectory, dirArray[i]);
                         }
-                    }
-                    else
-                    {
-                        string fileName = Path.Combine(currentDirectory, header.Name);
-                        if (header.Continuation)
-                        {
-                            Console.WriteLine("Warning: continuing file " + header.Name + " (will append contents).");
-                        }
-                        else if (File.Exists(fileName))
-                        {
-                            Console.WriteLine("Warning: file exists: " + header.Name);
-                            Console.ReadKey();
-                            continue;
-                        }
-                        using (var f = new FileStream(fileName, header.Continuation ? FileMode.Append : FileMode.Create, FileAccess.Write))
-                        {
-                            long bytesLeft = header.Size;
-                            while (bytesLeft > 0)
-                            {
-                                int bytesToRead = bytes.Length;
-                                if (bytesToRead > bytesLeft) { bytesToRead = (int)bytesLeft; }
-                                if (bytesToRead > (stream.Length - stream.Position))
-                                {
-                                    bytesToRead = (int)(stream.Length - stream.Position);
-                                    if (bytesToRead == 0)
-                                    {
-                                        // reached the end of the tape image, but still need data. This implies
-                                        // that the file continues on another tape.
-                                        Console.WriteLine("Warning: file contents truncated. Probably continues on another tape.");
-                                        break;
-                                    }
-                                }
-                                int bytesRead = stream.Read(bytes, 0, bytesToRead);
-                                f.Write(bytes, 0, bytesToRead);
+                        Directory.CreateDirectory(currentDirectory);
+                        Directory.SetCreationTime(currentDirectory, header.DateTime);
+                        Directory.SetLastWriteTime(currentDirectory, header.DateTime);
 
-                                if (bytesLeft == header.Size && !header.Continuation)
-                                {
-                                    if (!QicUtils.Utils.VerifyFileFormat(header.Name, bytes))
-                                    {
-                                        Console.WriteLine(stream.Position.ToString("X") + " -- Warning: file format doesn't match: " + fileName);
-                                        Console.ReadKey();
-                                    }
-                                }
-
-                                bytesLeft -= bytesToRead;
-                            }
-                        }
-                        File.SetCreationTime(fileName, header.DateTime);
-                        File.SetLastWriteTime(fileName, header.DateTime);
-                        File.SetAttributes(fileName, header.Attributes);
-
-                        Console.WriteLine(stream.Position.ToString("X") + ": " + fileName + ", " + header.Size.ToString() + " bytes - " + header.DateTime.ToShortDateString());
+                        Console.WriteLine(stream.Position.ToString("X") + ": New directory - " + currentDirectory + ", " + header.DateTime.ToShortDateString());
                     }
                 }
-            }
-            catch (Exception e)
-            {
-                Console.WriteLine("Error: " + e.Message);
+                else
+                {
+                    string fileName = Path.Combine(currentDirectory, header.Name);
+                    if (header.Continuation)
+                    {
+                        Console.WriteLine("Warning: continuing file " + header.Name + " (will append contents).");
+                    }
+                    else if (File.Exists(fileName))
+                    {
+                        Console.WriteLine("Warning: file exists: " + header.Name);
+                        Console.ReadKey();
+                        continue;
+                    }
+                    using (var f = new FileStream(fileName, header.Continuation ? FileMode.Append : FileMode.Create, FileAccess.Write))
+                    {
+                        long bytesLeft = header.Size;
+                        while (bytesLeft > 0)
+                        {
+                            int bytesToRead = bytes.Length;
+                            if (bytesToRead > bytesLeft) { bytesToRead = (int)bytesLeft; }
+                            if (bytesToRead > (stream.Length - stream.Position))
+                            {
+                                bytesToRead = (int)(stream.Length - stream.Position);
+                                if (bytesToRead == 0)
+                                {
+                                    // reached the end of the tape image, but still need data. This implies
+                                    // that the file continues on another tape.
+                                    Console.WriteLine("Warning: file contents truncated. Probably continues on another tape.");
+                                    break;
+                                }
+                            }
+                            int bytesRead = stream.Read(bytes, 0, bytesToRead);
+                            f.Write(bytes, 0, bytesToRead);
+
+                            if (bytesLeft == header.Size && !header.Continuation)
+                            {
+                                if (!QicUtils.Utils.VerifyFileFormat(header.Name, bytes))
+                                {
+                                    Console.WriteLine(stream.Position.ToString("X") + " -- Warning: file format doesn't match: " + fileName);
+                                    Console.ReadKey();
+                                }
+                            }
+
+                            bytesLeft -= bytesToRead;
+                        }
+                    }
+                    File.SetCreationTime(fileName, header.DateTime);
+                    File.SetLastWriteTime(fileName, header.DateTime);
+                    File.SetAttributes(fileName, header.Attributes);
+
+                    Console.WriteLine(stream.Position.ToString("X") + ": " + fileName + ", " + header.Size.ToString() + " bytes - " + header.DateTime.ToShortDateString());
+                }
             }
         }
 

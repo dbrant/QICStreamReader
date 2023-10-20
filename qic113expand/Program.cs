@@ -103,7 +103,7 @@ namespace qic113expand
 
                     if (frameSize > segBytesLeft)
                     {
-                        //Console.WriteLine("Warning: frame extends beyond segment boundary.");
+                        Console.WriteLine("Warning: frame extends beyond segment boundary.");
                     }
 
                     stream.Read(bytes, 0, frameSize);
@@ -157,7 +157,6 @@ namespace qic113expand
                     {
                         break;
                     }
-
                 }
             }
         }
