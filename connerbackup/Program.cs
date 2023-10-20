@@ -24,7 +24,6 @@ namespace ConnerBackup
         static void Main(string[] args)
         {
             string inFileName = "";
-            string outFileName = "out.bin";
             string baseDirectory = "out";
 
             long initialOffset = 0;
@@ -33,7 +32,6 @@ namespace ConnerBackup
             for (int i = 0; i < args.Length; i++)
             {
                 if (args[i] == "-f") { inFileName = args[i + 1]; }
-                else if (args[i] == "-o") { outFileName = args[i + 1]; }
                 else if (args[i] == "-d") { baseDirectory = args[i + 1]; }
                 else if (args[i] == "--offset") { initialOffset = QicUtils.Utils.StringOrHexToLong(args[i + 1]); }
                 else if (args[i] == "--catdump") { catDump = true; }
