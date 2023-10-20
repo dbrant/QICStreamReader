@@ -22,14 +22,13 @@ namespace qic113expand
 {
     class Program
     {
-        private const int SEG_SIZE = 0x7400;
-
         static void Main(string[] args)
         {
             string inFileName = "";
             string outFileName = "out.bin";
 
             long initialOffset = 0;
+            int segSize = 0x7400;
             int absPosWidth = 8;
             int frameSizeWidth = 2;
 
@@ -38,6 +37,7 @@ namespace qic113expand
                 if (args[i] == "-f") { inFileName = args[i + 1]; }
                 else if (args[i] == "-o") { outFileName = args[i + 1]; }
                 else if (args[i] == "--offset") { initialOffset = QicUtils.Utils.StringOrHexToLong(args[i + 1]); }
+                else if (args[i] == "--segsize") { segSize = (int)QicUtils.Utils.StringOrHexToLong(args[i + 1]); }
                 else if (args[i] == "--absposwidth") { absPosWidth = (int)QicUtils.Utils.StringOrHexToLong(args[i + 1]); }
                 else if (args[i] == "--framesizewidth") { frameSizeWidth = (int)QicUtils.Utils.StringOrHexToLong(args[i + 1]); }
             }
@@ -63,7 +63,7 @@ namespace qic113expand
                     stream.Position += 0x100 - (int)(stream.Position % 0x100);
                 }
 
-                int segBytesLeft = SEG_SIZE;
+                int segBytesLeft = segSize;
 
                 long absolutePos;
                 if (absPosWidth == 8) {
