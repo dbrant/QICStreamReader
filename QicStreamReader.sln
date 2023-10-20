@@ -35,7 +35,7 @@ Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "txver45", "txver45\txver45.
 EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "arcserve2", "arcserve2\arcserve2.csproj", "{C47CEAD8-C7B0-445E-B52A-EAF6577D11C0}"
 EndProject
-Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "qicstreamv4", "qicstreamv4\qicstreamv4.csproj", "{BDEC241D-90BC-4B6E-9100-D3878021D22C}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "maynstream", "qicstreamv4\maynstream.csproj", "{BDEC241D-90BC-4B6E-9100-D3878021D22C}"
 EndProject
 Project("{D954291E-2A0B-460D-934E-DC6B0785DB48}") = "QicUtils", "QicUtils\QicUtils.shproj", "{A4FD7512-D2FB-4FEB-9F09-C1998694CAAC}"
 EndProject

@@ -18,7 +18,9 @@ namespace arcserve
 {
     class Program
     {
-        private const uint FileHeaderBlock = 0x55555557;
+        private const uint FileHeaderBlockA = 0x55555557;
+        private const uint FileHeaderBlockB = 0xBBBBBBBB;
+
         private const uint FileEndBlock = 0xCCCCCCCC;
 
         static void Main(string[] args)
@@ -149,27 +151,45 @@ namespace arcserve
 
                 // Read the first four bytes
                 stream.Read(bytes, 0, 4);
-                if (Utils.LittleEndian(BitConverter.ToUInt32(bytes, 0)) != FileHeaderBlock) {
-                    return;
+                if (Utils.LittleEndian(BitConverter.ToUInt32(bytes, 0)) == FileHeaderBlockA)
+                {
+                    // Now go back and read the whole header.
+                    stream.Seek(-4, SeekOrigin.Current);
+                    stream.Read(bytes, 0, bytes.Length);
+
+                    Name = Utils.GetNullTerminatedString(Encoding.ASCII.GetString(bytes, 4, 0x80));
+                    if (Name.Length == 0) { return; }
+                    DosName = Name;
+
+                    //int sizeLoc = 0x7C0 + bytes[0x7B3] + 7;
+                    Size = Utils.LittleEndian(BitConverter.ToUInt32(bytes, 0x17B));
+
+                    //DateTime = new DateTime(1970, 1, 1).AddSeconds(BitConverter.ToUInt32(bytes, 0x2E));
+                    //CreateDate = QicUtils.Utils.DateTimeFromTimeT(BitConverter.ToUInt32(bytes, 0x2E));
+                    //ModifyDate = QicUtils.Utils.DateTimeFromTimeT(BitConverter.ToUInt32(bytes, 0x3E));
+                    //DateTime = QicUtils.Utils.GetQicDateTime(BitConverter.ToUInt32(bytes, 0x2E));
+
+                    Valid = true;
                 }
+                else if(Utils.LittleEndian(BitConverter.ToUInt32(bytes, 0)) == FileHeaderBlockB)
+                {
+                    // Now go back and read the whole header.
+                    stream.Seek(-4, SeekOrigin.Current);
+                    stream.Read(bytes, 0, 0x15B);
 
-                // Now go back and read the whole header.
-                stream.Seek(-4, SeekOrigin.Current);
-                stream.Read(bytes, 0, bytes.Length);
+                    Name = Utils.GetNullTerminatedString(Encoding.ASCII.GetString(bytes, 4, 0xD0));
+                    if (Name.Length == 0) { return; }
+                    DosName = Name;
 
-                Name = Utils.GetNullTerminatedString(Encoding.ASCII.GetString(bytes, 4, 0x80));
-                if (Name.Length == 0) { return; }
-                DosName = Name;
+                    Size = Utils.LittleEndian(BitConverter.ToUInt32(bytes, 0x124));
 
-                //int sizeLoc = 0x7C0 + bytes[0x7B3] + 7;
-                Size = Utils.LittleEndian(BitConverter.ToUInt32(bytes, 0x17B));
+                    //DateTime = new DateTime(1970, 1, 1).AddSeconds(BitConverter.ToUInt32(bytes, 0x2E));
+                    //CreateDate = QicUtils.Utils.DateTimeFromTimeT(BitConverter.ToUInt32(bytes, 0x2E));
+                    //ModifyDate = QicUtils.Utils.DateTimeFromTimeT(BitConverter.ToUInt32(bytes, 0x3E));
+                    //DateTime = QicUtils.Utils.GetQicDateTime(BitConverter.ToUInt32(bytes, 0x2E));
 
-                //DateTime = new DateTime(1970, 1, 1).AddSeconds(BitConverter.ToUInt32(bytes, 0x2E));
-                //CreateDate = QicUtils.Utils.DateTimeFromTimeT(BitConverter.ToUInt32(bytes, 0x2E));
-                //ModifyDate = QicUtils.Utils.DateTimeFromTimeT(BitConverter.ToUInt32(bytes, 0x3E));
-                //DateTime = QicUtils.Utils.GetQicDateTime(BitConverter.ToUInt32(bytes, 0x2E));
-
-                Valid = true;
+                    Valid = true;
+                }
             }
 
         }
