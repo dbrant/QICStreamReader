@@ -50,7 +50,7 @@ namespace QicUtils
                     length = NextLength();
                     if (length > 0x100000)
                     {
-                        throw new ApplicationException("Possibly corrupt data in compressed stream.");
+                        throw new DecodeException("Possibly corrupt data in compressed stream.");
                     }
 
                     for (int i = 0; i < length; i++)
@@ -88,7 +88,7 @@ namespace QicUtils
                 if (chunk < 0xF) { break; }
                 if (length > 0x100000)
                 {
-                    throw new ApplicationException("Possibly corrupt data in compressed stream.");
+                    throw new DecodeException("Possibly corrupt data in compressed stream.");
                 }
             }
             return length;

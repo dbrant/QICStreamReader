@@ -1,4 +1,5 @@
-﻿using System;
+﻿using QicUtils;
+using System;
 using System.Collections.Generic;
 using System.IO;
 
@@ -119,7 +120,7 @@ namespace txver45
 
                     if (offset < 0 || history[offset] == null)
                     {
-                        throw new ApplicationException("Invalid offset");
+                        throw new DecodeException("Invalid offset");
                     }
                     else
                     {

@@ -1,4 +1,5 @@
-﻿using System;
+﻿using QicUtils;
+using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Text;
@@ -169,7 +170,7 @@ namespace QicStreamV2
                     string magic = Encoding.ASCII.GetString(bytes, 4, 4);
                     if (magic != "FSET")
                     {
-                        throw new ApplicationException("Incorrect magic value.");
+                        throw new DecodeException("Incorrect magic value.");
                     }
 
                     // The volume header continues with a dynamically-sized volume label:

@@ -10,6 +10,12 @@ namespace QicUtils
         Little, Big, Pdp11
     }
 
+    public class DecodeException : Exception
+    {
+        protected DecodeException() : base() { }
+        public DecodeException(string message) : base(message) { }
+    }
+
     public class ArgMap
     {
         private readonly List<string> args = new();

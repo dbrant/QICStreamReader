@@ -36,7 +36,7 @@ namespace xenixv3
                 "little" => Endianness.Little,
                 "big" => Endianness.Big,
                 "pdp11" => Endianness.Pdp11,
-                _ => throw new ApplicationException("Unrecognized endianness."),
+                _ => throw new DecodeException("Unrecognized endianness."),
             };
 
             using var stream = new FileStream(inFileName!, FileMode.Open, FileAccess.Read);
@@ -139,7 +139,7 @@ namespace xenixv3
             {
                 if (level > 64)
                 {
-                    throw new ApplicationException("descending too far, possibly circular reference.");
+                    throw new DecodeException("descending too far, possibly circular reference.");
                 }
                 var contents = ReadContents(parentNode);
 
@@ -174,7 +174,7 @@ namespace xenixv3
             {
                 if (inode.Size > 0x10000000)
                 {
-                    throw new ApplicationException("inode size seems a bit too large.");
+                    throw new DecodeException("inode size seems a bit too large.");
                 }
 
                 byte[] bytes = new byte[inode.Size];

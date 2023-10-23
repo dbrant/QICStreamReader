@@ -1,4 +1,5 @@
-﻿using System;
+﻿using QicUtils;
+using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Text;
@@ -143,7 +144,7 @@ namespace xenixold
             {
                 if (level > 64)
                 {
-                    throw new ApplicationException("descending too far, possibly circular reference.");
+                    throw new DecodeException("descending too far, possibly circular reference.");
                 }
                 var contents = ReadContents(parentNode);
 
@@ -178,7 +179,7 @@ namespace xenixold
             {
                 if (inode.Size > 0x10000000)
                 {
-                    throw new ApplicationException("inode size seems a bit too large.");
+                    throw new DecodeException("inode size seems a bit too large.");
                 }
 
                 byte[] bytes = new byte[inode.Size];

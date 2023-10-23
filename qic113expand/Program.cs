@@ -1,4 +1,5 @@
-﻿using System;
+﻿using QicUtils;
+using System;
 using System.IO;
 using System.Text;
 
@@ -85,7 +86,7 @@ namespace qic113expand
                     segBytesLeft -= 4;
                     absolutePos = BitConverter.ToUInt32(bytes, 0);
                 } else {
-                    throw new ApplicationException("Absolute position width must be 4 or 8.");
+                    throw new DecodeException("Absolute position width must be 4 or 8.");
                 }
 
                 while (segBytesLeft > 18)
@@ -100,12 +101,12 @@ namespace qic113expand
                         segBytesLeft -= 4;
                         frameSize = (int)BitConverter.ToUInt32(bytes, 0);
                     } else {
-                        throw new ApplicationException("Frame size width must be 2 or 4.");
+                        throw new DecodeException("Frame size width must be 2 or 4.");
                     }
                     
                     if (frameSize >= 0x10000)
                     {
-                        throw new ApplicationException("Frame size is unusually large: " + frameSize.ToString("X"));
+                        throw new DecodeException("Frame size is unusually large: " + frameSize.ToString("X"));
                     }
 
                     bool compressed = (frameSize & 0x8000) == 0;
@@ -137,7 +138,7 @@ namespace qic113expand
 
                     if (absolutePos > 0x100000000000)
                     {
-                        throw new ApplicationException("Absolute position a bit too large: " + absolutePos.ToString("X"));
+                        throw new DecodeException("Absolute position a bit too large: " + absolutePos.ToString("X"));
                     }
 
                     if (absolutePos != outStream.Position)
