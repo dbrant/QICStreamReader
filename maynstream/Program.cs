@@ -1,4 +1,5 @@
-﻿using System;
+﻿using QicUtils;
+using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Text;
@@ -136,7 +137,7 @@ namespace maynstream
             // Read the volume header
             stream.Read(bytes, 0, BLOCK_SIZE);
 
-            string volName = QicUtils.Utils.GetNullTerminatedString(Encoding.ASCII.GetString(bytes, 0xAC, 0x80));
+            string volName = Utils.GetNullTerminatedString(Encoding.ASCII.GetString(bytes, 0xAC, 0x80));
             Console.WriteLine("Backup label: " + volName);
 
             Directory.CreateDirectory(baseDirectory);
@@ -210,7 +211,7 @@ namespace maynstream
 
                             if (bytesLeft == header.Size && !header.Continuation)
                             {
-                                if (!QicUtils.Utils.VerifyFileFormat(header.Name, bytes))
+                                if (!Utils.VerifyFileFormat(header.Name, bytes))
                                 {
                                     Console.WriteLine(stream.Position.ToString("X") + " -- Warning: file format doesn't match: " + fileName);
                                     Console.ReadKey();

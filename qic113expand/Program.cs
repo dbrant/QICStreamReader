@@ -38,10 +38,10 @@ namespace qic113expand
             {
                 if (args[i] == "-f") { inFileName = args[i + 1]; }
                 else if (args[i] == "-o") { outFileName = args[i + 1]; }
-                else if (args[i] == "--offset") { initialOffset = QicUtils.Utils.StringOrHexToLong(args[i + 1]); }
-                else if (args[i] == "--segsize") { segSize = (int)QicUtils.Utils.StringOrHexToLong(args[i + 1]); }
-                else if (args[i] == "--absposwidth") { absPosWidth = (int)QicUtils.Utils.StringOrHexToLong(args[i + 1]); }
-                else if (args[i] == "--framesizewidth") { frameSizeWidth = (int)QicUtils.Utils.StringOrHexToLong(args[i + 1]); }
+                else if (args[i] == "--offset") { initialOffset = Utils.StringOrHexToLong(args[i + 1]); }
+                else if (args[i] == "--segsize") { segSize = (int)Utils.StringOrHexToLong(args[i + 1]); }
+                else if (args[i] == "--absposwidth") { absPosWidth = (int)Utils.StringOrHexToLong(args[i + 1]); }
+                else if (args[i] == "--framesizewidth") { frameSizeWidth = (int)Utils.StringOrHexToLong(args[i + 1]); }
                 else if (args[i] == "--haveextentoffset") { haveExtentOffset = true; }
             }
 
@@ -112,6 +112,14 @@ namespace qic113expand
                     bool compressed = (frameSize & 0x8000) == 0;
                     frameSize &= 0x7FFF;
 
+
+                    if (frameSize < 0x4000 || frameSize > 0x7800)
+                    {
+                        Console.WriteLine("Warning: frame size is unusual: " + frameSize.ToString("X"));
+                        frameSize = 0x73EF;
+                    }
+
+
                     if (frameSize > segBytesLeft)
                     {
                         Console.WriteLine("Warning: frame extends beyond segment boundary.");
@@ -141,7 +149,7 @@ namespace qic113expand
                         throw new DecodeException("Absolute position a bit too large: " + absolutePos.ToString("X"));
                     }
 
-                    if (absolutePos != outStream.Position)
+                    if (absolutePos > 0 && absolutePos !=  outStream.Position)
                     {
                         Console.WriteLine("Warning: absolute position according to frame is greater than output. Possibly missing data.");
                         outStream.Position = absolutePos;
@@ -151,7 +159,7 @@ namespace qic113expand
                     {
                         try
                         {
-                            new QicUtils.Qic122Decompressor(new MemoryStream(bytes)).DecompressTo(outStream);
+                            new Qic122Decompressor(new MemoryStream(bytes)).DecompressTo(outStream);
                         }
                         catch (Exception ex)
                         {

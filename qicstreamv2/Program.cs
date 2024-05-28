@@ -202,7 +202,7 @@ namespace QicStreamV2
                 }
 
                 // Maintain a list of subdirectories into which we'll descend and un-descend.
-                List<string> currentDirList = new List<string>();
+                var currentDirList = new List<string>();
                 Directory.CreateDirectory(baseDirectory);
                 string currentDirectory = baseDirectory;
 
@@ -287,7 +287,7 @@ namespace QicStreamV2
 
                                     if (bytesLeft == header.Size)
                                     {
-                                        if (!QicUtils.Utils.VerifyFileFormat(header.Name, bytes))
+                                        if (!Utils.VerifyFileFormat(header.Name, bytes))
                                         {
                                             Console.WriteLine(stream.Position.ToString("X") + " -- Warning: file format doesn't match: " + fileName);
                                             Console.ReadKey();
@@ -335,7 +335,7 @@ namespace QicStreamV2
                 stream.Read(bytes, 0, structLength);
 
                 Attributes = (FileAttributes)bytes[0];
-                DateTime = QicUtils.Utils.DateTimeFromTimeT(BitConverter.ToUInt32(bytes, 4));
+                DateTime = Utils.DateTimeFromTimeT(BitConverter.ToUInt32(bytes, 4));
                 Size = BitConverter.ToInt32(bytes, 8);
 
                 int nameLength = structLength - 0x16;
