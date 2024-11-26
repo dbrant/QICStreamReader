@@ -1,6 +1,7 @@
 ﻿using QicUtils;
 using System;
 using System.IO;
+using System.Reflection.PortableExecutable;
 using System.Text;
 
 
@@ -63,6 +64,9 @@ namespace novanet8
             long lastDataBlockOffset = 0;
 
 
+            var streamStackArray = new Stack<DataObject>[100];
+            
+
             using var stream = new FileStream(inFileName, FileMode.Open, FileAccess.Read);
             while (stream.Position < stream.Length)
             {
@@ -85,63 +89,6 @@ namespace novanet8
                         continue;
                     }
 
-                    /*
-
-                    if (lastBlockName == "DATA")
-                    {
-                        Console.WriteLine("Warning: invalid DATA block header. Attempting to correct...");
-
-                        long lastInvalidBlockPos = stream.Position - 0x20;
-                        long nextDataBlockPos = 0;
-                        long nextDataBlockOffset = 0;
-
-                        // find the next valid DATA block
-                        while (stream.Position < stream.Length)
-                        {
-                            // Make sure we're aligned to a block boundary.
-                            if ((stream.Position % 0x20) > 0)
-                            {
-                                stream.Seek(0x20 - (stream.Position % 0x20), SeekOrigin.Current);
-                            }
-                            blockHeader = new BlockHeader(stream);
-                            if (blockHeader.Name == "DATA")
-                            {
-                                Console.WriteLine("Found valid DATA block at " + stream.Position.ToString("X"));
-                                nextDataBlockPos = stream.Position - 0x20;
-                                nextDataBlockOffset = blockHeader.offset;
-                                break;
-                            }
-                        }
-
-                        if (nextDataBlockOffset <= lastDataBlockOffset)
-                        {
-                            Console.WriteLine("Fatal: could not find a valid DATA block after the last one.");
-                            break;
-                        }
-
-                        long remainingOffset = nextDataBlockOffset - lastDataBlockOffset;
-                        while (remainingOffset > 0)
-                        {
-                            long blockSize = Math.Min(remainingOffset, 0x3000);
-                            if (blockSize > remainingOffset)
-                            {
-                                blockSize = remainingOffset;
-                            }
-
-
-
-
-
-                            remainingOffset -= blockSize;
-                        }
-
-                    }
-                    else
-                    {
-                        Console.WriteLine("Fatal: invalid block header.");
-                        break;
-                    }
-                    */
                 }
                 else
                 {
@@ -150,39 +97,149 @@ namespace novanet8
 
                 Console.WriteLine(stream.Position.ToString("X") + ": " + blockHeader.Name + " - " + blockHeader.Size.ToString("X") + " bytes");
 
+
+
+                if (streamStackArray[blockHeader.streamIndex] == null)
+                    streamStackArray[blockHeader.streamIndex] = new Stack<DataObject>();
+                var objectStack = streamStackArray[blockHeader.streamIndex];
+
+
+                if (blockHeader.Name == "OBGN")
+                {
+                    // start a new object
+                    var obj = new DataObject();
+                    objectStack.Push(obj);
+                }
+                else if (blockHeader.Name == "OEND")
+                {
+                    // end the current object
+                    var obj = objectStack.Pop();
+                    obj.Stream?.Flush();
+                    obj.Stream?.Close();
+                }
+
+
+
+                objectStack.TryPeek(out DataObject? currentObj);
+
                 if (blockHeader.Name == "DATA")
                 {
                     lastDataBlockPos = stream.Position - 0x20;
                     lastDataBlockOffset = blockHeader.offset;
                     Console.WriteLine("Data stream: type: " + blockHeader.long1.ToString("X") + ", offset: " + blockHeader.offset.ToString("X"));
 
-                    // read the data block
                     if (blockHeader.Size > 0)
                     {
                         stream.Read(bytes, 0, (int)blockHeader.Size);
-                        if (blockHeader.Size > 0x80)
+
+                        if (currentObj != null && currentObj.Header == null && blockHeader.Size > 0x80)
                         {
                             var fileHeader = new FileHeader(bytes, (int)blockHeader.Size);
 
                             if (fileHeader.Valid)
                             {
-                                Console.WriteLine("File: " + fileHeader.Name);
-                            }
+                                if (currentObj.Header != null)
+                                {
+                                    Console.WriteLine("Warning: previous stream not closed gracefully: " + currentObj.Header.Name);
+                                }
+                                currentObj.Stream?.Close();
+                                currentObj.Stream = null;
 
+                                currentObj.Header = fileHeader;
+                                currentObj.gotDataStart = false;
+
+                                string filePath = baseDirectory;
+                                string[] dirArray = fileHeader.Name.Split("\\");
+                                string fileName = dirArray[^1];
+                                for (int i = 0; i < dirArray.Length - 1; i++)
+                                    filePath = Path.Combine(filePath, dirArray[i]);
+
+                                if (currentObj.Header.IsDirectory)
+                                {
+                                    Console.WriteLine("Directory: " + fileHeader.Name);
+                                    if (!dryRun)
+                                    {
+                                        filePath = Path.Combine(filePath, fileName);
+                                        Directory.CreateDirectory(filePath);
+                                    }
+                                }
+                                else
+                                {
+                                    Console.WriteLine("File: " + fileHeader.Name);
+                                    if (!dryRun)
+                                    {
+                                        Directory.CreateDirectory(filePath);
+                                        filePath = Path.Combine(filePath, fileName);
+
+                                        while (File.Exists(filePath))
+                                        {
+                                            Console.WriteLine("Warning: file already exists (amending name): " + filePath);
+                                            filePath += "_";
+                                        }
+                                        Console.WriteLine(">>> Starting file: " + filePath);
+
+                                        currentObj.Stream = new FileStream(filePath, FileMode.Create, FileAccess.Write);
+                                    }
+                                }
+                            }
                         }
+                        else if (currentObj != null && currentObj.Header != null && blockHeader.long1 == 1 && blockHeader.offset == 0 && !currentObj.gotDataStart && blockHeader.Size >= 0x54)
+                        {
+                            // first data block of the current stream...
+                            currentObj.Header.Size = Utils.LittleEndian(BitConverter.ToUInt32(bytes, 0x48));
+                            int numBytes = (int)blockHeader.Size - 0x54;
+                            currentObj.Stream?.Write(bytes, 0x54, numBytes);
+                            currentObj.currentOutSeq = blockHeader.Size;
+                            currentObj.gotDataStart = true;
+                        }
+                        else if (currentObj != null && currentObj.Header != null && blockHeader.long1 == 1 && blockHeader.offset > 0 && currentObj.gotDataStart)
+                        {
+                            // data continuation of the current stream...
+                            if (blockHeader.offset != currentObj.currentOutSeq)
+                            {
+                               Console.WriteLine("Warning: data block out of sequence: " + blockHeader.offset.ToString("X") + " (expected: " + currentObj.currentOutSeq.ToString("X") + ")");
+                            }
+                            currentObj.Stream?.Write(bytes, 0, (int)blockHeader.Size);
+                            currentObj.currentOutSeq = blockHeader.offset + blockHeader.Size;
+                        }
+
                     }
                 }
                 else
                 {
                     stream.Seek(blockHeader.Size, SeekOrigin.Current);
                 }
+
+
             }
+
+
+            foreach (var objectStack in streamStackArray)
+            {
+                if (objectStack == null)
+                    continue;
+                while (objectStack.Count > 0)
+                {
+                    var obj = objectStack.Pop();
+                    obj.Stream?.Flush();
+                    obj.Stream?.Close();
+                }
+            }
+        }
+
+
+        private class DataObject
+        {
+            public FileHeader? Header { get; set; }
+            public FileStream? Stream { get; set; }
+            public bool gotDataStart = false;
+            public long currentOutSeq = 0;
         }
 
 
         private class FileHeader
         {
-            public long Size { get; }
+            public long Size { get; set; }
             public string Name { get; }
             public DateTime CreateDate { get; }
             public DateTime ModifyDate { get; }
@@ -276,6 +333,7 @@ namespace novanet8
         private class BlockHeader
         {
             public string magic;
+            public int streamIndex;
             public long Size;
             public string Name;
 
@@ -298,8 +356,7 @@ namespace novanet8
                     return;
                 }
 
-                // unknown
-                bytePtr += 4;
+                streamIndex = (int)Utils.LittleEndian(BitConverter.ToUInt32(bytes, bytePtr)); bytePtr += 4;
 
                 Size = Utils.LittleEndian(BitConverter.ToUInt32(bytes, bytePtr)); bytePtr += 4;
                 Name = Encoding.ASCII.GetString(bytes, bytePtr, 4); bytePtr += 4;
