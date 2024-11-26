@@ -1,7 +1,6 @@
 ﻿using QicUtils;
 using System;
 using System.IO;
-using System.Reflection.PortableExecutable;
 using System.Text;
 
 
@@ -18,13 +17,31 @@ using System.Text;
 /// Each block seems to be aligned to a 0x20-byte boundary.
 /// All numbers are little-endian.
 /// 
+/// Architecturally, the backup image is composed of a series of "streams",
+/// and these streams can be INTERLEAVED within the image. Each block header
+/// contains a field that says which stream it belongs to, so the decoder should
+/// use this field to switch context between streams.
+/// 
+/// Each stream consists of a hierarchy of blocks. Roughly speaking, the hierarchy
+/// is as follows:
+/// 
+///     OBGN - Begin a new object
+///       SBGN - Begin a new segment (?)
+///         DATA - Data pertaining to the current object and segment
+///         DATA
+///         ...
+///       SEND - End the current segment
+///     OEND - End the current object
+/// 
+/// 
+/// 
 /// Header structure:
 /// (0x20 bytes total)
 /// 
 /// Offset      Length      Meaning
 /// ----------------------------------------
 /// 0           4           Magic string "F600"
-/// 4           4           ?
+/// 4           4           Stream index to which this block belongs
 /// 8           4           Size of this block
 /// C           4           Type of this block (could be "MHDR", "FBGN", "DATA", etc)
 /// 10          10          ?
