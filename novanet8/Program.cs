@@ -67,7 +67,7 @@ namespace novanet8
             string baseDirectory = "out";
 
             bool dryRun = false;
-            byte[] bytes = new byte[0x10000];
+            byte[] bytes = new byte[0x1000000];
 
             for (int i = 0; i < args.Length; i++)
             {
@@ -96,16 +96,9 @@ namespace novanet8
                 var blockHeader = new BlockHeader(stream);
                 if (!blockHeader.Valid)
                 {
-                    if (lastBlockName != "DATA" && blockHeader.magic == "")
-                    {
-                        // try seeking to the next 4k block
-                        if ((stream.Position % 0x1000) > 0)
-                        {
-                            stream.Seek(0x1000 - (stream.Position % 0x1000), SeekOrigin.Current);
-                        }
-                        continue;
-                    }
-
+                    // In the case of invalid data, attempt to skip until we encounter the next valid block.
+                    // This also covers the case where the next block is on the next 4k boundary.
+                    continue;
                 }
                 else
                 {
@@ -130,9 +123,9 @@ namespace novanet8
                 else if (blockHeader.Name == "OEND")
                 {
                     // end the current object
-                    var obj = objectStack.Pop();
-                    obj.Stream?.Flush();
-                    obj.Stream?.Close();
+                    objectStack.TryPop(out DataObject? obj);
+                    obj?.Stream?.Flush();
+                    obj?.Stream?.Close();
                 }
 
 
@@ -202,12 +195,24 @@ namespace novanet8
                         }
                         else if (currentObj != null && currentObj.Header != null && blockHeader.long1 == 1 && blockHeader.offset == 0 && !currentObj.gotDataStart && blockHeader.Size >= 0x54)
                         {
-                            // first data block of the current stream...
-                            currentObj.Header.Size = Utils.LittleEndian(BitConverter.ToUInt32(bytes, 0x48));
-                            int numBytes = (int)blockHeader.Size - 0x54;
-                            currentObj.Stream?.Write(bytes, 0x54, numBytes);
-                            currentObj.currentOutSeq = blockHeader.Size;
-                            currentObj.gotDataStart = true;
+                            // first data block of the current stream.
+
+                            // The actual data is preceded by a header that is variable-size.
+                            // The header is at least 0x28 bytes long, plus more data, the size of which is specified within those bytes.
+                            int metadataSize = (int)Utils.LittleEndian(BitConverter.ToUInt32(bytes, 0x8));
+                            int totalMetadataSize = 0x28 + metadataSize;
+
+                            // The file size is encoded in the metadata.
+                            currentObj.Header.Size = Utils.LittleEndian(BitConverter.ToUInt32(bytes, totalMetadataSize - 0xC));
+                            // TODO: get other attributes?
+
+                            int numBytes = (int)blockHeader.Size - totalMetadataSize;
+                            if (numBytes > 0)
+                            {
+                                currentObj.Stream?.Write(bytes, totalMetadataSize, numBytes);
+                                currentObj.currentOutSeq = blockHeader.Size;
+                                currentObj.gotDataStart = true;
+                            }
                         }
                         else if (currentObj != null && currentObj.Header != null && blockHeader.long1 == 1 && blockHeader.offset > 0 && currentObj.gotDataStart)
                         {
@@ -333,6 +338,11 @@ namespace novanet8
                         else if (segSubType == 2)
                         {
                             // file
+                            haveFilePath = true;
+                        }
+                        else if (segSubType == 0xD)
+                        {
+                            // registry
                             haveFilePath = true;
                         }
                         if (Name.Length > 0) { Name += "\\"; }
