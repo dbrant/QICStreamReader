@@ -148,63 +148,35 @@ namespace novanet8
 
                             if (fileHeader.Valid)
                             {
-                                if (currentObj.Header != null)
-                                {
-                                    Console.WriteLine("Warning: previous stream not closed gracefully: " + currentObj.Header.Name);
-                                }
-                                currentObj.Stream?.Close();
-                                currentObj.Stream = null;
-
                                 currentObj.Header = fileHeader;
-                                currentObj.gotDataStart = false;
-
-                                string filePath = baseDirectory;
-                                string[] dirArray = fileHeader.Name.Split("\\");
-                                string fileName = dirArray[^1];
-                                for (int i = 0; i < dirArray.Length - 1; i++)
-                                    filePath = Path.Combine(filePath, dirArray[i]);
-
-                                if (currentObj.Header.IsDirectory)
-                                {
-                                    Console.WriteLine("Directory: " + fileHeader.Name);
-                                    if (!dryRun)
-                                    {
-                                        filePath = Path.Combine(filePath, fileName);
-                                        Directory.CreateDirectory(filePath);
-                                    }
-                                }
-                                else
-                                {
-                                    Console.WriteLine("File: " + fileHeader.Name);
-                                    if (!dryRun)
-                                    {
-                                        Directory.CreateDirectory(filePath);
-                                        filePath = Path.Combine(filePath, fileName);
-
-                                        while (File.Exists(filePath))
-                                        {
-                                            Console.WriteLine("Warning: file already exists (amending name): " + filePath);
-                                            filePath += "_";
-                                        }
-                                        Console.WriteLine(">>> Starting file: " + filePath);
-
-                                        currentObj.Stream = new FileStream(filePath, FileMode.Create, FileAccess.Write);
-                                    }
-                                }
+                                if (!fileHeader.IsRegistry)
+                                    BeginStreamForObject(currentObj, baseDirectory, dryRun);
                             }
                         }
                         else if (currentObj != null && currentObj.Header != null && blockHeader.long1 == 1 && blockHeader.offset == 0 && !currentObj.gotDataStart && blockHeader.Size >= 0x54)
                         {
                             // first data block of the current stream.
 
-                            // The actual data is preceded by a header that is variable-size.
-                            // The header is at least 0x28 bytes long, plus more data, the size of which is specified within those bytes.
-                            int metadataSize = (int)Utils.LittleEndian(BitConverter.ToUInt32(bytes, 0x8));
-                            int totalMetadataSize = 0x28 + metadataSize;
+                            int totalMetadataSize = 0;
+                            if (!currentObj.Header.IsRegistry)
+                            {
+                                // The actual data is preceded by a header that is variable-size.
+                                // The header is at least 0x28 bytes long, plus more data, the size of which is specified within those bytes.
+                                int metadataSize = (int)Utils.LittleEndian(BitConverter.ToUInt32(bytes, 0x8));
+                                totalMetadataSize = 0x28 + metadataSize;
 
-                            // The file size is encoded in the metadata.
-                            currentObj.Header.Size = Utils.LittleEndian(BitConverter.ToUInt32(bytes, totalMetadataSize - 0xC));
-                            // TODO: get other attributes?
+                                // The file size is encoded in the metadata.
+                                currentObj.Header.Size = Utils.LittleEndian(BitConverter.ToUInt32(bytes, totalMetadataSize - 0xC));
+                                // TODO: get other attributes?
+                            }
+                            else
+                            {
+                                totalMetadataSize = 0x210;
+                                string regName = Utils.CleanString(Encoding.Latin1.GetString(bytes, 0x10, 0x100));
+
+                                currentObj.Header.Name += "\\" + regName;
+                                BeginStreamForObject(currentObj, baseDirectory, dryRun);
+                            }
 
                             int numBytes = (int)blockHeader.Size - totalMetadataSize;
                             if (numBytes > 0)
@@ -249,6 +221,56 @@ namespace novanet8
             }
         }
 
+        private static void BeginStreamForObject(DataObject currentObj, string baseDirectory, bool dryRun)
+        {
+            if (currentObj.Header == null)
+            {
+                Console.WriteLine("Warning: current object does not have header.");
+                return;
+            }
+            if (currentObj.Stream != null)
+            {
+                Console.WriteLine("Warning: previous stream not closed gracefully: " + currentObj.Header?.Name);
+            }
+            currentObj.Stream?.Close();
+            currentObj.Stream = null;
+            currentObj.gotDataStart = false;
+
+            string filePath = baseDirectory;
+            string[] dirArray = currentObj.Header.Name.Split("\\");
+            string fileName = dirArray[^1];
+            for (int i = 0; i < dirArray.Length - 1; i++)
+                filePath = Path.Combine(filePath, dirArray[i]);
+
+            if (currentObj.Header.IsDirectory)
+            {
+                Console.WriteLine("Directory: " + currentObj.Header.Name);
+                if (!dryRun)
+                {
+                    filePath = Path.Combine(filePath, fileName);
+                    Directory.CreateDirectory(filePath);
+                }
+            }
+            else
+            {
+                Console.WriteLine("File: " + currentObj.Header.Name);
+                if (!dryRun)
+                {
+                    Directory.CreateDirectory(filePath);
+                    filePath = Path.Combine(filePath, fileName);
+
+                    while (File.Exists(filePath))
+                    {
+                        Console.WriteLine("Warning: file already exists (amending name): " + filePath);
+                        filePath += "_";
+                    }
+                    Console.WriteLine(">>> Starting file: " + filePath);
+
+                    currentObj.Stream = new FileStream(filePath, FileMode.Create, FileAccess.Write);
+                }
+            }
+        }
+
 
         private class DataObject
         {
@@ -262,12 +284,13 @@ namespace novanet8
         private class FileHeader
         {
             public long Size { get; set; }
-            public string Name { get; }
+            public string Name { get; set; }
             public DateTime CreateDate { get; }
             public DateTime ModifyDate { get; }
             public FileAttributes Attributes { get; }
             public bool Valid { get; }
             public bool IsDirectory { get; }
+            public bool IsRegistry { get; }
 
             public FileHeader(byte[] bytes, int count)
             {
@@ -343,14 +366,14 @@ namespace novanet8
                         else if (segSubType == 0xD)
                         {
                             // registry
-                            haveFilePath = true;
+                            IsRegistry = true;
                         }
                         if (Name.Length > 0) { Name += "\\"; }
                         Name += segName;
                     }
                 }
 
-                if (!haveFilePath)
+                if (!haveFilePath && !IsRegistry)
                     IsDirectory = true;
 
                 Valid = true;
