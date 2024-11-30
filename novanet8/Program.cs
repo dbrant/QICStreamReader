@@ -6,8 +6,10 @@ using System.Text;
 
 /// <summary>
 /// 
-/// Decoder for tape backup images made with a legacy backup utility,
-/// identifiable by the presence of the string "F600" in the header(s).
+/// Decoder for tape backup images made with a legacy backup utility (probably
+/// NovaNET 8.x), identifiable by the presence of the string "F600" in the header(s).
+/// This code is extremely incomplete. It does not handle compressed data, since
+/// the compression scheme used by this backup software is unknown.
 /// 
 /// Copyright Dmitry Brant, 2024.
 /// 
