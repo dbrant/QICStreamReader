@@ -136,7 +136,13 @@ namespace qicstream95
                     }
                 }
 
-                Directory.CreateDirectory(filePath);
+                try {
+                    Directory.CreateDirectory(filePath);
+                } catch {
+                    Console.WriteLine("Warning: Directory with same name as file: " + filePath);
+                    filePath += "_";
+                    Directory.CreateDirectory(filePath);
+                }
                 filePath = Path.Combine(filePath, header.Name);
 
                 while (File.Exists(filePath))
