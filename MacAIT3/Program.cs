@@ -2,6 +2,104 @@
 using System.IO;
 using System.Text;
 
+/// <summary>
+/// 
+/// (Dmitry Brant, Apr 2022)
+/// 
+/// Recently I came across a backup tape (an AIT-3 100GB tape) that was written with a format
+/// I didn't recognize. The only thing I knew is that it came from a Mac workstation, which means
+/// it was likely written using Retrospect, which was a popular backup tool at the time.
+/// This is the result of my reverse-engineering effort to get the contents out of this archive.
+/// ------------------
+/// 
+/// This backup format is composed of a sequence of blocks which use FourCC-style formatting.
+/// (All data is big-endian. Dates are formatted as seconds since Jan 1 1904.)
+/// 
+/// Each block has the following format:
+/// 
+/// offset | length |
+/// ----------------------------------
+///   0    |   4    | Block name
+///   4    |   4    | Block length (including the name and length fields)
+///   8    |   n    | Block data
+/// 
+/// If the goal is simply to recover the file contents from the backup, we only need to care
+/// about these block types: "Diry", "File", "Fork", and "Cont".
+/// A "Diry" block indicates the directory in which any subsequent files are stored.
+/// A "File" block indicates the start of a new file, and contains metadata about the file (name,
+/// date, etc). After this block, there may be any number of "Fork" and "Cont" blocks that contain
+/// the actual contents of the current file. In other words, the file contents consist of numerous
+/// "Fork" blocks, and each fork block can have numerous continuation "Cont" blocks. And so, the
+/// overall structure looks like this:
+/// 
+/// "Diry" < --current directory
+/// "File" <-- first file
+/// "Fork"
+/// "Cont"
+/// "Cont"
+/// ...
+/// "Fork"
+/// "Cont"
+/// "Cont"
+/// ...
+/// ...
+/// "File" <-- second file
+/// "Fork"
+/// "Cont"
+/// ...
+/// 
+/// Here is the structure of a "Diry" block:
+/// 
+/// offset | length |
+/// ----------------------------------
+///   0    |   4    | "Diry"
+///   4    |   4    | Block length
+///   8    |   4    | Access date
+///   16   |   4    | Create date
+///   1A   |   4    | Modify date
+///   50   |   n    | Directory name, until end of block
+/// 
+/// Here is the structure of a "File" block:
+/// 
+/// offset | length |
+/// ----------------------------------
+///   0    |   4    | "File"
+///   4    |   4    | Block length
+///   8    |   4    | Access date
+///   16   |   4    | Create date
+///   1A   |   4    | Modify date
+///   1E   |   8    | File size
+///   46   |   n    | File name, until end of block
+/// 
+/// Here is the structure of a "Fork" block:
+/// 
+/// offset | length |
+/// ----------------------------------
+///   0    |   4    | "Fork"
+///   4    |   4    | Block length
+///   8    |   16   | Some kind of fork-specific header, seems to be ignorable.
+///   1E   |   n    | File data, until end of block.
+/// 
+/// Here is the structure of a "Cont" block:
+/// 
+/// offset | length |
+/// ----------------------------------
+///   0    |   4    | "Cont"
+///   4    |   4    | Block length
+///   8    |   n    | File data, until end of block.
+/// 
+/// NOTE: Once in a while a block will be realigned onto a 0x200-byte boundary. If you're expecting
+/// to read a new block and instead you get a null block name, try aligning to the next 0x200 byte
+/// boundary.
+/// 
+/// NOTE 2: The tape backup is "segmented" into segments of 512MiB each, which are written as separate
+/// file records on the tape. The very first segment starts with a 0x2000 byte header which does NOT
+/// conform to the "block" format. After skipping over this header, the block structure starts.
+/// 
+/// There are several other types of blocks such as "Priv", "NodX", and "Sgmt" (which contains metadata
+/// about the backup volume itself), but these seem to be safely ignorable.
+/// 
+/// </summary>
 namespace MacAIT3
 {
     class Program
