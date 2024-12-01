@@ -10,6 +10,10 @@ using System.Text;
 /// Extracts only uncompressed files, for now. The compression appears to be proprietary,
 /// and is thus very difficult to RE.
 /// 
+/// These backups are identifiable by the presence of the magic number 0xABBAABBA at the
+/// beginning of certain blocks (little-endian, encoded as 0xBA 0xAB 0xBA 0xAB); also
+/// 0xBBBBBBBB has been observed at the beginning of some blocks.
+/// 
 /// Copyright Dmitry Brant, 2023.
 /// 
 /// </summary>
