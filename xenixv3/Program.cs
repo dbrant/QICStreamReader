@@ -17,6 +17,8 @@ using System.Text;
 /// "long" integer values are stored in a weird byte order: 2 3 0 1.  In other words,
 /// the system is little-endian with respect to 16-bit words, but big-endian (?) with
 /// respect to 32-bit integers - the high word comes first, followed by the low word.
+/// Apparently this is a real thing called "middle-endian" or "PDP-11-endian":
+/// https://en.wikipedia.org/wiki/Endianness#Middle-endian
 /// 
 /// 
 /// </summary>
