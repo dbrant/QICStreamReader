@@ -74,7 +74,7 @@ namespace QicUtils
         public static string GetNullTerminatedString(string str)
         {
             int i = str.IndexOf('\0');
-            return i >= 0 ? str.Substring(0, i) : str;
+            return i >= 0 ? str[..i] : str;
         }
 
         public static long StringOrHexToLong(string _str)
@@ -82,8 +82,7 @@ namespace QicUtils
             string str = _str.ToLower().Trim();
             if (str.StartsWith("0x") || str.StartsWith("&h") || str.EndsWith("h"))
             {
-                str = str.Replace("0x", "").Replace("h", "").Replace("&", "");
-                return Convert.ToInt64(str, 16);
+                return Convert.ToInt64(str.Replace("0x", "").Replace("h", "").Replace("&", ""), 16);
             }
             return Convert.ToInt64(str);
         }
