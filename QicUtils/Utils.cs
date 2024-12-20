@@ -98,10 +98,7 @@ namespace QicUtils
 			int hour = s % 24; s /= 24;
 			int day = s % 31; s /= 31;
 			int month = s;
-			try
-			{
-				d = new DateTime(year, month + 1, day + 1, hour, minute, second);
-			}
+			try { d = new DateTime(year, month + 1, day + 1, hour, minute, second); }
 			catch { }
 			return d;
 		}
@@ -115,13 +112,8 @@ namespace QicUtils
             int day = date & 0x1F; date >>= 5;
             int month = date & 0xF; date >>= 4;
             int year = 1980 + (date & 0x7F);
-            try
-            {
-                d = new DateTime(year, month, day, hour, min, sec);
-            }
-            catch {
-                Console.WriteLine(">>");
-            }
+            try { d = new DateTime(year, month, day, hour, min, sec); }
+            catch { }
             return d;
         }
 
