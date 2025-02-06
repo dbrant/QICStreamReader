@@ -48,7 +48,7 @@ namespace xenixv3
 
         private class XenixPartition
         {
-            public const int BLOCK_SIZE_DEFAULT = 0x200;
+            public const int BLOCK_SIZE_DEFAULT = 0x400;
             public const int SUPERBLOCK_BLOCK = 1;
             public const int INODES_BLOCK = 2;
             
@@ -72,46 +72,198 @@ namespace xenixv3
                 superBlock = new SuperBlock(blockBytes, this);
 
                 rootNode = ReadINode(stream, 2);
-                FillChildren(stream, rootNode, 0);
+                //FillChildren(stream, rootNode, 0, new List<int>());
+
+
+
+                SearchDirectoriesHeuristically();
+
             }
 
-            public void UnpackFiles(string basePath)
-            {
-                UnpackFiles(rootNode, basePath);
-            }
 
-            private void UnpackFiles(INode parentNode, string curPath)
+
+
+
+            private void SearchDirectoriesHeuristically()
             {
-                foreach (var node in parentNode.Children)
+                int blockSize = superBlock != null ? superBlock.BlockSize : BLOCK_SIZE_DEFAULT;
+                int totalBlocks = (int)((stream.Length - partitionBaseOffset) / blockSize);
+                byte[] blockBytes = new byte[blockSize];
+                int unknownCount = 0;
+
+                var orphans = new List<INode>() { rootNode };
+
+
+                for (int b = 0; b < totalBlocks; b++)
                 {
-                    if (node.IsDirectory)
+                    ReadBlock(b, blockBytes, 0, blockBytes.Length);
+
+                    if (blockBytes[2] == 0x2E && blockBytes[3] == 0 && blockBytes[4] == 0 && blockBytes[5] == 0 && blockBytes[6] == 0 && blockBytes[7] == 0 && blockBytes[8] == 0 && blockBytes[9] == 0 &&
+                        blockBytes[0x12] == 0x2E && blockBytes[0x13] == 0x2E && blockBytes[0x14] == 0 && blockBytes[0x15] == 0 && blockBytes[0x16] == 0 && blockBytes[0x17] == 0 && blockBytes[0x18] == 0 && blockBytes[0x19] == 0)
                     {
-                        UnpackFiles(node, Path.Combine(curPath, node.Name));
+                    }
+                    else
+                    {
                         continue;
                     }
 
-                    Directory.CreateDirectory(curPath);
+                    int selfInode = Utils.GetUInt16(blockBytes, 0, endianness);
+                    int parentInode = Utils.GetUInt16(blockBytes, 0x10, endianness);
 
-                    string filePath = Path.Combine(curPath, node.Name);
+                    if (selfInode == 0 || parentInode == 0)
+                        continue;
 
-                    while (File.Exists(filePath))
+                    var selfNode = ReadINode(stream, selfInode);
+                    selfNode.parentId = parentInode;
+                    if (selfNode.id == 2)
+                        selfNode = rootNode;
+                    else
                     {
-                        Console.WriteLine("Warning: file already exists (amending name): " + filePath);
-                        filePath += "_";
+
+                        var foundSelf = FindInodeInTree(orphans, selfNode.id);
+                        if (foundSelf != null)
+                        {
+                            selfNode = foundSelf;
+                        }
+                        else
+                        {
+                            selfNode.Name = "unknown" + unknownCount++;
+
+                            var parent = FindInodeInTree(orphans, selfNode.parentId);
+                            if (parent != null)
+                            {
+                                parent.Children.Add(selfNode);
+                            }
+                            else
+                            {
+                                orphans.Add(selfNode);
+                            }
+                        }
                     }
 
-                    Console.WriteLine(stream.Position.ToString("X") + ": " + filePath + " - "
-                    + node.Size.ToString() + " bytes - " + node.ModifyTime.ToShortDateString());
-
-                    using (var f = new FileStream(filePath, FileMode.Create, FileAccess.Write))
+                    int bytePtr = 0x20;
+                    while (bytePtr < blockBytes.Length)
                     {
-                        byte[] bytes = ReadContents(node);
-                        f.Write(bytes);
-                        f.Flush();
+                        int inodeNum = Utils.GetUInt16(blockBytes, bytePtr, endianness); bytePtr += 2;
+                        string name = Utils.CleanString(Encoding.ASCII.GetString(blockBytes, bytePtr, 0x10 - 2));
+                        bytePtr += 0x10 - 2;
+
+                        if (name.Length == 0)
+                            break;
+
+                        var inode = ReadINode(stream, inodeNum);
+                        inode.Name = name;
+
+                        if (inodeNum > 0)
+                        {
+                            var found = FindInodeInTree(orphans, inodeNum);
+                            if (found != null && found.Name.StartsWith("unknown"))
+                            {
+                                found.Name = name;
+                            }
+                        }
+
+                        selfNode.Children.Add(inode);
+                    }
+                }
+
+
+                // distribute any remaining orphans.
+                for (int i = 0; i < orphans.Count; i++)
+                {
+                    if (orphans.Count == 1)
+                        break;
+                    var orphan = orphans[i];
+                    if (orphan == rootNode)
+                        continue;
+
+                    var parent = FindInodeInTree(orphans, orphan.parentId);
+                    if (parent != null)
+                    {
+                        parent.Children.Add(orphan);
+                        orphans.RemoveAt(i);
+                        i = 0;
+                    }
+                }
+
+            }
+
+
+            private INode? FindInodeInTree(List<INode> nodes, int inodeNum)
+            {
+                foreach (var child in nodes)
+                {
+                    if (child.id == inodeNum)
+                        return child;
+                    var found = FindInodeInTree(child.Children, inodeNum);
+                    if (found != null)
+                        return found;
+                }
+                return null;
+            }
+
+
+
+
+            public void UnpackFiles(string basePath)
+            {
+                UnpackFiles(rootNode, basePath, new List<int>());
+            }
+
+            private void UnpackFiles(INode parentNode, string curPath, List<int> inodesVisited)
+            {
+                inodesVisited.Add(parentNode.id);
+                try
+                {
+
+                    foreach (var node in parentNode.Children)
+                    {
+                        if (/* node.IsDirectory */ node.Children.Count > 0)
+                        {
+                            if (inodesVisited.Contains(node.id))
+                            {
+                                Console.WriteLine("Warning: circular reference detected.");
+                                continue;
+                            }
+                            UnpackFiles(node, Path.Combine(curPath, node.Name), inodesVisited);
+                            continue;
+                        }
+
+                        Directory.CreateDirectory(curPath);
+
+                        string filePath = Path.Combine(curPath, node.Name);
+
+                        if (File.Exists(filePath))
+                        {
+                            Console.WriteLine("Warning: file already exists (amending name): " + filePath);
+                            continue;
+                        }
+
+                        Console.WriteLine(stream.Position.ToString("X") + ": " + filePath + " - "
+                        + node.Size.ToString() + " bytes - " + node.ModifyTime.ToShortDateString());
+
+                        try
+                        {
+                            using (var f = new FileStream(filePath, FileMode.Create, FileAccess.Write))
+                            {
+                                byte[] bytes = ReadContents(node);
+                                f.Write(bytes);
+                                f.Flush();
+                            }
+
+                            File.SetCreationTime(filePath, node.CreateTime);
+                            File.SetLastWriteTime(filePath, node.ModifyTime);
+                        }
+                        catch (Exception e)
+                        {
+                            Console.WriteLine("Error writing file: " + e.Message);
+                        }
                     }
 
-                    File.SetCreationTime(filePath, node.CreateTime);
-                    File.SetLastWriteTime(filePath, node.ModifyTime);
+                }
+                finally
+                {
+                    inodesVisited.Remove(parentNode.id);
                 }
             }
 
@@ -137,43 +289,90 @@ namespace xenixv3
                 return inode;
             }
 
-            private void FillChildren(Stream stream, INode parentNode, int level)
+            private void FillChildren(Stream stream, INode parentNode, int level, List<int> inodesVisited)
             {
-                if (level > 64)
+                if (level > 10)
                 {
-                    throw new DecodeException("descending too far, possibly circular reference.");
+                    //throw new DecodeException("descending too far, possibly circular reference.");
+                    Console.WriteLine("descending too far...");
+                    return;
                 }
-                var contents = ReadContents(parentNode);
-
-                int numDirEntries = (int)contents.Length / 0x10;
-
-                for (int i = 0; i < numDirEntries; i++)
+                inodesVisited.Add(parentNode.id);
+                try
                 {
-                    var iNodeNum = Utils.GetUInt16(contents, i * 0x10, endianness);
 
-                    if (iNodeNum == 0)
-                        continue; // free inode.
-
-                    var name = Utils.ReplaceInvalidChars(Utils.CleanString(Encoding.ASCII.GetString(contents, i * 0x10 + 2, 0x10 - 2)));
-                    if (name == "." || name == "..")
-                        continue;
-
-                    var inode = ReadINode(stream, iNodeNum);
-                    inode.Name = name;
-
-                    parentNode.Children.Add(inode);
-
-                    // Console.WriteLine(">> " + inode.Mode.ToString("X4") + "\t\t" + inode.Name);
-
-                    if (inode.IsDirectory)
+                    byte[]? contents = null;
+                    try
                     {
-                        FillChildren(stream, inode, level + 1);
+                        contents = ReadContents(parentNode);
                     }
+                    catch (Exception e)
+                    {
+                        Console.WriteLine("Error reading contents of inode " + parentNode.id + ": " + e.Message);
+                        return;
+                    }
+
+                    int numDirEntries = (int)contents.Length / 0x10;
+
+                    if (numDirEntries > 1000)
+                    {
+                        Console.WriteLine("Warning: too many directory entries.");
+                        numDirEntries = 1000;
+                    }
+
+                    for (int i = 0; i < numDirEntries; i++)
+                    {
+                        var iNodeNum = Utils.GetUInt16(contents, i * 0x10, endianness);
+
+                        if (iNodeNum == 0)
+                            continue; // free inode.
+
+                        var name = Utils.ReplaceInvalidChars(Utils.CleanString(Encoding.ASCII.GetString(contents, i * 0x10 + 2, 0x10 - 2)));
+                        if (name == "." || name == "..")
+                            continue;
+
+                        if (name.Length == 0)
+                            break;
+
+                        INode? inode = null;
+                        try
+                        {
+                            inode = ReadINode(stream, iNodeNum);
+                            inode.Name = name;
+
+                            parentNode.Children.Add(inode);
+                        }
+                        catch (Exception e)
+                        {
+                            Console.WriteLine("Error reading inode " + iNodeNum + ": " + e.Message);
+                        }
+
+                        if (inode != null && inode.IsDirectory)
+                        {
+                            if (inodesVisited.Contains(iNodeNum))
+                            {
+                                Console.WriteLine("Warning: circular reference detected.");
+                                continue;
+                            }
+                            FillChildren(stream, inode, level + 1, inodesVisited);
+                        }
+                    }
+
+                }
+                finally
+                {
+                    inodesVisited.Remove(parentNode.id);
                 }
             }
 
             private byte[] ReadContents(INode inode)
             {
+                if (inode.id == 0)
+                {
+                    Console.WriteLine("Warning: inode 0 is not a valid inode.");
+                    return new byte[0];
+                }
+
                 if (inode.Size > 0x10000000)
                 {
                     throw new DecodeException("inode size seems a bit too large.");
@@ -263,6 +462,7 @@ namespace xenixv3
             public const int StructLength = 0x40;
 
             public int id;
+            public int parentId;
             public int Mode;
             public int nLink;
             public int uId;
@@ -294,6 +494,12 @@ namespace xenixv3
 
                 Size = Utils.GetUInt32(bytes, bytePtr, partition.endianness); bytePtr += 4;
 
+                if (Size > 0x10000000)
+                {
+                    Console.WriteLine("Warning: inode size seems a bit too large.");
+                    Size = 0x4000;
+                }
+
                 // direct blocks
                 int block;
                 for (int i = 0; i < 10; i++)
@@ -309,6 +515,7 @@ namespace xenixv3
                 int blockPtr = Utils.Get3ByteInt(bytes, bytePtr, partition.endianness); bytePtr += 3;
                 if (blockPtr != 0)
                 {
+                    /*
                     byte[] blockBytes = new byte[partition.superBlock.BlockSize];
                     stream.Seek(partition.partitionBaseOffset + (blockPtr * partition.superBlock.BlockSize), SeekOrigin.Begin);
                     stream.Read(blockBytes, 0, blockBytes.Length);
@@ -320,12 +527,14 @@ namespace xenixv3
 
                         Blocks.Add(block);
                     }
+                    */
                 }
 
                 // double-indirect blocks
                 blockPtr = Utils.Get3ByteInt(bytes, bytePtr, partition.endianness); bytePtr += 3;
                 if (blockPtr != 0)
                 {
+                    /*
                     byte[] iBlockBytes = new byte[partition.superBlock.BlockSize];
                     stream.Seek(partition.partitionBaseOffset + (blockPtr * partition.superBlock.BlockSize), SeekOrigin.Begin);
                     stream.Read(iBlockBytes, 0, iBlockBytes.Length);
@@ -347,6 +556,7 @@ namespace xenixv3
                             Blocks.Add(block);
                         }
                     }
+                    */
                 }
 
                 blockPtr = Utils.Get3ByteInt(bytes, bytePtr, partition.endianness); bytePtr += 3;
