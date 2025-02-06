@@ -245,8 +245,9 @@ namespace qicstream95
                     DosName = "";
                 }
 
-
                 int dirLen = (int)(dataPos - stream.Position);
+                if (dirLen < 0)
+                    return;
 
                 stream.Read(bytes, 0, dirLen);
 
