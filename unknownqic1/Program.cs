@@ -60,7 +60,7 @@ namespace unknownqic1
             // Read the volume header
             stream.Read(bytes, 0, BLOCK_SIZE);
 
-            string volName = Utils.GetNullTerminatedString(Encoding.ASCII.GetString(bytes, 0xB, 0x40));
+            string volName = Utils.GetNullTerminatedString(Encoding.Latin1.GetString(bytes, 0xB, 0x40));
             Console.WriteLine("Backup label: " + volName);
 
             Directory.CreateDirectory(baseDirectory);
@@ -91,7 +91,7 @@ namespace unknownqic1
                     if (bytes[0] == 0x5C)
                     {
                         // new catalog directory
-                        currentCatalogDir = Utils.GetNullTerminatedString(Encoding.ASCII.GetString(bytes, 0, 0x20)).Trim();
+                        currentCatalogDir = Utils.GetNullTerminatedString(Encoding.Latin1.GetString(bytes, 0, 0x20)).Trim();
                         continue;
                     }
                     else
@@ -106,7 +106,7 @@ namespace unknownqic1
                         else
                         {
                             var catName = currentCatalogDir + "\\" + entry.Name;
-                            if (catName.StartsWith("\\"))
+                            while (catName.StartsWith("\\"))
                                 catName = catName.Substring(1);
                             catalog[catName] = entry;
                             continue;
@@ -173,14 +173,21 @@ namespace unknownqic1
                         bytesLeft -= bytesToRead;
                     }
                 }
-                if (catalogEntry != null)
+                if (catalogEntry != null && !catalogEntry.IsDirectory)
                 {
-                    File.SetCreationTime(fileName, catalogEntry.DateTime);
-                    File.SetLastWriteTime(fileName, catalogEntry.DateTime);
-                    File.SetAttributes(fileName, catalogEntry.Attributes);
+                    try
+                    {
+                        File.SetCreationTime(fileName, catalogEntry.DateTime);
+                        File.SetLastWriteTime(fileName, catalogEntry.DateTime);
+                        File.SetAttributes(fileName, catalogEntry.Attributes);
+                    }
+                    catch (Exception ex)
+                    {
+                        Console.WriteLine("Warning: could not set file attributes for " + fileName + ": " + ex.Message);
+                    }
                 }
 
-                Console.WriteLine(stream.Position.ToString("X") + ": " + fileName + ", " + header.Size.ToString() + " bytes - " + header.DateTime.ToShortDateString());
+                Console.WriteLine(stream.Position.ToString("X") + ": " + fileName + ", " + header.Size.ToString() + " bytes - " + (catalogEntry?.DateTime ?? header.DateTime).ToShortDateString());
             }
         }
 
@@ -205,8 +212,8 @@ namespace unknownqic1
                 if (bytes[0] < 0x20 || bytes[0] == 0xFF)
                     return;
 
-                Name = Utils.GetNullTerminatedString(Encoding.ASCII.GetString(bytes, 0, 8)).Trim();
-                string Extension = Utils.GetNullTerminatedString(Encoding.ASCII.GetString(bytes, 8, 3)).Trim();
+                Name = Utils.GetNullTerminatedString(Encoding.Latin1.GetString(bytes, 0, 8)).Trim();
+                string Extension = Utils.GetNullTerminatedString(Encoding.Latin1.GetString(bytes, 8, 3)).Trim();
                 if (Extension.Length > 0)
                     Name += "." + Extension;
 
@@ -232,10 +239,10 @@ namespace unknownqic1
                 byte[] bytes = new byte[0x59];
                 stream.Read(bytes, 0, 0x59);
 
-                if (bytes[0] != 0x55 && bytes[1] != 0xAA)
+                if (bytes[0] != 0x55 || bytes[1] != 0xAA)
                     return;
 
-                Name = Utils.GetNullTerminatedString(Encoding.ASCII.GetString(bytes, 0x4, 0x40));
+                Name = Utils.GetNullTerminatedString(Encoding.Latin1.GetString(bytes, 0x4, 0x40));
                 if (Name.StartsWith("\\"))
                     Name = Name.Substring(1);
 
