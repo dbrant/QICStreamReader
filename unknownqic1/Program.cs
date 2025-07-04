@@ -1,6 +1,5 @@
 ﻿using QicUtils;
 using System;
-using System.IO;
 using System.Text;
 
 /// <summary>
@@ -67,17 +66,69 @@ namespace unknownqic1
             Directory.CreateDirectory(baseDirectory);
             string currentDirectory = baseDirectory;
 
-            // And now begins the main sequence of the backup, which consists of a file or directory header,
-            // and the contents of the file.
-            // Each new file/directory header is aligned on a block boundary (512 bytes).
+            var catalog = new Dictionary<string, CatalogEntry>();
+            bool inCatalog = true;
+            string currentCatalogDir = "";
 
             while (stream.Position < stream.Length)
             {
+                if (inCatalog)
+                {
+                    stream.Read(bytes, 0, 0x20);
+                    if (bytes[0] == 0xFF && bytes[1] == 0xFF)
+                    {
+                        // padding?
+                        continue;
+                    }
+                    else if (bytes[0] == 0x55 && bytes[1] == 0xAA)
+                    {
+                        // beginning of file data
+                        inCatalog = false;
+                        stream.Seek(-0x20, SeekOrigin.Current);
+                        continue;
+                    }
+
+                    if (bytes[0] == 0x5C)
+                    {
+                        // new catalog directory
+                        currentCatalogDir = Utils.GetNullTerminatedString(Encoding.ASCII.GetString(bytes, 0, 0x20)).Trim();
+                        continue;
+                    }
+                    else
+                    {
+                        var entry = new CatalogEntry(bytes);
+                        if (!entry.Valid)
+                        {
+                            Console.WriteLine("Warning: malformed catalog entry. Assuming beginning of file data.");
+                            inCatalog = false;
+                            stream.Seek(-0x20, SeekOrigin.Current);
+                        }
+                        else
+                        {
+                            var catName = currentCatalogDir + "\\" + entry.Name;
+                            if (catName.StartsWith("\\"))
+                                catName = catName.Substring(1);
+                            catalog[catName] = entry;
+                            continue;
+                        }
+                    }
+                }
+
                 AlignToNextBlock(stream);
 
                 FileHeader header = new(stream);
                 if (!header.Valid)
                     continue;
+
+                catalog.TryGetValue(header.Name, out CatalogEntry catalogEntry);
+                if (catalogEntry == null)
+                {
+                    Console.WriteLine("Warning: file not found in catalog: " + header.Name);
+                }
+                else if (catalogEntry.Size != header.Size)
+                {
+                    Console.WriteLine("Warning: file size mismatch for " + header.Name + ": catalog says " + catalogEntry.Size + ", but header says " + header.Size);
+                }
 
                 string fileName = Path.Combine(currentDirectory, header.Name);
                 if (File.Exists(fileName))
@@ -122,9 +173,12 @@ namespace unknownqic1
                         bytesLeft -= bytesToRead;
                     }
                 }
-                //File.SetCreationTime(fileName, header.DateTime);
-                //File.SetLastWriteTime(fileName, header.DateTime);
-                //File.SetAttributes(fileName, header.Attributes);
+                if (catalogEntry != null)
+                {
+                    File.SetCreationTime(fileName, catalogEntry.DateTime);
+                    File.SetLastWriteTime(fileName, catalogEntry.DateTime);
+                    File.SetAttributes(fileName, catalogEntry.Attributes);
+                }
 
                 Console.WriteLine(stream.Position.ToString("X") + ": " + fileName + ", " + header.Size.ToString() + " bytes - " + header.DateTime.ToShortDateString());
             }
@@ -134,6 +188,34 @@ namespace unknownqic1
         {
             long align = stream.Position % BLOCK_SIZE;
             if (align > 0) { stream.Seek(BLOCK_SIZE - align, SeekOrigin.Current); }
+        }
+
+        private class CatalogEntry
+        {
+            public string Name { get; }
+            public bool IsDirectory { get { return (Attributes | FileAttributes.Directory) != 0; } }
+            public DateTime DateTime { get; }
+            public FileAttributes Attributes { get; }
+            public long Size { get; }
+            public bool Valid { get; }
+            public int Sequence { get; }
+
+            public CatalogEntry(byte[] bytes)
+            {
+                if (bytes[0] < 0x20 || bytes[0] == 0xFF)
+                    return;
+
+                Name = Utils.GetNullTerminatedString(Encoding.ASCII.GetString(bytes, 0, 8)).Trim();
+                string Extension = Utils.GetNullTerminatedString(Encoding.ASCII.GetString(bytes, 8, 3)).Trim();
+                if (Extension.Length > 0)
+                    Name += "." + Extension;
+
+                Attributes = (FileAttributes)bytes[0xB];
+                DateTime = Utils.GetDosDateTime(BitConverter.ToUInt16(bytes, 0x18), BitConverter.ToUInt16(bytes, 0x16));
+                Sequence = Utils.LittleEndian(BitConverter.ToUInt16(bytes, 0x1A));
+                Size = Utils.LittleEndian(BitConverter.ToUInt32(bytes, 0x1C));
+                Valid = true;
+            }
         }
 
         private class FileHeader
