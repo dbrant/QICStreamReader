@@ -51,7 +51,7 @@ Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "deecc", "deecc\deecc.csproj
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "novanet8", "novanet8\novanet8.csproj", "{C7A23AA2-4922-4582-971A-5AA5D7F0BB51}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "mountain", "unknownqic1\mountain.csproj", "{55C5BB9B-872F-4F6F-8288-E840437BAFB9}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "mountain", "mountain\mountain.csproj", "{55C5BB9B-872F-4F6F-8288-E840437BAFB9}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
