@@ -4,7 +4,7 @@ using System.Text;
 
 /// <summary>
 /// 
-/// Decoder for an unknown backup format found on some QIC-150 cartridges.
+/// Decoder for Mountain FileSafe backups found on some QIC-150 cartridges.
 /// 
 /// Copyright Dmitry Brant, 2025-
 /// 
@@ -31,7 +31,7 @@ using System.Text;
 /// 0x59      | ...  | file contents
 /// 
 /// </summary>
-namespace unknownqic1
+namespace mountainqic
 {
     class Program
     {
@@ -50,7 +50,7 @@ namespace unknownqic1
 
             if (inFileName.Length == 0 || !File.Exists(inFileName))
             {
-                Console.WriteLine("Usage: unknownqic1 -f <file name> [-d <output directory>]");
+                Console.WriteLine("Usage: mountain -f <file name> [-d <output directory>]");
                 return;
             }
 
