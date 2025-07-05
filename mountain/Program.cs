@@ -11,13 +11,14 @@ using System.Text;
 /// 
 /// Brief outline of the format, to the best of my reverse-engineering ability:
 /// 
-/// * Every file and directory record is aligned to a block boundary (512 bytes).
-/// * Little-endian.
-/// * Here is a high-level organization of the stream:
+/// The backup starts with a volume header, then a catalog of files and directories, and then the actual file contents.
+/// The volume header is one block (512 bytes).
+/// The catalog is a sequence of records, each 0x20 bytes long, which describe files and directories. The catalog
+/// contains the file name, attributes, size, and date/time, and therefore must be decoded before dumping the files.
+/// Immediately after the catalog, the actual file contents follow, each file starting on a block boundary.
+/// (Or, if it's a continuation of backup from another tape, the last file's contents start immediately.)
 /// 
-/// [block 1] Volume header?
-/// [block 2..n] Catalog contents
-/// [block n...] File contents with headers
+/// 
 /// 
 /// For each file:
 /// Every file starts on a block boundary and has a header of 0x59 bytes, after which the file contents follow.
