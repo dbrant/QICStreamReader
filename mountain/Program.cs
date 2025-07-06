@@ -53,8 +53,7 @@ namespace mountainqic
 
         private enum FormatVersion
         {
-            Ver4 = 0x4,
-            Ver5 = 0x5
+            Ver4, Ver4b, Ver5
         }
 
         static void Main(string[] args)
@@ -85,6 +84,8 @@ namespace mountainqic
             if (bytes[0] == 0x4 && bytes[2] == 0xAA && bytes[3] == 0x55)
             {
                 version = FormatVersion.Ver4;
+                if (bytes[0xE0] > 0)
+                    version = FormatVersion.Ver4b;
             }
             else if (bytes[0] == 0x55 && bytes[1] == 0xAA && bytes[3] == 0x5)
             {
@@ -95,7 +96,7 @@ namespace mountainqic
                 Console.WriteLine("Warning: does not appear to be a valid Mountain FileSafe backup file.");
             }
 
-            string volName = Utils.GetNullTerminatedString(Encoding.Latin1.GetString(bytes, version == FormatVersion.Ver4 ? 0xB : 0x88, 0x40));
+            string volName = Utils.GetNullTerminatedString(Encoding.Latin1.GetString(bytes, version == FormatVersion.Ver5 ? 0x88 : 0xB, 0x40));
             Console.WriteLine("Backup label: " + volName);
 
             Directory.CreateDirectory(baseDirectory);
@@ -285,8 +286,6 @@ namespace mountainqic
 
         private class FileHeader
         {
-            const int HEADER_SIZE = 0xB9; // have seen 0x59 and 0xB9
-
             public long Size { get; set; }
             public string Name { get; }
             public DateTime DateTime { get; }
@@ -316,9 +315,9 @@ namespace mountainqic
                     if (Name.StartsWith("\\"))
                         Name = Name.Substring(1);
                 }
-                else if (version == FormatVersion.Ver4)
+                else if (version == FormatVersion.Ver4 || version == FormatVersion.Ver4b)
                 {
-                    stream.Read(bytes, 0, HEADER_SIZE);
+                    stream.Read(bytes, 0, version == FormatVersion.Ver4b ? 0xB9 : 0x59);
 
                     Name = Utils.GetNullTerminatedString(Encoding.Latin1.GetString(bytes, 0x4, 0x40));
                     if (Name.StartsWith("\\"))
