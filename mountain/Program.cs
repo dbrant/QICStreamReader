@@ -29,6 +29,9 @@ using System.Text;
 /// 0xB       | var  | volume name (null-terminated ASCII string)
 /// 
 /// 
+/// 
+/// 
+/// 
 /// For each file:
 /// Every file starts on a block boundary and has a header of 0x59 bytes, after which the file contents follow.
 /// 
@@ -47,6 +50,12 @@ namespace mountainqic
     class Program
     {
         private const int BLOCK_SIZE = 0x200;
+
+        private enum FormatVersion
+        {
+            Ver4 = 0x4,
+            Ver5 = 0x5
+        }
 
         static void Main(string[] args)
         {
@@ -71,66 +80,88 @@ namespace mountainqic
             // Read the volume header
             stream.Read(bytes, 0, BLOCK_SIZE);
 
-            string volName = Utils.GetNullTerminatedString(Encoding.Latin1.GetString(bytes, 0xB, 0x40));
+            var version = FormatVersion.Ver4;
+
+            if (bytes[0] == 0x4 && bytes[2] == 0xAA && bytes[3] == 0x55)
+            {
+                version = FormatVersion.Ver4;
+            }
+            else if (bytes[0] == 0x55 && bytes[1] == 0xAA && bytes[3] == 0x5)
+            {
+                version = FormatVersion.Ver5;
+            }
+            else
+            {
+                Console.WriteLine("Warning: does not appear to be a valid Mountain FileSafe backup file.");
+            }
+
+            string volName = Utils.GetNullTerminatedString(Encoding.Latin1.GetString(bytes, version == FormatVersion.Ver4 ? 0xB : 0x88, 0x40));
             Console.WriteLine("Backup label: " + volName);
 
             Directory.CreateDirectory(baseDirectory);
             string currentDirectory = baseDirectory;
 
             var catalog = new Dictionary<string, CatalogEntry>();
-            bool inCatalog = true;
             string currentCatalogDir = "";
+            var catalogNumPaddingEntries = 0;
 
+            // Read the catalog
             while (stream.Position < stream.Length)
             {
-                if (inCatalog)
+                stream.Read(bytes, 0, 0x20);
+                if (bytes[0] == 0xFF && bytes[1] == 0xFF)
                 {
-                    stream.Read(bytes, 0, 0x20);
-                    if (bytes[0] == 0xFF && bytes[1] == 0xFF)
+                    catalogNumPaddingEntries++;
+                    if (catalogNumPaddingEntries > 1)
                     {
-                        // padding?
-                        continue;
+                        // End of catalog!
+                        break;
                     }
-                    else if (bytes[0] == 0x55 && bytes[1] == 0xAA)
-                    {
-                        // beginning of file data
-                        inCatalog = false;
-                        stream.Seek(-0x20, SeekOrigin.Current);
-                        continue;
-                    }
+                    continue;
+                }
+                catalogNumPaddingEntries = 0;
 
-                    if (bytes[0] == 0x5C)
+                if (bytes[0] == 0x55 && bytes[1] == 0xAA)
+                {
+                    Console.WriteLine("Warning: looks like file contents starting before end of catalog.");
+                    stream.Seek(-0x20, SeekOrigin.Current);
+                    break;
+                }
+
+                if (bytes[0] == 0x5C)
+                {
+                    // new catalog directory
+                    currentCatalogDir = Utils.GetNullTerminatedString(Encoding.Latin1.GetString(bytes, 0, 0x20)).Trim();
+                }
+                else
+                {
+                    var entry = new CatalogEntry(bytes);
+                    if (!entry.Valid)
                     {
-                        // new catalog directory
-                        currentCatalogDir = Utils.GetNullTerminatedString(Encoding.Latin1.GetString(bytes, 0, 0x20)).Trim();
-                        continue;
+                        Console.WriteLine("Warning: malformed catalog entry. Assuming beginning of file data.");
+                        stream.Seek(-0x20, SeekOrigin.Current);
                     }
                     else
                     {
-                        var entry = new CatalogEntry(bytes);
-                        if (!entry.Valid)
+                        var catName = currentCatalogDir + "\\" + entry.Name;
+                        while (catName.StartsWith("\\"))
+                            catName = catName.Substring(1);
+                        if (!entry.IsDirectory)
                         {
-                            Console.WriteLine("Warning: malformed catalog entry. Assuming beginning of file data.");
-                            inCatalog = false;
-                            stream.Seek(-0x20, SeekOrigin.Current);
+                            catalog[catName] = entry;
                         }
-                        else
-                        {
-                            var catName = currentCatalogDir + "\\" + entry.Name;
-                            while (catName.StartsWith("\\"))
-                                catName = catName.Substring(1);
-                            if (!entry.IsDirectory)
-                            {
-                                catalog[catName] = entry;
-                            }
-                            continue;
-                        }
+                        continue;
                     }
                 }
+            }
 
+
+            // Read the file contents
+            while (stream.Position < stream.Length)
+            {
                 AlignToNextBlock(stream);
 
-                FileHeader header = new(stream);
+                FileHeader header = new(stream, version);
                 if (!header.Valid)
                     continue;
 
@@ -142,6 +173,8 @@ namespace mountainqic
                 else if (catalogEntry.Size != header.Size)
                 {
                     Console.WriteLine("Warning: file size mismatch for " + header.Name + ": catalog says " + catalogEntry.Size + ", but header says " + header.Size);
+                    if (header.Size == 0 && catalogEntry.Size > 0)
+                        header.Size = catalogEntry.Size;
                 }
 
                 string fileName = Path.Combine(currentDirectory, header.Name);
@@ -252,27 +285,47 @@ namespace mountainqic
 
         private class FileHeader
         {
-            public long Size { get; }
+            const int HEADER_SIZE = 0xB9; // have seen 0x59 and 0xB9
+
+            public long Size { get; set; }
             public string Name { get; }
             public DateTime DateTime { get; }
             public FileAttributes Attributes { get; }
             public bool IsDirectory { get; }
             public bool Valid { get; }
 
-            public FileHeader(Stream stream)
+            public FileHeader(Stream stream, FormatVersion version)
             {
-                byte[] bytes = new byte[0x59];
-                stream.Read(bytes, 0, 0x59);
+                byte[] bytes = new byte[0x100];
 
+                stream.Read(bytes, 0, 0x10);
                 if (bytes[0] != 0x55 || bytes[1] != 0xAA)
                     return;
 
-                Name = Utils.GetNullTerminatedString(Encoding.Latin1.GetString(bytes, 0x4, 0x40));
-                if (Name.StartsWith("\\"))
-                    Name = Name.Substring(1);
+                stream.Seek(-0x10, SeekOrigin.Current);
 
-                Size = Utils.LittleEndian(BitConverter.ToUInt32(bytes, 0x55));
+                if (version == FormatVersion.Ver5)
+                {
+                    var headerLen = bytes[0xF];
+                    stream.Read(bytes, 0, headerLen);
 
+                    Size = Utils.LittleEndian(BitConverter.ToUInt32(bytes, 0xB));
+
+                    var nameLen = bytes[0x17];
+                    Name = Utils.GetNullTerminatedString(Encoding.Latin1.GetString(bytes, 0x19, nameLen));
+                    if (Name.StartsWith("\\"))
+                        Name = Name.Substring(1);
+                }
+                else if (version == FormatVersion.Ver4)
+                {
+                    stream.Read(bytes, 0, HEADER_SIZE);
+
+                    Name = Utils.GetNullTerminatedString(Encoding.Latin1.GetString(bytes, 0x4, 0x40));
+                    if (Name.StartsWith("\\"))
+                        Name = Name.Substring(1);
+
+                    Size = Utils.LittleEndian(BitConverter.ToUInt32(bytes, 0x55));
+                }
                 Valid = true;
             }
         }
