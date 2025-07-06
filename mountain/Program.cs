@@ -1,5 +1,6 @@
 ﻿using QicUtils;
 using System;
+using System.Collections.Generic;
 using System.Text;
 
 /// <summary>
@@ -18,6 +19,14 @@ using System.Text;
 /// Immediately after the catalog, the actual file contents follow, each file starting on a block boundary.
 /// (Or, if it's a continuation of backup from another tape, the last file's contents start immediately.)
 /// 
+/// Here are some important bits in the volume header (first 512 bytes):
+/// offset    | size | description
+/// ----------|------|---------------------------------------------------
+/// 0         | 2    | version number (I have observed 0x4 so far)
+/// 2         | 2    | magic (0xAA55)
+/// 4         | 2    | unknown (observed 0x5 so far)
+/// 6         | 2    | Number of this tape in the total backup set (1-based).
+/// 0xB       | var  | volume name (null-terminated ASCII string)
 /// 
 /// 
 /// For each file:
@@ -25,6 +34,7 @@ using System.Text;
 /// 
 /// The header contains the following fields:
 /// offset    | size | description
+/// ----------|------|---------------------------------------------------
 /// 0         | 2    | magic (0x55AA)
 /// 2         | 2    | unknown
 /// 4         | var. | file name (null-terminated ASCII string, up to 0x51 bytes)
@@ -109,7 +119,10 @@ namespace mountainqic
                             var catName = currentCatalogDir + "\\" + entry.Name;
                             while (catName.StartsWith("\\"))
                                 catName = catName.Substring(1);
-                            catalog[catName] = entry;
+                            if (!entry.IsDirectory)
+                            {
+                                catalog[catName] = entry;
+                            }
                             continue;
                         }
                     }
@@ -121,7 +134,7 @@ namespace mountainqic
                 if (!header.Valid)
                     continue;
 
-                catalog.TryGetValue(header.Name, out CatalogEntry catalogEntry);
+                catalog.Remove(header.Name, out CatalogEntry catalogEntry);
                 if (catalogEntry == null)
                 {
                     Console.WriteLine("Warning: file not found in catalog: " + header.Name);
@@ -190,6 +203,17 @@ namespace mountainqic
 
                 Console.WriteLine(stream.Position.ToString("X") + ": " + fileName + ", " + header.Size.ToString() + " bytes - " + (catalogEntry?.DateTime ?? header.DateTime).ToShortDateString());
             }
+
+            if (catalog.Count > 0)
+            {
+                Console.WriteLine("Warning: the following files were in the catalog, but not found in archive:");
+                foreach (var entry in catalog)
+                    Console.WriteLine(" - " + entry.Key);
+            }
+            else
+            {
+                Console.WriteLine("All files found in the catalog.");
+            }
         }
 
         static void AlignToNextBlock(Stream stream)
@@ -201,7 +225,7 @@ namespace mountainqic
         private class CatalogEntry
         {
             public string Name { get; }
-            public bool IsDirectory { get { return (Attributes | FileAttributes.Directory) != 0; } }
+            public bool IsDirectory { get { return (Attributes & FileAttributes.Directory) != 0; } }
             public DateTime DateTime { get; }
             public FileAttributes Attributes { get; }
             public long Size { get; }
