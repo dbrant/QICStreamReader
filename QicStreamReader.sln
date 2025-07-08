@@ -53,6 +53,8 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "novanet8", "novanet8\novane
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "mountain", "mountain\mountain.csproj", "{55C5BB9B-872F-4F6F-8288-E840437BAFB9}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "easytape", "easytape\easytape.csproj", "{99EC094D-70AE-44E4-993D-C22CC32F30BA}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -351,6 +353,18 @@ Global
 		{55C5BB9B-872F-4F6F-8288-E840437BAFB9}.Release|x64.Build.0 = Release|Any CPU
 		{55C5BB9B-872F-4F6F-8288-E840437BAFB9}.Release|x86.ActiveCfg = Release|Any CPU
 		{55C5BB9B-872F-4F6F-8288-E840437BAFB9}.Release|x86.Build.0 = Release|Any CPU
+		{99EC094D-70AE-44E4-993D-C22CC32F30BA}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{99EC094D-70AE-44E4-993D-C22CC32F30BA}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{99EC094D-70AE-44E4-993D-C22CC32F30BA}.Debug|x64.ActiveCfg = Debug|Any CPU
+		{99EC094D-70AE-44E4-993D-C22CC32F30BA}.Debug|x64.Build.0 = Debug|Any CPU
+		{99EC094D-70AE-44E4-993D-C22CC32F30BA}.Debug|x86.ActiveCfg = Debug|Any CPU
+		{99EC094D-70AE-44E4-993D-C22CC32F30BA}.Debug|x86.Build.0 = Debug|Any CPU
+		{99EC094D-70AE-44E4-993D-C22CC32F30BA}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{99EC094D-70AE-44E4-993D-C22CC32F30BA}.Release|Any CPU.Build.0 = Release|Any CPU
+		{99EC094D-70AE-44E4-993D-C22CC32F30BA}.Release|x64.ActiveCfg = Release|Any CPU
+		{99EC094D-70AE-44E4-993D-C22CC32F30BA}.Release|x64.Build.0 = Release|Any CPU
+		{99EC094D-70AE-44E4-993D-C22CC32F30BA}.Release|x86.ActiveCfg = Release|Any CPU
+		{99EC094D-70AE-44E4-993D-C22CC32F30BA}.Release|x86.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
@@ -371,6 +385,7 @@ Global
 		QicUtils\QicUtils.projitems*{80e32514-e2ec-41e4-9418-cd4eb8a73168}*SharedItemsImports = 5
 		QicUtils\QicUtils.projitems*{87002de5-c670-4fb7-bd80-ecffc4d2784d}*SharedItemsImports = 5
 		QicUtils\QicUtils.projitems*{89dd4a55-4506-498d-8619-a52beb06bf47}*SharedItemsImports = 5
+		QicUtils\QicUtils.projitems*{99ec094d-70ae-44e4-993d-c22cc32f30ba}*SharedItemsImports = 5
 		QicUtils\QicUtils.projitems*{a4fd7512-d2fb-4feb-9f09-c1998694caac}*SharedItemsImports = 13
 		QicUtils\QicUtils.projitems*{b562c774-6604-4e5f-ad12-3e25daa28b4c}*SharedItemsImports = 5
 		QicUtils\QicUtils.projitems*{b5710262-62e8-492f-99b9-ed4d60368f2e}*SharedItemsImports = 5
