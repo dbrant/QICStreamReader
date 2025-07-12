@@ -1,6 +1,5 @@
 ﻿using QicUtils;
 using System;
-using System.Collections.Generic;
 using System.Text;
 
 /// <summary>
@@ -29,11 +28,30 @@ using System.Text;
 /// 0xB       | var  | volume name (null-terminated ASCII string)
 /// 
 /// 
+/// And for each catalog entry:
+/// offset    | size | description
+/// ----------|------|---------------------------------------------------
+/// 0         | 8    | File name (padded with spaces)
+/// 8         | 3    | File extension (padded with spaces)
+/// 9         | 1    | DOS attributes
+/// 0x16      | 4    | DOS date/time
+/// 0x1A      | 2    | Sequence number of this file in the backup
+/// 0x1C      | 4    | File size
 /// 
+/// - The catalog entries are listed one directory-worth at a time. At the beginning of a new directory, there is a
+/// special catalog entry where the entire 0x20 bytes are the full path of the directory, null-terminated.
+/// 
+/// - And when the directory ends, there is a special catalog entry filled with all 0xFF bytes.
+/// 
+/// - At the end of the catalog, there are two (2) consecutive entries filled with all 0xFF bytes. After that,
+/// the file contents start (aligned to the next block).
 /// 
 /// 
 /// For each file:
-/// Every file starts on a block boundary and has a header of 0x59 bytes, after which the file contents follow.
+/// Every file starts on a block boundary and has a fixed-size header, after which the file contents follow.
+/// I've observed a few different header formats, depending on the version of the backup:
+/// 
+/// Version 4 (and 4b):
 /// 
 /// The header contains the following fields:
 /// offset    | size | description
@@ -42,7 +60,20 @@ using System.Text;
 /// 2         | 2    | unknown
 /// 4         | var. | file name (null-terminated ASCII string, up to 0x51 bytes)
 /// 0x55      | 4    | file size (little-endian)
-/// 0x59      | ...  | file contents
+/// 0x59/0xB9 | ...  | file contents (start directly after the header, which is either 0x59 or 0xB9 bytes)
+/// 
+/// 
+/// Version 5:
+/// 
+/// /// The header contains the following fields:
+/// offset    | size | description
+/// ----------|------|---------------------------------------------------
+/// 0         | 2    | magic (0x55AA)
+/// 0xB       | 4    | file size
+/// 0xF       | 1    | size of this header (can be variable)
+/// 0x17      | 1    | length of file name
+/// 0x19      | var  | file name
+/// The file contents start immediately after the header, the size of which is given by the header itself.
 /// 
 /// </summary>
 namespace mountainqic
