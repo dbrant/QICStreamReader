@@ -1,6 +1,5 @@
 ﻿using QicUtils;
 using System;
-using System.Collections.Generic;
 using System.Text;
 
 /// <summary>
@@ -11,6 +10,27 @@ using System.Text;
 /// 
 /// 
 /// Brief outline of the format, to the best of my reverse-engineering ability:
+/// 
+/// (All fields are little-endian.)
+/// The backup starts with a number of volume header blocks, followed by the actual file contents.
+/// Each volume header block (512 bytes) looks like this:
+/// 
+/// offset    | size | description
+/// ----------|------|---------------------------------------------------
+/// 0         | 4    | magic identifier: 0x00040202
+/// 0x80      | 0xB  | magic identifier: "EASY   TAPE"
+/// 
+/// 
+/// Each file in the backup is preceded by a file header block (512 bytes), aligned on a block boundary,
+/// which looks like this:
+/// 
+/// offset    | size | description
+/// ----------|------|---------------------------------------------------
+/// 0         | 4    | magic identifier: 0x00040505
+/// 0x64      | 4    | DOS date/time
+/// 0x68      | 4    | file size
+/// 0x80      | var  | file name, null-terminated
+/// The file contents directly follow the header block.
 /// 
 /// 
 /// </summary>

@@ -11,6 +11,7 @@ using System.Text;
 /// 
 /// Brief outline of the format, to the best of my reverse-engineering ability:
 /// 
+/// (All fields are little-endian.)
 /// The backup starts with a volume header, then a catalog of files and directories, and then the actual file contents.
 /// The volume header is one block (512 bytes).
 /// The catalog is a sequence of records, each 0x20 bytes long, which describe files and directories. The catalog
