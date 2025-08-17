@@ -177,8 +177,8 @@ namespace mountainqic
                     else
                     {
                         var catName = currentCatalogDir + "\\" + entry.Name;
-                        while (catName.StartsWith("\\"))
-                            catName = catName.Substring(1);
+                        while (catName.StartsWith('\\'))
+                            catName = catName[1..];
                         if (!entry.IsDirectory)
                         {
                             catalog[catName] = entry;
@@ -344,16 +344,16 @@ namespace mountainqic
 
                     var nameLen = bytes[0x17];
                     Name = Utils.GetNullTerminatedString(Encoding.Latin1.GetString(bytes, 0x19, nameLen));
-                    if (Name.StartsWith("\\"))
-                        Name = Name.Substring(1);
+                    if (Name.StartsWith('\\'))
+                        Name = Name[1..];
                 }
                 else if (version == FormatVersion.Ver4 || version == FormatVersion.Ver4b)
                 {
                     stream.Read(bytes, 0, version == FormatVersion.Ver4b ? 0xB9 : 0x59);
 
                     Name = Utils.GetNullTerminatedString(Encoding.Latin1.GetString(bytes, 0x4, 0x40));
-                    if (Name.StartsWith("\\"))
-                        Name = Name.Substring(1);
+                    if (Name.StartsWith('\\'))
+                        Name = Name[1..];
 
                     Size = Utils.LittleEndian(BitConverter.ToUInt32(bytes, 0x55));
                 }
