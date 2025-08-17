@@ -112,115 +112,113 @@ namespace QicStreamV1
 
             byte[] bytes = new byte[0x10000];
 
-            using (var stream = new FileStream(inFileName, FileMode.Open, FileAccess.Read))
+            using var stream = new FileStream(inFileName, FileMode.Open, FileAccess.Read);
+            if (initialOffset != 0)
             {
-                if (initialOffset != 0)
+                stream.Seek(initialOffset, SeekOrigin.Begin);
+            }
+            else
+            {
+                /*
+                // read through the catalog (don't do anything with it).
+                while (stream.Position < stream.Length)
                 {
-                    stream.Seek(initialOffset, SeekOrigin.Begin);
-                }
-                else
-                {
-                    /*
-                    // read through the catalog (don't do anything with it).
-                    while (stream.Position < stream.Length)
+                    var header = new FileHeader(stream, true);
+                    if (!header.Valid)
                     {
-                        var header = new FileHeader(stream, true);
-                        if (!header.Valid)
-                        {
-                            // The first "invalid" header very likely represents the end of the catalog.
-                            break;
-                        }
-                        if (catDump)
-                        {
-                            Console.WriteLine(header.Name + "\t" + (header.IsDirectory ? "<dir>" : header.Size.ToString()) + "\t" + header.DateTime);
-                        }
+                        // The first "invalid" header very likely represents the end of the catalog.
+                        break;
                     }
                     if (catDump)
                     {
-                        return;
+                        Console.WriteLine(header.Name + "\t" + (header.IsDirectory ? "<dir>" : header.Size.ToString()) + "\t" + header.DateTime);
                     }
-                    */
                 }
-
-                bool printHeaderWarning = false;
-
-                while (stream.Position < stream.Length)
+                if (catDump)
                 {
-                    long posBeforeHeader = stream.Position;
-                    var header = new FileHeader(stream, false);
-                    if (!header.Valid)
-                    {
-                        if (printHeaderWarning)
-                        {
-                            printHeaderWarning = false;
-                            Console.WriteLine("Warning: Invalid file header. Searching for next header...");
-                        }
-                        stream.Position = posBeforeHeader + 1;
-                        continue;
-                    }
-                    else
-                    {
-                        printHeaderWarning = true;
-                    }
-
-                    if (header.IsDirectory)
-                    {
-                        if (header.Size > 0)
-                        {
-                            stream.Seek(header.Size, SeekOrigin.Current);
-                        }
-                        continue;
-                    }
-
-                    string filePath = baseDirectory;
-                    if (header.Subdirectory.Length > 0)
-                    {
-                        string[] dirArray = header.Subdirectory.Split('\0');
-                        for (int i = 0; i < dirArray.Length; i++)
-                        {
-                            filePath = Path.Combine(filePath, dirArray[i]);
-                        }
-                    }
-
-                    Directory.CreateDirectory(filePath);
-                    filePath = Path.Combine(filePath, header.Name);
-
-                    while (File.Exists(filePath))
-                    {
-                        Console.WriteLine("Warning: file already exists (amending name): " + filePath);
-                        filePath += "_";
-                    }
-
-                    Console.WriteLine(stream.Position.ToString("X") +  ": " + filePath + " - "
-                        + header.Size.ToString() + " bytes - " + header.DateTime.ToShortDateString());
-
-                    using (var f = new FileStream(filePath, FileMode.Create, FileAccess.Write))
-                    {
-                        long bytesLeft = header.Size;
-                        while (bytesLeft > 0)
-                        {
-                            int bytesToRead = bytes.Length;
-                            if (bytesToRead > bytesLeft) { bytesToRead = (int)bytesLeft; }
-                            stream.Read(bytes, 0, bytesToRead);
-                            f.Write(bytes, 0, bytesToRead);
-
-                            if (bytesLeft == header.Size)
-                            {
-                                if (!QicUtils.Utils.VerifyFileFormat(header.Name, bytes))
-                                {
-                                    Console.WriteLine(stream.Position.ToString("X") + " -- Warning: file format doesn't match: " + filePath);
-                                    Console.ReadKey();
-                                }
-                            }
-
-                            bytesLeft -= bytesToRead;
-                        }
-                    }
-
-                    File.SetCreationTime(filePath, header.DateTime);
-                    File.SetLastWriteTime(filePath, header.DateTime);
-                    File.SetAttributes(filePath, header.Attributes);
+                    return;
                 }
+                */
+            }
+
+            bool printHeaderWarning = false;
+
+            while (stream.Position < stream.Length)
+            {
+                long posBeforeHeader = stream.Position;
+                var header = new FileHeader(stream, false);
+                if (!header.Valid)
+                {
+                    if (printHeaderWarning)
+                    {
+                        printHeaderWarning = false;
+                        Console.WriteLine("Warning: Invalid file header. Searching for next header...");
+                    }
+                    stream.Position = posBeforeHeader + 1;
+                    continue;
+                }
+                else
+                {
+                    printHeaderWarning = true;
+                }
+
+                if (header.IsDirectory)
+                {
+                    if (header.Size > 0)
+                    {
+                        stream.Seek(header.Size, SeekOrigin.Current);
+                    }
+                    continue;
+                }
+
+                string filePath = baseDirectory;
+                if (header.Subdirectory.Length > 0)
+                {
+                    string[] dirArray = header.Subdirectory.Split('\0');
+                    for (int i = 0; i < dirArray.Length; i++)
+                    {
+                        filePath = Path.Combine(filePath, dirArray[i]);
+                    }
+                }
+
+                Directory.CreateDirectory(filePath);
+                filePath = Path.Combine(filePath, header.Name);
+
+                while (File.Exists(filePath))
+                {
+                    Console.WriteLine("Warning: file already exists (amending name): " + filePath);
+                    filePath += "_";
+                }
+
+                Console.WriteLine(stream.Position.ToString("X") + ": " + filePath + " - "
+                    + header.Size.ToString() + " bytes - " + header.DateTime.ToShortDateString());
+
+                using (var f = new FileStream(filePath, FileMode.Create, FileAccess.Write))
+                {
+                    long bytesLeft = header.Size;
+                    while (bytesLeft > 0)
+                    {
+                        int bytesToRead = bytes.Length;
+                        if (bytesToRead > bytesLeft) { bytesToRead = (int)bytesLeft; }
+                        stream.Read(bytes, 0, bytesToRead);
+                        f.Write(bytes, 0, bytesToRead);
+
+                        if (bytesLeft == header.Size)
+                        {
+                            if (!QicUtils.Utils.VerifyFileFormat(header.Name, bytes))
+                            {
+                                Console.WriteLine(stream.Position.ToString("X") + " -- Warning: file format doesn't match: " + filePath);
+                                Console.ReadKey();
+                            }
+                        }
+
+                        bytesLeft -= bytesToRead;
+                    }
+                }
+
+                File.SetCreationTime(filePath, header.DateTime);
+                File.SetLastWriteTime(filePath, header.DateTime);
+                File.SetAttributes(filePath, header.Attributes);
             }
         }
 

@@ -345,12 +345,8 @@ namespace QicStreamV2
             }
         }
 
-        private class DirectoryHeader : FileHeader
+        private class DirectoryHeader(Stream stream) : FileHeader(stream)
         {
-            public DirectoryHeader(Stream stream)
-                : base(stream)
-            {
-            }
         }
 
     }

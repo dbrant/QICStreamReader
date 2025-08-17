@@ -25,7 +25,7 @@ namespace headerview
                 }
 
                 f.Seek(0, SeekOrigin.Begin);
-                Vtbl1Record vtbl1 = new Vtbl1Record(f);
+                Vtbl1Record vtbl1 = new(f);
                 if (vtbl1.Valid)
                 {
                     while (vtbl1.Valid)
@@ -38,7 +38,7 @@ namespace headerview
                 }
 
                 f.Seek(0, SeekOrigin.Begin);
-                Vtbl2Record vtbl2 = new Vtbl2Record(f);
+                Vtbl2Record vtbl2 = new(f);
                 if (vtbl2.Valid)
                 {
                     Console.Write(vtbl2.ToString());
@@ -46,7 +46,7 @@ namespace headerview
                 }
 
                 f.Seek(0, SeekOrigin.Begin);
-                Qic113Record qicRec = new Qic113Record(f);
+                Qic113Record qicRec = new(f);
                 if (qicRec.Valid)
                 {
                     Console.Write(qicRec.ToString());
@@ -54,7 +54,7 @@ namespace headerview
                 }
 
                 f.Seek(0, SeekOrigin.Begin);
-                QicUtils.Mtf.TapeHeaderBlock mtfRec = new QicUtils.Mtf.TapeHeaderBlock(f);
+                QicUtils.Mtf.TapeHeaderBlock mtfRec = new(f);
                 if (mtfRec.Valid)
                 {
                     Console.Write(mtfRec.ToString());
