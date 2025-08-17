@@ -45,20 +45,15 @@ namespace txver45
     ///     - Perform the same repetition rule as written for Instruction 1 / Index >= 3.
     /// 
     /// </summary>
-    internal class TxDecompressor
+    internal class TxDecompressor(Stream stream)
     {
-        protected Stream stream;
+        protected Stream stream = stream;
 
         private int curByte;
         private int curBitMask = 0x100;
 
         private readonly List<byte>?[] history = new List<byte>?[0x10000];
         private int histPtr = 0;
-
-        public TxDecompressor(Stream stream)
-        {
-            this.stream = stream;
-        }
 
         public void DecompressTo(Stream outStream)
         {
@@ -146,7 +141,7 @@ namespace txver45
 
         private void pushValue(int i)
         {
-            pushValue(new List<byte> { (byte)i });
+            pushValue([(byte)i]);
         }
 
         private void pushValue(List<byte> list)

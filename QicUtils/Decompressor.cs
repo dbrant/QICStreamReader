@@ -9,23 +9,16 @@ namespace QicUtils
     /// 
     /// Copyright Dmitry Brant, 2020.
     /// </summary>
-    public class Decompressor
+    public class Decompressor(Stream stream, int historySize)
     {
-        protected Stream stream;
+        protected Stream stream = stream;
 
-        protected int historySize;
-        protected byte[] history;
+        protected int historySize = historySize;
+        protected byte[] history = new byte[historySize];
         protected int historyPtr = 0;
 
         private int curByte;
         private int curBitMask = 0;
-
-        public Decompressor(Stream stream, int historySize)
-        {
-            this.stream = stream;
-            this.historySize = historySize;
-            history = new byte[historySize];
-        }
 
         protected int NextBit()
         {
