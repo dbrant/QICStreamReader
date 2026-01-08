@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.IO;
 using System.Text;
 
@@ -168,6 +168,12 @@ namespace QicStreamV1
                     {
                         stream.Seek(header.Size, SeekOrigin.Current);
                     }
+                    continue;
+                }
+
+                if (header.Size > 0x100000000)
+                {
+                    Console.WriteLine("Warning: Skipping weirdly large file size...");
                     continue;
                 }
 
