@@ -1,4 +1,4 @@
-﻿using QicUtils;
+using QicUtils;
 using System;
 using System.Text;
 
@@ -63,6 +63,36 @@ using System.Text;
 /// 0x55      | 4    | file size (little-endian)
 /// 0x59/0xB9 | ...  | file contents (start directly after the header, which is either 0x59 or 0xB9 bytes)
 /// 
+/// Version 4c:
+/// 
+/// The header contains the following fields:
+/// offset    | size | description
+/// ----------|------|---------------------------------------------------
+/// 0         | 2    | magic (0x55AA)
+/// 2         | 2    | unknown
+/// 4         | 1    | file attributes
+/// 5         | 4    | DOS date/time
+/// 9         | 4    | file size (little-endian)
+/// D         | 1    | length of file name
+/// E         | var  | file name
+/// The file contents start immediately after the header.
+/// 
+/// Version 4d:
+/// 
+/// The header contains the following fields:
+/// offset    | size | description
+/// ----------|------|---------------------------------------------------
+/// 0         | 2    | magic (0x55AA)
+/// 2         | 2    | unknown
+/// 4         | 1    | file attributes
+/// 5         | 4    | DOS date/time
+/// 9         | 4    | file size (little-endian)
+/// D         | 1    | length of file name
+/// E         | var  | file name
+/// E+var     | 2    | length of extra data (observed as 0x5E)
+/// E+var+2   | var  | extra data
+/// The file contents start immediately after the header.
+/// 
 /// 
 /// Version 5:
 /// 
@@ -85,7 +115,7 @@ namespace mountainqic
 
         private enum FormatVersion
         {
-            Ver4, Ver4b, Ver5
+            Ver4, Ver4b, Ver4c, Ver4d, Ver5
         }
 
         static void Main(string[] args)
@@ -118,6 +148,10 @@ namespace mountainqic
                 version = FormatVersion.Ver4;
                 if (bytes[0xE0] > 0)
                     version = FormatVersion.Ver4b;
+
+
+                // TODO: correctly distinguish between 4, 4b, 4c, and 4d
+                version = FormatVersion.Ver4c;
             }
             else if (bytes[0] == 0x55 && bytes[1] == 0xAA && bytes[3] == 0x5)
             {
@@ -164,7 +198,14 @@ namespace mountainqic
                 if (bytes[0] == 0x5C)
                 {
                     // new catalog directory
-                    currentCatalogDir = Utils.GetNullTerminatedString(Encoding.Latin1.GetString(bytes, 0, 0x20)).Trim();
+                    currentCatalogDir = "";
+                    for (int i = 0; i < 0x10; i++)
+                    {
+                        currentCatalogDir += Utils.GetNullTerminatedString(Encoding.Latin1.GetString(bytes, 0, 0x20)).Trim();
+                        if (bytes[0x1F] == 0)
+                            break;
+                        stream.Read(bytes, 0, 0x20);
+                    }
                 }
                 else
                 {
@@ -206,7 +247,7 @@ namespace mountainqic
                 else if (catalogEntry.Size != header.Size)
                 {
                     Console.WriteLine("Warning: file size mismatch for " + header.Name + ": catalog says " + catalogEntry.Size + ", but header says " + header.Size);
-                    if (header.Size == 0 && catalogEntry.Size > 0)
+                    //if (header.Size == 0 && catalogEntry.Size > 0)
                         header.Size = catalogEntry.Size;
                 }
 
@@ -356,6 +397,34 @@ namespace mountainqic
                         Name = Name[1..];
 
                     Size = Utils.LittleEndian(BitConverter.ToUInt32(bytes, 0x55));
+                }
+                else if (version == FormatVersion.Ver4c)
+                {
+                    stream.Read(bytes, 0, 0xE);
+
+                    Size = Utils.LittleEndian(BitConverter.ToUInt32(bytes, 0x9));
+                    var nameLen = bytes[0xD];
+                    stream.Read(bytes, 0, nameLen);
+
+                    Name = Utils.GetNullTerminatedString(Encoding.Latin1.GetString(bytes, 0, nameLen));
+                    if (Name.StartsWith('\\'))
+                        Name = Name[1..];
+                }
+                else if (version == FormatVersion.Ver4d)
+                {
+                    stream.Read(bytes, 0, 0xE);
+
+                    Size = Utils.LittleEndian(BitConverter.ToUInt32(bytes, 0x9));
+                    var nameLen = bytes[0xD];
+                    stream.Read(bytes, 0, nameLen);
+
+                    Name = Utils.GetNullTerminatedString(Encoding.Latin1.GetString(bytes, 0, nameLen));
+                    if (Name.StartsWith('\\'))
+                        Name = Name[1..];
+
+                    stream.Read(bytes, 0, 2);
+                    var extraDataLen = Utils.LittleEndian(BitConverter.ToUInt16(bytes, 0));
+                    stream.Seek(extraDataLen, SeekOrigin.Current);
                 }
                 Valid = true;
             }
