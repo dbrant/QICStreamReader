@@ -229,6 +229,9 @@ namespace qicstream95a
 
                 stream.Read(bytes, 0, 2);
                 nameLength = BitConverter.ToUInt16(bytes, 0);
+                if (nameLength < 0 || nameLength > 0x20)
+                    return;
+
                 if (nameLength > 0)
                 {
                     stream.Read(bytes, 0, nameLength);
@@ -241,6 +244,8 @@ namespace qicstream95a
 
 
                 int dirLen = (int)(dataStartPos - stream.Position);
+                if (dirLen < 0 || dirLen > bytes.Length)
+                    return;
 
                 stream.Read(bytes, 0, dirLen);
 
