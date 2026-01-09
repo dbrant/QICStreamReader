@@ -16,6 +16,8 @@ the code quality throughout these scraps. Thanks!
 
 ## License
 
+(applies to all files except `tapebackup_magic`, which is public domain.)
+
 Copyright 2019+ Dmitry Brant
 
 Licensed under the Apache License, Version 2.0 (the "License");
