@@ -9,7 +9,7 @@
 
 0	lelong		0xaa55aa55
 >4	lelong		0x00000002			Colorado tape backup
->146	string/88	x				\b, Volume label: %s
+>>146	string/88	x				\b, Volume label: %s
 
 56	string		\<\<NoVaStOr\>\>	NovaStor tape backup
 
